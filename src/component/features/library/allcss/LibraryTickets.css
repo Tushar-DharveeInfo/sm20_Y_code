@@ -1,0 +1,27 @@
+.nz-library-tickets-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.nz-library-tickets-content {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.nz-library-tickets-placeholder {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    background-color: var(--bgexplorer);
+    overflow: auto;
+}
+
+.nz-library-tickets-right-pane {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}

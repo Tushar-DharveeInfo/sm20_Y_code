@@ -1,0 +1,171 @@
+.nz-appqa-notify-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    color-scheme: light;
+}
+
+.nz-appqa-notify-container .p-splitter-horizontal {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.nz-appqa-notify-container .nz-notes-message-box-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    margin: 0px;
+}
+
+.nz-appqa-notify-container .nz-notes-message-box-container .nz-notes-textarea {
+    flex-grow: 1;
+}
+
+.nz-appqa-notify-container .nz-notes-message-box-container .nz-notes-action-strip {
+    height: var(--submenu_height);
+}
+
+.nz-appqa-notify-container .nz-notes-message-box-container .nz-notes-textarea .nz-fc-textarea-control {
+    margin: 0px;
+    padding: 0px;
+    height: 100%;
+}
+
+.nz-appqa-notify-container .nz-notes-message-box-container .nz-notes-textarea textarea {
+    height: 100% !important;
+    padding: var(--spacing-1);
+}
+
+.nz-appqa-notify-container .nz-checked-list-panel-container .nz-list-item-container {
+    height: calc(100% - var(--node_height));
+}
+
+.nz-appqa-notify-container .nz-appqa-notify-left-pane {
+    padding: var(--spacing-1);
+    gap: var(--spacing-1);
+}
+
+.nz-appqa-notify-container .nz-appqa-notify-right-pane {
+    padding: var(--spacing-1);
+}
+
+.nz-appqa-notify-container .nz-severity-combobox-container .nz-form-control-labeled {
+    padding: 0;
+}
+
+.nz-message-user-card-list {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+}
+
+.nz-message-user-card-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--card-gap);
+    padding: var(--card-padding-0);
+    padding-left: 0%
+}
+
+.nz-message-user-card-status {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    padding: var(--spacing-1);
+}
+
+.nz-message-user-card-main {
+    height: auto;
+    min-height: 50px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-start;
+    padding: var(--card-padding-1);
+}
+
+.nz-message-user-card-main .nz-dynamic-card-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.nz-message-user-card-main .nz-dynamic-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    flex-shrink: 0;
+}
+
+.nz-message-user-card-main .nz-dynamic-card-main-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+}
+
+.nz-message-user-card-content {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: var(--spacing-1);
+}
+
+.nz-message-user-card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--spacing-2);
+    width: 100%;
+}
+
+.nz-message-user-card-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-1);
+    width: 100%;
+    text-align: left;
+}
+
+.nz-message-user-card-one-line-details {
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+    align-items: center;
+    width: 100%;
+}
+
+.nz-message-user-card-label-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--spacing-2);
+    height: var(--node_height);
+}
+
+/* Soften libavnotes yellow toolbar inside Notify only */
+.nz-appqa-notify-container .ke-control-panel-overlay,
+.nz-appqa-notify-container .ke-control-panel-section {
+    background-color: var(--bgfeaturepane1, #e8e8e8) !important;
+}
+
+.nz-appqa-notify-container .libavnotes-button,
+.nz-appqa-notify-container .ke-control-panel-btn {
+    background-color: #fff !important;
+    color: #333 !important;
+}

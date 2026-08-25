@@ -1,0 +1,277 @@
+.nz-feature-report .nz-layout-without-tree>.nz-sub-header,
+.nz-feature-report .nz-layout-without-tree>.nz-sub-header #nz-actionimages,
+.nz-feature-report .nz-layout-without-tree>.nz-sub-header #nz-optionalcomponent {
+    background-color: var(--subheaderbg) !important;
+}
+
+.nz-feature-report .nz-layout-without-tree .nz-sub-header .nz-popupqa-container .nz-image-strip-data {
+    border-color: var(--bg-color-darktext);
+}
+
+.nz-feature-report .nz-layout-without-tree .nz-sub-header .nz-popupqa-container .nz-image-strip-data:hover {
+    border-color: red;
+}
+
+.nz-appqa-report-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    background-color: var(--bgexplorer);
+    overflow: hidden;
+    /* reserve space for scroll bar */
+}
+
+.nz-appqa-report-container .nz-appqa-report-content {
+    flex-grow: 1;
+    overflow: hidden;
+    overflow-y: auto;
+    visibility: visible;
+    display: flex;
+    flex-direction: column;
+    gap: var(--card-gap);
+    padding: var(--spacing-1)
+}
+
+.nz-appqa-report-container .nz-appqa-report-content>* {
+    visibility: visible;
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.nz-appqa-report-container:hover {
+    overflow-y: auto;
+}
+
+/* Optional: scrollbar styling */
+.nz-appqa-report-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.nz-appqa-report-container::-webkit-scrollbar-thumb {
+    background-color: #bbb;
+    border-radius: 4px;
+}
+
+.nz-appqa-report-container .nz-report-card {
+    border: 1px solid var(--borderandscrollbar);
+    border-left: 3px solid var(--borderandscrollbar);
+    border-radius: 8px;
+    background-color: var(--bgfeaturepane1);
+    color: var(--selection-text);
+    border-color: var(--textprimary);
+    backdrop-filter: brightness(1.02);
+    padding: var(--card-padding-1);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    height: auto;
+    min-height: 50px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+}
+
+.nz-appqa-report-container .nz-report-card .nz-dynamic-card-content {
+    height: auto;
+    align-items: flex-start;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+}
+
+.nz-appqa-report-container .nz-report-card .nz-dynamic-card-icon {
+    flex-shrink: 0;
+    align-self: flex-start;
+    justify-content: center;
+    height: 100%;
+}
+
+.nz-appqa-report-container .nz-report-card .nz-dynamic-card-main-content {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: visible;
+    height: 100%;
+}
+
+.nz-appqa-report-container .nz-report-card .nz-cardlayout-content {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    justify-content: center;
+    position: relative;
+}
+
+.nz-appqa-report-container .nz-report-card .nz-cardlayout-response-details {
+    padding: var(--card-padding-0) 0;
+}
+
+.nz-appqa-report-container .nz-report-card .nz-cardlayout-field-item .nz-label-container {
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.nz-appqa-report-container .nz-report-card .nz-cardlayout-form {
+    display: flex;
+    justify-content: flex-end;
+    position: absolute;
+    width: 100%;
+}
+
+.nz-appqa-report-container .nz-report-card.nz-clickable-report:hover {
+    background-color:
+        color-mix(in srgb, var(--borderandscrollbar) 50%, transparent);
+    border-color: var(--textprimary);
+    box-shadow: 0 0 10px var(--bg-color-sidebar-title);
+    backdrop-filter: brightness(1.02);
+}
+
+.nz-appqa-report-container .nz-card-content {
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    height: 100%;
+    gap: var(--spacing-2);
+}
+
+.nz-appqa-report-container .nz-card-content .MuiCardContent-root {
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex: 1;
+    flex-direction: row;
+    height: 100%;
+}
+
+.nz-appqa-report-container .nz-card-content .nz-card-label-content {
+    flex-grow: 1;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--textprimary);
+    display: flex;
+    gap: 6px;
+    flex-direction: column;
+}
+
+.nz-appqa-report-container .nz-report-icon-wrapper {
+    width: 24px;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.nz-appqa-report-container .nz-excel-icon-wrapper {
+    width: 40px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    /* display: none; */
+    /* animation: pulse 2s ease-in-out infinite; */
+}
+
+.nz-card-content:hover .nz-excel-icon-wrapper {
+    display: block;
+}
+
+.nz-card-content .nz-scroll-container:not(.nz-scroll-container-vertical) .nz-image-strip-data .nz-selected::after {
+    height: 0px !important;
+}
+
+.nz-card-content .nz-image-strip-container .nz-selected {
+    background-color: yellow !important;
+}
+
+.nz-dialog-container .MuiDialogContent-root {
+    padding: var(--spacing-2);
+    margin: var(--spacing-2);
+}
+
+.nz-dialog-container .MuiDialogActions-root {
+    padding: 0px;
+}
+
+.nz-dialog-container .MuiDialogActions-root button {
+    background-color: var(--bgfeaturepane1);
+}
+
+.nz-template-report {
+    background-color: yellow !important;
+}
+
+/* Pulse animation */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 0.85;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Responsive handling */
+@media (max-width: 640px) {
+    .nz-report-card {
+        padding: var(--spacing-3);
+    }
+
+    .nz-appqa-report-container {
+        padding: var(--spacing-3);
+    }
+}
+
+.nz-dialog-container.MuiModal-root {
+    z-index: 9999 !important;
+}
+
+.nz-generatePdf-dialog .MuiPaper-root {
+    width: 50vw;
+    height: 50vh;
+    max-width: 50vw;
+    max-height: 50vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.nz-generatePdf-dialog .MuiDialogContent-root {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.nz-generatePdf-dialog .MuiDialogContent-root.nz-generatePdf-dialog-loading {
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.nz-generatePdf-dialog .nz-generatePdf-status {
+    margin: var(--spacing-1);
+}
+
+.nz-generatePdf-dialog .nz-generatePdf-container,
+.nz-generatePdf-dialog .nz-wh-100 {
+    height: 100%;
+}
+
+.nz-appqa-report-container .nz-sub-header {
+    justify-content: start;
+}
+
+.nz-selected-report {
+    background-color: var(--selection) !important;
+    color: var(--selection-text) !important;
+}

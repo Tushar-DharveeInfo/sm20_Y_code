@@ -1,0 +1,233 @@
+.nz-filter-form-container {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.nz-filter-form-container .nz-filter-form-content {
+    flex-grow: 1;
+    overflow: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2);
+}
+
+.nz-filter-form-container .nz-form-container {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.nz-filter-form-container .nz-filter-tree-container {
+    flex-grow: 1;
+    overflow: visible;
+}
+
+.nz-filter-form-container .nz-filter-tree-container div {
+    min-height: min-content !important;
+    overflow: visible;
+    position: relative !important;
+}
+
+.nz-filter-form-container .nz-form-container .nz-form-control-labeled.row-layout {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    /* Adds spacing between children */
+}
+
+.nz-filter-form-container .nz-form-control-labeled > .nz-label-container {
+    flex: 1 0;
+    /* Takes up one portion of the available space */
+    font-size: var(--default_font_size);
+    font-style: normal;
+    font-weight: normal;
+    color: inherit;
+    text-align: left;
+    /* Align the text to the left */
+}
+
+.nz-filter-form-container .nz-form-control-labeled > div:last-child {
+    flex: 2 0;
+    /* Takes up two portions of the available space */
+    display: flex;
+    align-items: center;
+}
+
+.nz-filter-form-container .nz-form-control-labeled > div:last-child > div {
+    width: 100%;
+}
+
+.nz-filter-form-container .nz-inline-controls {
+    display: flex;
+    align-items: center;
+    /* Ensures vertical alignment */
+    gap: 10px;
+    /* Adds space between the elements */
+    width: 100%;
+    /* Full width of the container */
+    flex-wrap: wrap;
+}
+
+.nz-filter-form-container .nz-inline-controls .nz-form-control-labeled.row-layout {
+    flex: 1;
+    /* This takes up all remaining space */
+    display: flex;
+    flex-direction: row;
+    /* Stacks its children vertically */
+    gap: 10px !important;
+}
+.nz-filter-form-container .nz-inline-controls .nz-form-control-labeled.row-layout .nz-label-container {
+    max-width: 100px;
+}
+
+.nz-filter-form-container .nz-inline-controls .nz-fc-ai-container {
+    flex: 0;
+    /* Takes only as much space as required */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.nz-filter-form-container .nz-filter-form-content > .nz-label-container {
+    height: var(--node_height);
+    min-height: var(--node_height);
+    padding: 0px var(--spacing-1);
+    display: flex;
+    align-items: center;
+}
+
+.nz-filter-form-container .nz-form-controls {
+    overflow-y: visible !important;
+}
+
+.nz-filter-form-container .rc-tree-list-holder-inner {
+    overflow-y: visible;
+}
+
+.nz-filter-form-container.nz-div-row-layout .nz-inline-controls .nz-fc-ai-container {
+    margin-top: 0px !important;
+}
+
+.nz-filter-form-container .nz-inline-controls .nz-fc-ai-container {
+    margin-top: 18px !important;
+}
+
+.nz-filter-form-container.nz-div-row-layout
+    .nz-inline-controls
+    + .nz-filter-form-container.nz-div-row-layout
+    .nz-inline-controls
+    .nz-fc-ai-container {
+    flex-wrap: nowrap !important;
+}
+
+.nz-filter-form-container .nz-inline-controls > div:first-child {
+    width: unset !important;
+    flex-grow: 1;
+}
+
+.nz-filter-form-container .nz-hide-filter-form {
+    display: none;
+}
+
+.nz-filter-form-container .nz-filter-form-content .row-layout .nz-label-container {
+    max-width: 100px;
+    width: 100%;
+}
+
+.nz-layout-container .nz-filter-form-container .nz-filter-form-content .row-layout .nz-label-container {
+    max-width: 70px !important;
+}
+
+.nz-filter-form-container .nz-fc-combobox-container {
+    padding: 0px;
+}
+
+.nz-filter-form-container .nz-filter-form-content .nz-inline-controls {
+    gap: 5px;
+}
+
+.nz-filter-form-container .nz-filter-form-content .nz-form-controls {
+    padding: 0px 5px;
+    box-sizing: border-box;
+}
+
+/* Section container */
+.nz-filter-form-container .nz-filter-form-one-only .nz-form-section {
+    padding: var(--spacing-2);
+    border: 1px solid var(--borderandscrollbar);
+    border-radius: var(--spacing-1);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+/* Section title like BASIC INFORMATION */
+.nz-filter-form-container .nz-filter-form-one-only .nz-form-section-header {
+    font-size: var(--default_font_size);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--textprimary);
+    padding: var(--spacing-1);
+    border-bottom: 2px solid var(--borderandscrollbar);
+}
+
+/* Content spacing */
+.nz-filter-form-container .nz-filter-form-one-only .nz-form-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.nz-filter-form-container .nz-filter-data-center-site {
+    padding: var(--spacing-2);
+    border: 1px solid var(--borderandscrollbar);
+    border-radius: var(--spacing-1);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+/* Section title like BASIC INFORMATION */
+.nz-filter-form-container .nz-filter-data-center-site .nz-form-section-header {
+    font-size: var(--default_font_size);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--textprimary);
+    padding: var(--spacing-1);
+    border-bottom: 2px solid var(--borderandscrollbar);
+}
+
+/* Content spacing */
+.nz-filter-form-container .nz-filter-data-center-site .nz-form-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    position: relative;
+}
+
+.nz-filter-form-container .nz-filter-tree-loading {
+    display: flex;
+    align-items: center;
+    min-height: var(--node_height);
+    padding: var(--spacing-1);
+}
+
+.nz-filter-form-container .nz-filter-tree-loading-hidden {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+}
+
+.nz-filter-form-container .nz-filter-form-one-only .nz-form-section-body .nz-form-control-labeled {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}

@@ -1,0 +1,38 @@
+{
+  "success": true,
+  "message": "Environment variables retrieved (prefix: 'REPORTSCHEDULER_')",
+  "data": [
+    {
+      "key": "REPORTSCHEDULER_ENABLED",
+      "value": "false"
+    },
+    {
+      "key": "REPORTSCHEDULER_ENDPOINT_NAME",
+      "value": "/expapi/pdf/emailtestpdf"
+    },
+    {
+      "key": "REPORTSCHEDULER_INTERVAL_MINUTES",
+      "value": "5"
+    },
+    {
+      "key": "REPORTSCHEDULER_INTERVAL_START_HOUR",
+      "value": "0"
+    },
+    {
+      "key": "REPORTSCHEDULER_LOG_ENDPOINT_NAME",
+      "value": "[missing]"
+    },
+    {
+      "key": "REPORTSCHEDULER_MIN_INTERVAL_MINUTES",
+      "value": "1"
+    },
+    {
+      "key": "REPORTSCHEDULER_MODE",
+      "value": "TIME_BASED"
+    },
+    {
+      "key": "REPORTSCHEDULER_TIME_TO_RUN",
+      "value": "04:30"
+    }
+  ]
+}
