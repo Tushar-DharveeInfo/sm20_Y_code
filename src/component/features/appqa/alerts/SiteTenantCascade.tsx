@@ -11,8 +11,8 @@ import {
     ITenantSiteData,
 } from '../../../shared/allinterface/sidebar/ISiteTenantUserCascade';
 import { ISession } from '../../../shared/context/allinterface/ISession';
-import { IAppqaAlertSiteTenantCascade } from './IAppqaAlerts';
-import forensicLogData from '../../../../sampledata/sidebar/ForensicLogSampleData.json';
+import { IAppqaAlertSiteTenantCascade } from './IAlerts';
+import forensicLogData from '../../../../smsampledata/sidebar/ForensicLogSampleData.json';
 const {
     sampleForensicLogSites,
     sampleForensicLogTenantUsers,

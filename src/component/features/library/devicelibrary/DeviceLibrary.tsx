@@ -2,7 +2,8 @@
 import { LibraryEnums } from '../../../constants/Feature'
 import { DeviceModel } from '../../../shared/devicemodel/DeviceModel'
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
-import '../allcss/DeviceLibrary.css'
+import './DeviceLibrary.css'
+import { Label } from '../../../shared/basic/label/Label'
 
 interface IDeviceLibrary {
     uniqueName?: string
@@ -34,6 +35,15 @@ const DeviceLibrary = (props: IDeviceLibrary = {}) => {
 
     return (
         <div className="nz-device-library nz-wh-100 nz-d-flex-column" id={uniqueName}>
+            <div
+                className="nz-sub-header"
+            >
+                <Label
+                    uniqueName={`${uniqueName}-header-label`}
+                    label={props.headerText || "Device Library"}
+                    fontWeight="bold"
+                />
+            </div>
             <DeviceModel
                 uniqueName={`${uniqueName}-device-model`}
                 featureId={featureId}

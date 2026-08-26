@@ -12,9 +12,9 @@ import { GlobalStyles } from './features/appqa/theme/GlobalStyles';
 import { IDeploymentEnv, IDeploymentEnvResponse } from './shared/allinterface/IApiResponse';
 import { AppContainer } from './appcontainer/AppContainer';
 import { FnSetSessionStorageItem } from './appcontainer/allcommon/FnSetSessionStorageItem';
-import deploymentEnvSampleData from '../sampledata/auth/DeploymentEnvSampleData.json';
-import authSampleData from '../sampledata/auth/AuthorizationSampleData.json';
-import sampleUserLicenses from '../sampledata/features/MySubscriptionsSampleData.json';
+import deploymentEnvSampleData from '../smsampledata/auth/DeploymentEnvSampleData.json';
+import authSampleData from '../smsampledata/auth/AuthorizationSampleData.json';
+import sampleUserLicenses from '../smsampledata/features/MySubscriptionsSampleData.json';
 
 const { sampleDeploymentEnvResponse } = deploymentEnvSampleData;
 const { sampleSessionId, sampleSessionVariables } = authSampleData as {

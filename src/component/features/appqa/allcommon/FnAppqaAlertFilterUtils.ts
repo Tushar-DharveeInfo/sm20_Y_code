@@ -11,7 +11,7 @@ import {
 import { DisplayControlEnums } from '../../../shared/alldefaultprops/basic/DefaultPropsFormContainer';
 import { IControl } from '../../../shared/allinterface/settingsform/ISettingsLibForm';
 import { ISession } from '../../../shared/context/allinterface/ISession';
-import { IAppqaAlertFilterValues, IAppqaAlertRawRecord } from '../appqaalerts/IAppqaAlerts';
+import { IAppqaAlertFilterValues, IAppqaAlertRawRecord } from '../alerts/IAlerts';
 import { FnGetAppDateFormat } from '../../../shared/allcommon/basic/FnGetAppDateFormat';
 import { FnConvertDateToUtcOrUtcToDate } from '../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate';
 import { filterEnabledUsers } from '../../../shared/allcommon/basic/FnIsAuthorizedUser';

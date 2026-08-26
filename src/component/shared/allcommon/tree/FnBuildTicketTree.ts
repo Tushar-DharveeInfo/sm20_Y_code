@@ -77,7 +77,7 @@ export function filterTickets(
 }
 
 /*Library ticket list modes (Received = not Accepted, Approved = Accepted only). */
-export type ILibraryTicketMode = 'received' | 'accepted' | 'all'
+export type ILibraryTicketMode = 'received' | 'accepted' | 'all' | 'mcs'
 
 export interface ILibraryBusinessScope {
     /*Root / all businesses → no scope. */
@@ -93,7 +93,7 @@ export function filterTicketsByLibraryMode(
     tickets: ITicket[],
     mode?: ILibraryTicketMode
 ): ITicket[] {
-    if (!mode || mode === 'all') return [...tickets]
+    if (!mode || mode === 'all' || mode === 'mcs') return [...tickets]
     if (mode === 'accepted') {
         return tickets.filter((ticket) => ticket.Status === 'Accepted')
     }

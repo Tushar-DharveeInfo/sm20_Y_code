@@ -19,7 +19,7 @@ interface IAppqaContainer {
 
 const AppqaSignout = lazy(() => import('../../features/appqa/signout/Signout.tsx'));
 const AppqaLog = lazy(() => import('../../features/appqa/log/Log.tsx'));
-const AppqaAlerts = lazy(() => import('../../features/appqa/appqaalerts/AppqaAlerts.tsx'));
+const AppqaAlerts = lazy(() => import('../../features/appqa/alerts/Alerts.tsx'));
 const AppqaNotify = lazy(() => import('../../features/appqa/notify/Notify.tsx'));
 const AppqaReport = lazy(() => import('../../features/appqa/report/Report.tsx'));
 const AppqaLaunch = lazy(() => import('../../features/appqa/launch/Launch.tsx'));

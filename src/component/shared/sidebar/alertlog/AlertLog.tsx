@@ -5,7 +5,7 @@ import { Alertlog, IAlertLogRecord } from "@n20a/libalerts";
 import '@n20a/libalerts/style.css'
 import { useSessionContext } from "../../context/hooks/SessionHooks";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
-import sampleAlertLogs from "../../../../sampledata/sidebar/AlertlogSampleData.json";
+import sampleAlertLogs from "../../../../smsampledata/sidebar/AlertlogSampleData.json";
 import { Label } from "../../basic/label/Label";
 
 interface IAlertLog {

@@ -17,7 +17,7 @@ import { ICardLayoutField } from "../../../shared/cardlayout/CardLayout";
 import { Image } from "../../../shared/basic/image/Image";
 import { FnIsTruthyFlag } from "../../../shared/allcommon/FnIsTruthyFlag";
 import { FnGetAddressDisplay, FnGetDisplayValue } from "../allcommon/FnGetAddressDisplay";
-import notifySampleData from "../../../../sampledata/appqa/NotifySampleData.json";
+import notifySampleData from "../../../../smsampledata/appqa/NotifySampleData.json";
 
 const {
     sampleNotifyAlertProfiles,

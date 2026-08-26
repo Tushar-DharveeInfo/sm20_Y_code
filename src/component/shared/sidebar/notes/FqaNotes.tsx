@@ -26,7 +26,7 @@ import { Audio } from './Audio'
 import { Attach24x24, Delete24x24, Download24x24, Info24x24, Mic24x24, Video24x24 } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { ISession } from '../../context/allinterface/ISession';
-import notesSampleData from '../../../../sampledata/sidebar/NotesSampleData.json';
+import notesSampleData from '../../../../smsampledata/sidebar/NotesSampleData.json';
 
 interface IFqaNotes {
 	uniqueName: string; // A unique identifier for notes

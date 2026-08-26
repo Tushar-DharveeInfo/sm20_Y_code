@@ -3,6 +3,7 @@ import { IAlertProfileItem, IApItem, IEmItem, IFeatureForHelp, IFeatureItem, IMa
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { IStatusBar } from "../allinterface/IStatusBar";
 import { AuthSession } from "@n20a/libauth";
+import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 
 
 let featuresData: IFeatureItem[] | null = null;
@@ -24,8 +25,10 @@ function MainAppProvider({ children }: IAppContextWrapper) {
     const [deploymentVars, setDeploymentVars] = useState<Record<string, any>[]>([]);
     const [allFeatureRecords, setAllFeatureRecords] = useState<IFeatureItem[]>([]);
     const [selectedFeatureForHelp, setSelectedFeatureForHelp] = useState<IFeatureForHelp>()
+    const [userProfileRecord, setUserProfileRecord] = useState<IUserProfileRecord>()
     const [authSession, setAuthSession] = useState<AuthSession>()
     const [userInfoAndSubscription, setUserInfoAndSubscription] = useState<IUserInfoAndSubscription>()
+    const [businessSelectedNode, setBusinessSelectedNode] = useState<ITreeNode>()
 
     useEffect(() => {
         try {
@@ -59,7 +62,9 @@ function MainAppProvider({ children }: IAppContextWrapper) {
         }
     }, [isInternetAvailable, allFeatureRecords]);
 
-
+    const fetchApRecords = useCallback(async (_statusBarContext?: IStatusBar) => {
+        // SAMPLE DATA: AP records API not called.
+    }, []);
 
     const fetchAlertProfileRecords = useCallback((_statusBarContext: IStatusBar) => {
         // SAMPLE DATA: Alert profile API not called.
@@ -83,6 +88,8 @@ function MainAppProvider({ children }: IAppContextWrapper) {
             setRefTableRecords,
             isInternetAvailable,
             setIsInternetAvailable,
+            userProfileRecord,
+            setUserProfileRecord,
             authSession,
             setAuthSession,
             userInfoAndSubscription,
@@ -91,6 +98,9 @@ function MainAppProvider({ children }: IAppContextWrapper) {
             setDeploymentVars,
             selectedFeatureForHelp,
             setSelectedFeatureForHelp,
+            businessSelectedNode,
+            setBusinessSelectedNode,
+            fetchApRecords,
             fetchAlertProfileRecords,
         }),
         [
@@ -104,8 +114,11 @@ function MainAppProvider({ children }: IAppContextWrapper) {
             deploymentVars,
             allFeatureRecords,
             selectedFeatureForHelp,
+            userProfileRecord,
             authSession,
             userInfoAndSubscription,
+            businessSelectedNode,
+            fetchApRecords,
             fetchAlertProfileRecords,
         ]
     );

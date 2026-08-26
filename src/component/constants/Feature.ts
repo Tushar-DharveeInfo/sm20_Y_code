@@ -28,7 +28,7 @@ enum AppQA {
 }
 
 // Home feature ids — match sampledata/auth/smFeatures.json MenuID 100
-enum FeatureEnums {
+enum HomeEnums {
     Home = "100",
     HomeDashboard = "102",
 }
@@ -41,7 +41,7 @@ enum ClientEnums {
     VisioStencils = "212",
     SSIAndOtherServices = "216",
     Reseller = "218",
-    Msc = '220'
+    Mcs = '220'
 }
 
 
@@ -91,7 +91,7 @@ enum SidebarEnum {
 
 export {
     FeatureMenuRange, AppQA, AppQARange
-    , FeatureEnums
+    , HomeEnums
     , ClientEnums
     , ServicesEnums
     , LibraryEnums

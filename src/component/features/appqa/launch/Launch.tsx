@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import authSampleData from '../../../../sampledata/auth/AuthorizationSampleData.json';
+import authSampleData from '../../../../smsampledata/auth/AuthorizationSampleData.json';
 const { sampleSessionId } = authSampleData;
 import { getSmTabLabels } from '../signout/Signout';
 

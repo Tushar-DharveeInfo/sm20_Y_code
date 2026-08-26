@@ -19,7 +19,7 @@ import { FnGetSessionStorageItem } from '../allcommon/basic/FnGetSessionStorageI
 import { FnHandleAPIResponse } from '../allcommon/basic/FnHandleAPIResponse';
 import { useSessionContext } from '../context/hooks/SessionHooks';
 import { useStatusBarContext } from '../context/hooks/StatusBarHooks';
-import LogData from '../../../sampledata/sidebar/GetForensicLog.json';
+import LogData from '../../../smsampledata/sidebar/GetForensicLog.json';
 
 const sampleForensicLogApiResponse = {
     logJson: JSON.stringify(LogData),

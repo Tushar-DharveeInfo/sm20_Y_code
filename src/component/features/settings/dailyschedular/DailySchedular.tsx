@@ -2,8 +2,10 @@
 import { useEffect, useMemo } from 'react';
 import { ReportSchedulerForm } from '@n20a/libform';
 import '@n20a/libform/style.css';
-import sampleDailySchedularEnv from '../../../../sampledata/features/dailySchedular.json';
+import sampleDailySchedularEnv from '../../../../smsampledata/features/dailySchedular.json';
 import { Label } from '../../../shared/basic/label/Label';
+import { SettingsEnums } from '../../../constants/Feature';
+
 interface IDailySchedular {
     uniqueName: string;
     featureId?: string;
@@ -36,7 +38,7 @@ const buildSchedulerConfigProps = (response: unknown): Record<string, string> | 
 };
 
 const DailySchedular = (dailySchedularProps: IDailySchedular) => {
-    const { uniqueName, headerText } = dailySchedularProps;
+    const { uniqueName, headerText, featureId = SettingsEnums.DailySchedular } = dailySchedularProps;
     const apiRootUrl = '/expapi';
 
     // SAMPLE DATA: replaces expapi ServerEnv (REPORTSCHEDULER_*) while APIs are disabled.

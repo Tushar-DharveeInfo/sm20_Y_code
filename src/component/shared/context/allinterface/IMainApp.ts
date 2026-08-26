@@ -1,6 +1,7 @@
 
 import { IStatusBar } from "./IStatusBar";
 import { AuthSession } from "@n20a/libauth";
+import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 
 
 interface IFeatureItem {
@@ -201,11 +202,22 @@ interface IMainApp {
         React.SetStateAction<boolean>
     >;
 
+    businessSelectedNode?: ITreeNode;
+    setBusinessSelectedNode: React.Dispatch<
+        React.SetStateAction<ITreeNode | undefined>
+    >;
+
+    userProfileRecord?: IUserProfileRecord;
+    setUserProfileRecord?: React.Dispatch<
+        React.SetStateAction<IUserProfileRecord | undefined>
+    >;
+
     selectedFeatureForHelp?: IFeatureForHelp;
     setSelectedFeatureForHelp: React.Dispatch<
         React.SetStateAction<IFeatureForHelp | undefined>
     >;
 
+    fetchApRecords?: (statusBarContext: IStatusBar) => Promise<void>;
     fetchAlertProfileRecords: (statusBarContext: IStatusBar) => void;
 }
 

@@ -5,7 +5,7 @@ import type { IBusiness } from "../../allinterface/tree/IBusiness";
 import type { IContact } from "../../allinterface/tree/IContact";
 import { sampleBusinesses } from "../../../features/allcommon/FnBusinessesSampleData";
 import { sampleContacts } from "../../../features/allcommon/FnContactsSampleData";
-import getTableVsPropertySample from "../../../../sampledata/sidebar/GetTableVsPropertySample.json";
+import getTableVsPropertySample from "../../../../smsampledata/sidebar/GetTableVsPropertySample.json";
 
 /*
 * Entity tables returned by EM.GetTableVsProperty for sample node.

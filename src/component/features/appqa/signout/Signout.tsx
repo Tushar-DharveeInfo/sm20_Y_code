@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getRuntimeConfig, signOut } from "@n20a/libauth";
 import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer.tsx';
 import { IAppqaSignout } from '../allinterface/IAppqaSignout.ts';
-import sampleOpenSessions from '../../../../sampledata/appqa/SignoutSampleData.json';
+import sampleOpenSessions from '../../../../smsampledata/appqa/SignoutSampleData.json';
 
 const closeSampleSession = async (_sessionId: string): Promise<void> => {
   await Promise.resolve();

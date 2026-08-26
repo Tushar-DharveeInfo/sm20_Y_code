@@ -1,6 +1,6 @@
 
 import { IStatusBar } from "../../context/allinterface/IStatusBar";
-import propertySampleData from "../../../../sampledata/sidebar/PropertySampleData.json";
+import propertySampleData from "../../../../smsampledata/sidebar/PropertySampleData.json";
 
 const { samplePropertyKebabMenuData } = propertySampleData;
 

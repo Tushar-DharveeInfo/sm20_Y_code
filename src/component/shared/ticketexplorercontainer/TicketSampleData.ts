@@ -1,7 +1,7 @@
 /*
  * SAMPLE DATA: tickets from sampletickets.json for ticket explorer.
  */
-import sampleTicketsJson from '../../../sampledata/ticket/sampletickets.json'
+import sampleTicketsJson from '../../../smsampledata/ticket/sampletickets.json'
 import type { ITicket, TicketId, TicketStatus } from '../allinterface/tree/ITicket'
 type ITicketJson = {
     Business: string

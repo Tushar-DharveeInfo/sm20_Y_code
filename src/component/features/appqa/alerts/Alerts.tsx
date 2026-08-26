@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { handleNestedZoneContainerKeyDown } from "../../../shared/allcommon/basic/FnHandleContainerKeyDown";
-import { ICascadeFilterContext } from "../../shared/allinterface/searchfilter/ISearchControlWithFilter";
+import { ICascadeFilterContext } from "../../../shared/searchfilter/searchcontrolwithfilter/ISearchControlWithFilter";
 import { Alertlog, IAlertLogRecord } from "@n20a/libalerts";
 import "@n20a/libalerts/style.css";
 import "./AppqaAlerts.css";
 import { useSessionContext } from "../../../shared/context/hooks/SessionHooks";
-import { IAppqaAlerts } from "./IAppqaAlerts";
+import { IAppqaAlerts } from "./IAlerts";
 import { Label } from "../../../shared/basic/label/Label";
 import { SearchControlWithFilter } from "../../../shared/searchfilter/searchcontrolwithfilter/SearchControlWithFilter";
-import { AppqaAlertFilterForm } from "./AppqaAlertFilterForm";
-import { IAppqaAlertFilterValues, type IAppqaAlertRawRecord } from "./IAppqaAlerts";
+import { AppqaAlertFilterForm } from "./AlertFilterForm";
+import { IAppqaAlertFilterValues, type IAppqaAlertRawRecord } from "./IAlerts";
 import {
     buildDefaultAppqaAlertFilters,
     filterAppqaAlertRecords,
     toApiAndOrFilter,
 } from "../allcommon/FnAppqaAlertFilterUtils";
-import sampleAppqaAlertRawRecords from "../../../../sampledata/appqa/AlertsSampleData.json";
+import sampleAppqaAlertRawRecords from "../../../../smsampledata/appqa/AlertsSampleData.json";
 
 const getValidHtml = (value: unknown): string => {
     try {

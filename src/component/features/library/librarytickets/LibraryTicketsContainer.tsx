@@ -7,23 +7,30 @@ import TicketExplorerContainer, {
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
 import type { ITicket } from '../../../shared/allinterface/tree/ITicket'
 import { TicketDetailPane } from '../../../shared/ticketexplorercontainer/TicketDetailPane'
-import '../allcss/LibraryTickets.css'
+import './LibraryTickets.css'
+import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp'
+import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu'
+
+import { useSelectedNodeContext } from '../../../shared/context/hooks/SelectedNodeHooks'
 
 interface ILibraryTicketsContainer {
     uniqueName: string
     featureId: string
     headerText?: string
     /*received = not Accepted; accepted = Accepted only */
-    libraryMode: ILibraryTicketMode
-    selectedNode: ITreeNode
-    treeData: ITreeNode[]
+    libraryMode?: ILibraryTicketMode
+    mode?: ILibraryTicketMode
+    selectedNode?: ITreeNode
+    treeData?: ITreeNode[]
+    featureData?: IFeatureItem[]
+    selectedFeatureData?: IMenuItem
 }
 
 function resolveBusinessScope(
-    node: ITreeNode,
+    node?: ITreeNode,
     treeData?: ITreeNode[]
 ): ILibraryBusinessScope {
-    if (node.NodeType === 'Root') {
+    if (!node || node.NodeType === 'Root') {
         return { nodeType: 'Root' }
     }
 
@@ -71,24 +78,33 @@ function findNodeByKey(nodes: ITreeNode[], key: string): ITreeNode | null {
  * Pane 2 — placeholder for tickets component
  */
 const LibraryTicketsContainer = (props: ILibraryTicketsContainer) => {
+    const selectedNodeContext = useSelectedNodeContext()
+    const effectiveLibraryMode = props.libraryMode ?? props.mode ?? 'all'
+    const effectiveSelectedNode =
+        props.selectedNode ??
+        selectedNodeContext?.selectedNode ??
+        selectedNodeContext?.selectedNodeExplorer?.node ??
+        ({ NodeType: 'Root', key: 'root' } as ITreeNode)
+    const effectiveTreeData = props.treeData ?? []
+
     const [businessScope, setBusinessScope] = useState<ILibraryBusinessScope>({
         nodeType: 'Root',
     })
     const [selectedTicket, setSelectedTicket] = useState<ITicket | null>(null)
 
     useEffect(() => {
-        setBusinessScope(resolveBusinessScope(props.selectedNode, props.treeData))
-    }, [props.selectedNode, props.treeData, props.featureId])
+        setBusinessScope(resolveBusinessScope(effectiveSelectedNode, effectiveTreeData))
+    }, [effectiveSelectedNode, effectiveTreeData, props.featureId])
 
     const ticketKey = useMemo(
         () =>
             [
-                props.libraryMode,
+                effectiveLibraryMode,
                 businessScope.nodeType,
                 businessScope.bid ?? '',
                 businessScope.cid ?? '',
             ].join('|'),
-        [props.libraryMode, businessScope]
+        [effectiveLibraryMode, businessScope]
     )
 
     return (
@@ -108,7 +124,7 @@ const LibraryTicketsContainer = (props: ILibraryTicketsContainer) => {
                         uniqueName={`${props.uniqueName}-ticket-tree`}
                         headerText="Tickets"
                         featureId={props.featureId}
-                        libraryMode={props.libraryMode}
+                        libraryMode={effectiveLibraryMode}
                         businessScope={businessScope}
                         showDetailPane={false}
                         hideHeader={true}

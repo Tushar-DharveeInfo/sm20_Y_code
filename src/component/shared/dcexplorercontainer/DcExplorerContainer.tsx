@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Key } from 'rc-tree/lib/interface'
 import './DCExplorerContainer.css'
-import formControlsBusinessFilter from '../../../sampledata/formcontrol/formControlsBusinessFilter.json'
+import formControlsBusinessFilter from '../../../smsampledata/formcontrol/formControlsBusinessFilter.json'
 import { sampleBusinesses } from '../../features/allcommon/FnBusinessesSampleData.ts'
 import { sampleContacts } from '../../features/allcommon/FnContactsSampleData.ts'
 import {

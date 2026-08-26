@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSessionContext } from '../../../shared/context/hooks/SessionHooks';
 import { SettingsContainer } from '../../../shared/settingsform/settingscontainer/SettingsContainer';
-import { IAppqaAlertCascadeValues, IAppqaAlertFilterForm, IAppqaAlertFilterValues } from './IAppqaAlerts';
+import { IAppqaAlertCascadeValues, IAppqaAlertFilterForm, IAppqaAlertFilterValues } from './IAlerts';
 import {
     areAppqaAlertFilterValuesEqual,
     buildAppqaAlertFilterComboControls,
@@ -13,7 +13,7 @@ import {
     toAssignedToDisplayValue,
     toAssignedToFilterValue,
 } from '../allcommon/FnAppqaAlertFilterUtils';
-import notifySampleData from '../../../../sampledata/appqa/NotifySampleData.json';
+import notifySampleData from '../../../../smsampledata/appqa/NotifySampleData.json';
 const { sampleNotifyUsersRaw } = notifySampleData;
 
 import { SiteTenantCascade } from './SiteTenantCascade';

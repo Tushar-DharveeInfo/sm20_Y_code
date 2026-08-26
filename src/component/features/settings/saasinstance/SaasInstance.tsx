@@ -5,6 +5,8 @@ import { IActionLabelItem } from '../../../shared/allinterface/basic/IActionLabe
 import { sampleBusinesses } from '../../allcommon/FnBusinessesSampleData';
 import { Label } from '../../../shared/basic/label/Label';
 import '../../../shared/settingsform/settingslibform/SettingsLibForm.css';
+import { SettingsEnums } from '../../../constants/Feature';
+
 interface ISaasInstance {
     uniqueName: string;
     featureId?: string;
@@ -12,7 +14,7 @@ interface ISaasInstance {
 }
 
 const SaasInstance: React.FC<ISaasInstance> = (props) => {
-    const { uniqueName, headerText } = props;
+    const { uniqueName, headerText, featureId = SettingsEnums.Instance } = props;
 
     // Build action items from sample businesses showing company names only (no CIDs)
     const companyActionItems: IActionLabelItem[] = useMemo(() => {

@@ -13,7 +13,7 @@ import { FnFormatDateWithAppFormat } from "../../../appcontainer/allcommon/FnFor
 import { useResourceContext } from "../../../shared/context/hooks/ResourceHooks";
 import { useCommonVariableContext } from "../../../shared/context/hooks/CommonVariableHooks";
 import PdfMakerContainer from "../../../shared/pdfmakercontainer/PdfMakerContainer";
-import reportSampleData from "../../../../sampledata/appqa/ReportSampleData.json";
+import reportSampleData from "../../../../smsampledata/appqa/ReportSampleData.json";
 const { sampleReportSessionVars } = reportSampleData;
 
 const REPORT_PROFILE_KEY = "_ReportProfile";
