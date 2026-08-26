@@ -1,9 +1,8 @@
 
-
-
 import { AddressForm, FormElementsRenderer, IAddress, IFormData, IFormElements } from '@n20a/libform'
 import '@n20a/libform/style.css'
 import './PropertyFormContainer.css'
+import { IPropertyColumn, IPropertyFormContainer } from '../../allinterface/sidebar/IPropertyFormContainer'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStatusBarContext } from '../../context/hooks/StatusBarHooks'
 import { FnNodeGetKebabMenuData } from '../../allcommon/settingsform/FnNodeGetKebabMenuData'
@@ -21,11 +20,8 @@ import { ISelectedNodeProperty } from '../../context/allinterface/ISelectedNode'
 import { useSessionContext } from '../../context/hooks/SessionHooks'
 import { FnParseJsonSafely } from '../../../appcontainer/allcommon/FnParseJsonSafely'
 import { FnCheckPermissionToEditName, IFeaturePermission } from '../../allcommon/FnCheckPermissionToEditName'
-import getTableVsPropertySample from '../../../../sampledata/sidebar/GetTableVsPropertySample.json'
-import { ITreeNode } from '../../allinterface/entity/ITreeNode'
-import { IMenuItem } from '../../allinterface/menu/IMainMenu'
-
-const samplePropertyEntityTables = getTableVsPropertySample.data;
+import { handleFormControlsBubbleKeyDown, handleFormControlsKeyDown } from '../../allcommon/basic/FnHandleContainerKeyDown'
+import { samplePropertyEntityTables } from './PropertySampleData'
 
 const addressFieldNames = new Set([
     "address1",
@@ -36,53 +32,6 @@ const addressFieldNames = new Set([
     "zip",
     "gps"
 ]);
-interface IPropertyColumn {
-    CanChange: number;
-    IsRequired: number;
-    IsRequiredToAddRecord: boolean;
-    IsRequiredToUpdateRecord: boolean;
-    IsVisible: boolean;
-    PName: string;
-    PNameDesc: string;
-    PropertyLabel: string;
-    RequiredToAddRecord: boolean;
-    RequiredToUpdateRecord: boolean;
-    SortOrder: number;
-    SystemType: string;
-    TableName: string;
-    Value: string | null;
-    ValueDesc: string;
-    disabled: boolean;
-    DisplayControl?: string;
-    InputMask?: string;
-    type?: string;
-    isNewLine?: boolean;
-    IsReadOnly?: boolean;
-    OldValue?: string | null;
-    [key: string]: any;
-}
-
-interface IPropertyFormContainer {
-    uniqueName: string; // A unique identifier for the dc property
-    featureId: string;
-    selectedNode: ITreeNode;
-    selectedNodeMenu: IMenuItem | undefined// selected nodemenu data
-    subTreeFeatureId?: string;
-    featureData?: any[]; // feature data
-    pgTableToShow?: string;
-    showPgTableOneToOne?: boolean;
-    treeData?: ITreeNode[];
-    allowBackButton?: boolean;
-    allowCloseButton?: boolean;
-    isAllowCustomAction?: boolean;
-    isReadOnly?: boolean;
-    allowLog?: boolean;
-    entityTables?: Record<string, unknown>[];
-    handlePropertyChange?: (propertyData?: Record<string, any>) => boolean;
-    handleValueChange?: (value: any, EntID: string, event: unknown, selectedData: unknown, instanceName?: string) => void; // ap form value change
-    handleRefreshUpdatedRecord?: (newAddedId: string, newAddedName: string, action?: 'save' | 'back') => void;
-}
-
 type IEntityTable = Record<string, unknown>;
 type IPropertyRow = Record<string, unknown>;
 type IKebabMenuData = Record<string, IPropertyRow[]>;
@@ -204,9 +153,6 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
         parentEntId: selectedNode?.parentEntID,
         entityName: selectedNode?.NodeEntityname,
         dateApproved: selectedNode?.DateApproved,
-        AuditSessionStatus: selectedNode?.AuditSessionStatus,
-        AuditSessionProgress: selectedNode?.AuditSessionProgress,
-        TotalAuditedDevices: selectedNode?.TotalAuditedDevices
     }), [
         selectedNode?.EntID,
         selectedNode?.NodeEntID,
@@ -216,10 +162,6 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
         selectedNode?.NodeEntityname,
         selectedNode?.DateApproved,
         selectedNode?.NodeType,
-        selectedNode?.AuditSessionStatus,
-        selectedNode?.AuditSessionProgress,
-        selectedNode?.TotalAuditedDevices
-
     ]);
 
     const userBasicRole = useMemo(() => {
@@ -254,9 +196,8 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
 
     // Determines whether the property form should be read-only for this context.
     const isReadOnly = useMemo(() => {
-
         return (
-            propertyFormContainerProps.isReadOnly || (selectedNodeKey.dateApproved)
+            propertyFormContainerProps.isReadOnly || !!selectedNodeKey.dateApproved
         );
     }, [featureId, selectedNodeKey, propertyFormContainerProps.isReadOnly]);
 
@@ -322,7 +263,19 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                     (pgTable?.tableName ? `;${pgTable.tableName}` : "")
             };
 
-
+            if (
+                selectedNodeKey.type?.toLowerCase() === "deviceview" &&
+                !selectedNodeKey.mountedId
+            ) {
+                kebabMenuPayload.entID = selectedNodeKey.parentEntId;
+            } else if (selectedNodeKey.type?.toLowerCase() == "devicepowerport"
+                || selectedNodeKey.type?.toLowerCase() == "devicenetworkport") {
+                kebabMenuPayload.nodeID = selectedNodeKey.entId;
+                kebabMenuPayload.nodeType = selectedNodeKey.type == "DevicePowerPort" ? "PowerPort" : selectedNodeKey.type == "DeviceNetworkPort" ? "NetworkPort" : selectedNodeKey.type;
+            } else if (selectedNodeKey.type?.toLowerCase() == "deviceslot") {
+                kebabMenuPayload.nodeID = selectedNodeKey.entId;
+                kebabMenuPayload.nodeType = "Slot";
+            }
             const kebabData = (
                 propertyFormContainerProps.kebabMenuData
                     ? propertyFormContainerProps.kebabMenuData
@@ -347,7 +300,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
             } else {
                 if (typeof kebabData === "object" && Object.values(kebabData)?.length) {
                     const record = Object.values(kebabData as Record<string, ISelectedNodeProperty[]>)?.[0]?.[0];
-                    // selectedNodeContext.setSelectedNodeProperty(record as ISelectedNodeProperty);
+                    selectedNodeContext.setSelectedNodeProperty(record as ISelectedNodeProperty);
                 }
                 setIsOneToManyPgTable(false);
                 setOneToManyTableData(undefined);
@@ -432,7 +385,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                 kebabData,
                 statusBarContext,
                 mainAppContext.refTableRecords,
-                "", // getMuForSite(), 
+                undefined,
                 getDiagnosticLevelData(),
                 isReadOnly,
                 isShowPgTableFirst ? String(pgTable?.tableName) : undefined,
@@ -476,10 +429,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
             abortController.abort();
             requestIdRef.current++;
         };
-    }, [entityTables, entityTablesEntityName, NodeEntityname, selectedNodeKey.entId,
-        selectedNodeKey.AuditSessionProgress,
-        selectedNodeKey.AuditSessionStatus,
-        selectedNodeKey.TotalAuditedDevices, pgClassTable, pgTable, featureId, isEditAllowedForFeature,
+    }, [entityTables, entityTablesEntityName, NodeEntityname, selectedNodeKey.entId, pgClassTable, pgTable, featureId, isEditAllowedForFeature,
         propertyFormContainerProps.kebabMenuData]);
 
     // Builds pg class data from updated property keys for a given table name.
@@ -785,4 +735,3 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
 };
 
 export { PropertyFormContainer };
-export type { IPropertyFormContainer, IPropertyColumn };

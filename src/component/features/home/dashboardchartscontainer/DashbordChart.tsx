@@ -3,7 +3,7 @@ import { useTheme } from 'styled-components';
 import { registerAgCharts, ChartContainer } from '@n20a/libchart';
 import '@n20a/libchart/ChartContainer.css';
 import { Close24x24 } from '@n20a/libicon';
-import '../../allcss/home/DashbordChart.css';
+import './DashbordChart.css';
 import {
     IChartApiItem,
     IChartOptions,
@@ -12,7 +12,7 @@ import {
     TChartProfileRow,
     TChartRecord,
     TSeriesRecord,
-} from '../../allinterface/home/IDashboardChart';
+} from './IDashboardChart';
 import { ActionImage } from '../../../shared/basic/actionimage/ActionImage';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { FnParseJsonSafely } from '../../../appcontainer/allcommon/FnParseJsonSafely';

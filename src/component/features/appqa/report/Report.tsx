@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { Dialog, DialogContent } from "@mui/material";
-import { PdfMaker, updateLayoutWithSessionVars } from "@n20a/libreport";
+import { updateLayoutWithSessionVars } from "@n20a/libreport";
 import "./Report.css";
 import "@n20a/libreport/style.css";
-import { Close24x24, Report24x24, Save24x24 } from "@n20a/libicon";
+import { Report24x24 } from "@n20a/libicon";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
 import { IReportProfileItem } from "../../../shared/context/allinterface/IReport";
-import { ActionImage } from "../../../shared/basic/actionimage/ActionImage";
 import { Label } from "../../../shared/basic/label/Label";
-import { JsonViewer } from "../../../shared/jsonviewer/JsonViewer";
 import { YesNoFormContainer } from "../../../shared/basic/yesnoformcontainer/YesNoFormContainer";
 import { CardLayout } from "../../../shared/cardlayout/CardLayout";
 import { ICardLayoutField } from "../../../shared/cardlayout/CardLayout";
 import { FnFormatDateWithAppFormat } from "../../../appcontainer/allcommon/FnFormatDateWithAppFormat";
 import { useResourceContext } from "../../../shared/context/hooks/ResourceHooks";
+import { useCommonVariableContext } from "../../../shared/context/hooks/CommonVariableHooks";
+import PdfMakerContainer from "../../../shared/pdfmakercontainer/PdfMakerContainer";
 import reportSampleData from "../../../../sampledata/appqa/ReportSampleData.json";
 const { sampleReportSessionVars } = reportSampleData;
 
@@ -221,9 +220,10 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
         proformaInvoiceJson,
         quoteFormJson,
     } = useResourceContext();
+    const commonVariableContext = useCommonVariableContext();
     const [reportData, setReportData] = useState<IReportProfileItem[]>([]);
+    const [selectedReport, setSelectedReport] = useState<IReportProfileItem | null>(null);
     const [selectedReportId, setSelectedReportId] = useState<string>("");
-    const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
     const [dialogContent, setDialogContent] = useState<
         Record<string, unknown> | undefined
     >();
@@ -233,15 +233,28 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
     const [isDataProcessed, setIsDataProcessed] = useState(false);
     const [isLoadingReports, setIsLoadingReports] = useState(true);
 
+    const resolvedDiagnosticLevel =
+        diagnosticLevel !== undefined
+            ? diagnosticLevel
+            : commonVariableContext?.diagnosticLevel !== undefined
+                ? Number(commonVariableContext.diagnosticLevel)
+                : 0;
+
+    const handleClosePdfMaker = () => {
+        setDialogContent(undefined);
+        setSelectedReport(null);
+        setSelectedReportId("");
+    };
+
     const getSessionVars = (): Record<string, unknown> => ({
         ...sampleReportSessionVars,
     });
 
-    const getReportTemplateJson = (
+    const getReportTemplateJson = async (
         templateFileName?: string
-    ): Record<string, unknown> => {
+    ): Promise<Record<string, unknown>> => {
         const templateKey = normalizeTemplateFileName(templateFileName);
-        const templateJson =
+        let templateJson =
             templateKey === "orderform.json"
                 ? orderFormJson
                 : templateKey === "proformainvoice.json" || templateKey === "invoice.json"
@@ -250,8 +263,36 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
                         ? quoteFormJson
                         : reportLayoutJson;
 
+        if (!templateJson || typeof templateJson !== "object" || Object.keys(templateJson).length === 0) {
+            try {
+                const candidates = [
+                    templateFileName,
+                    templateKey,
+                    "reportlayout.json",
+                    "ReportLayout.json",
+                ].filter(Boolean) as string[];
+
+                for (const candidate of candidates) {
+                    try {
+                        let res = await fetch(`/privatereporttemplates/${candidate}`);
+                        if (!res.ok) {
+                            res = await fetch(`/privatereporttemplates/${candidate.toLowerCase()}`);
+                        }
+                        if (res.ok) {
+                            templateJson = await res.json();
+                            break;
+                        }
+                    } catch {
+                        // ignore and try next candidate
+                    }
+                }
+            } catch (err) {
+                console.warn("Failed to fetch template JSON:", err);
+            }
+        }
+
         return templateJson && typeof templateJson === "object"
-            ? templateJson as Record<string, unknown>
+            ? (templateJson as Record<string, unknown>)
             : {};
     };
 
@@ -262,39 +303,78 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
     }, []);
 
     useEffect(() => {
-        if (!appqaReportProps.featureId) {
-            setIsLoadingReports(false);
-            setIsDataProcessed(true);
-            setReportData([]);
-            return;
-        }
+        let isMounted = true;
 
-        setIsLoadingReports(true);
+        const loadReports = async () => {
+            if (!appqaReportProps.featureId) {
+                if (isMounted) {
+                    setIsLoadingReports(false);
+                    setIsDataProcessed(true);
+                    setReportData([]);
+                }
+                return;
+            }
 
-        if (!reportProfileJson) {
-            return;
-        }
+            setIsLoadingReports(true);
 
-        try {
-            const loadedProfiles = unwrapReportProfiles(reportProfileJson);
-            const reportProfiles = loadedProfiles.map((item) =>
-                mapToReportProfileItem(item as Record<string, unknown>)
-            );
-            const filteredReport = reportProfiles.filter(isReportEnabled);
+            let profilesSource = reportProfileJson;
 
-            const sortedData = sortReportsAZ(dedupeReports(filteredReport));
-            setReportData(sortedData);
-            setIsDataProcessed(true);
-        } catch (error) {
-            console.error("Error loading report profiles:", error);
-            setReportData([]);
-            setIsDataProcessed(true);
-            appqaReportProps.handleShowUserMessage?.(
-                "Failed to load report profiles."
-            );
-        } finally {
-            setIsLoadingReports(false);
-        }
+            if (!profilesSource) {
+                try {
+                    let res = await fetch("/privatereporttemplates/reportprofile.json");
+                    if (!res.ok) {
+                        res = await fetch("/privatereporttemplates/ReportProfile.json");
+                    }
+                    if (res.ok) {
+                        profilesSource = await res.json();
+                    }
+                } catch (fetchError) {
+                    console.warn("Direct fetch of reportprofile.json failed:", fetchError);
+                }
+            }
+
+            if (!profilesSource) {
+                if (isMounted) {
+                    setIsLoadingReports(false);
+                    setIsDataProcessed(true);
+                }
+                return;
+            }
+
+            try {
+                const loadedProfiles = unwrapReportProfiles(profilesSource);
+                const reportProfiles = loadedProfiles.map((item) =>
+                    mapToReportProfileItem(item as Record<string, unknown>)
+                );
+                const filteredReport = reportProfiles.filter(isReportEnabled);
+                const finalReports = filteredReport.length > 0 ? filteredReport : reportProfiles;
+
+                const sortedData = sortReportsAZ(dedupeReports(finalReports));
+                if (isMounted) {
+                    setReportData(sortedData);
+                    setIsDataProcessed(true);
+                }
+            } catch (error) {
+                console.error("Error loading report profiles:", error);
+                if (isMounted) {
+                    setReportData([]);
+                    setIsDataProcessed(true);
+                    appqaReportProps.handleShowUserMessage?.(
+                        "Failed to load report profiles."
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoadingReports(false);
+                }
+            }
+        };
+
+        void loadReports();
+
+        return () => {
+            isMounted = false;
+        };
     }, [appqaReportProps.featureId, appqaReportProps.handleShowUserMessage, reportProfileJson]);
 
     function evaluateFormulaSafe(
@@ -372,9 +452,9 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
             | React.MouseEvent<HTMLDivElement>
             | React.KeyboardEvent<HTMLDivElement>
             | undefined,
-        selectedReport: IReportProfileItem
+        reportToOpen: IReportProfileItem
     ) => {
-        if (!selectedReport || typeof selectedReport !== "object") {
+        if (!reportToOpen || typeof reportToOpen !== "object") {
             appqaReportProps.handleShowUserMessage?.(
                 "Invalid payload: Must be a JSON "
             );
@@ -382,16 +462,13 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
         }
 
         try {
-            // SAMPLE DATA: replaces NODE.GetKebabMenuData → FS.GetFileStream → EM.GetEntityRecords.
-            // axiosInterceptor({ url: NODE.GetKebabMenuData, ... });
-            // axiosInterceptor({ url: FS.GetFileStream, ... });
-            // axiosInterceptor({ url: EM.GetEntityRecords, ... });
-            // MakeApiCallsForMemoryURL(...);
+            setSelectedReport(reportToOpen);
+            setSelectedReportId(String(reportToOpen.EntID ?? ""));
 
             const objectData = getSessionVars();
-            const layoutJson = getReportTemplateJson(
-                typeof selectedReport.TemplateFileName === "string"
-                    ? selectedReport.TemplateFileName
+            const layoutJson = await getReportTemplateJson(
+                typeof reportToOpen.TemplateFileName === "string"
+                    ? reportToOpen.TemplateFileName
                     : undefined
             );
             const updatedJson = await traverseAndEvaluateLabelsSafe(
@@ -405,7 +482,6 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
                     updatedJson as Record<string, unknown>
                 );
                 setDialogContent(safeNode);
-                setIsDialogOpen(true);
             }
         } catch (error) {
             console.error("Report open error:", error);
@@ -415,204 +491,72 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
         }
     };
 
-    function handleClickInformation(): void {
-        const handleSaveAs = async () => {
-            if (!dialogContent || typeof dialogContent !== "object") {
-                console.warn("Invalid dialogContent:", dialogContent);
-                return;
-            }
-            if (!window?.showSaveFilePicker) {
-                console.error(
-                    "File System Access API not supported in this browser"
-                );
-                setConfirmMessage("Save not supported in this browser.");
-                setIsConfirmOpen(true);
-                return;
-            }
-            const fileHandle = await window.showSaveFilePicker({
-                suggestedName: "reportTemplate.json",
-                types: [
-                    {
-                        description: "JSON Files",
-                        accept: { "application/json": [".json"] },
-                    },
-                ],
-            });
-            const writable = await fileHandle.createWritable();
-            try {
-                const jsonData = JSON.stringify(dialogContent, null, 2);
-                await writable.write(jsonData);
-            } catch (writeError) {
-                console.error("Error writing file:", writeError);
-                throw writeError;
-            } finally {
-                try {
-                    await writable.close();
-                } catch (closeError) {
-                    console.warn("Error closing file stream:", closeError);
-                }
-            }
-            setConfirmMessage("File saved successfully!");
-            setIsConfirmOpen(true);
-        };
-        try {
-            if (dialogContent && typeof dialogContent === "object") {
-                void handleSaveAs();
-            }
-        } catch (error) {
-            console.error("Error in handleClickInformation:", error);
-        }
-    }
-
     const shouldShowLoading = isLoadingReports || !isDataProcessed;
     const shouldShowNoData = !shouldShowLoading && reportData.length === 0;
-    console.log('reportData', reportData)
+
     return (
         <div
             key={appqaReportProps.uniqueName}
             className="nz-appqa-report-container"
         >
-            <div className="nz-sub-header">
-                <Label
-                    uniqueName={`${appqaReportProps.uniqueName}-task-header`}
-                    label={`Available Reports${reportData.length ? ` (${reportData.length})` : ""}`}
+            {dialogContent ? (
+                <PdfMakerContainer
+                    uniqueName={`${appqaReportProps.uniqueName}-pdf-maker`}
+                    headerText={selectedReport?._ReportProfile || selectedReport?.Name || "Download Report"}
+                    outputfilename={`${selectedReport?._ReportProfile || selectedReport?.Name || "report"}.pdf`}
+                    pdfOutput={selectedReport?._ReportProfile || selectedReport?.Name || "report.pdf"}
+                    config={updateLayoutWithSessionVars(
+                        dialogContent as any,
+                        getSessionVars
+                    )}
+                    autoGenerate={true}
+                    diagnosticLevel={resolvedDiagnosticLevel}
+                    onClose={handleClosePdfMaker}
                 />
-            </div>
-            <div className="nz-appqa-report-content">
-                {shouldShowLoading ? (
-                    <div className="nz-wh-100 nz-d-flex-hv-left">Loading...</div>
-                ) : shouldShowNoData ? (
-                    <div className="nz-wh-100 nz-d-flex-hv-left">No Data Found</div>
-                ) : (
-                    reportData.map((report, index) => (
-
-                        <CardLayout
-                            key={String(report.EntID ?? index)}
-                            uniqueName={`${appqaReportProps.uniqueName}-report-${index}`}
-                            className={`nz-report-card nz-clickable-report ${report.IsTemplate ? "nz-template-report" : ""} ${report.IsDeprecated ? "nz-deprecated-report" : ""
-                                }`}
-                            data={report}
-                            fields={buildReportCardFields(report)}
-                            isSelected={selectedReportId === report.EntID}
-                            hideRightMouseMenu={true}
-                            onClick={() => {
-                                setSelectedReportId(String(report.EntID ?? ""));
-                                handleClickDownloadPdf(undefined, report);
-                            }}
-                            ContentImage={{
-                                uniqueName: `${appqaReportProps.uniqueName}-reporti-${index}`,
-                                source: (
-                                    <Report24x24
-                                        size={FnGetCssVariable("--image-size-2")}
-                                        fill="none"
-                                        strokeWidth={1}
-                                    />
-                                ),
-                                w: "var(--image-size-2)",
-                                tooltip: report._ReportProfile,
-                                type: "svg",
-                            }}
-                        />
-                    ))
-                )}
-            </div>
-            {dialogContent && diagnosticLevel !== 0 ? (
-                <Dialog
-                    open={isDialogOpen}
-                    className="nz-dialog-container"
-                    maxWidth={"md"}
-                    fullWidth={true}
-                    hideBackdrop={true}
-                    style={{ zIndex: 9999 }}
-                >
-                    <div className="nz-dialog-header nz-sub-header">
+            ) : (
+                <>
+                    <div className="nz-sub-header">
                         <Label
-                            uniqueName={`${appqaReportProps.uniqueName}-dialog-title`}
-                            label={"Download Report"}
-                            fontWeight="bold"
+                            uniqueName={`${appqaReportProps.uniqueName}-task-header`}
+                            label={`Available Reports${reportData.length ? ` (${reportData.length})` : ""}`}
                         />
-                        <div className="nz-d-flex-row nz-align-center">
-                            {diagnosticLevel !== 0 && (
-                                <ActionImage
-                                    uniqueName={`${appqaReportProps.uniqueName}-explorer-tree-info-ai`}
-                                    image={{
-                                        uniqueName: `${appqaReportProps.uniqueName}-layout-save-ai`,
+                    </div>
+                    <div className="nz-appqa-report-content">
+                        {shouldShowLoading ? (
+                            <div className="nz-wh-100 nz-d-flex-hv-left">Loading...</div>
+                        ) : shouldShowNoData ? (
+                            <div className="nz-wh-100 nz-d-flex-hv-left">No Data Found</div>
+                        ) : (
+                            reportData.map((report, index) => (
+                                <CardLayout
+                                    key={String(report.EntID ?? index)}
+                                    uniqueName={`${appqaReportProps.uniqueName}-report-${index}`}
+                                    className={`nz-report-card nz-clickable-report ${report.IsTemplate ? "nz-template-report" : ""} ${report.IsDeprecated ? "nz-deprecated-report" : ""
+                                        }`}
+                                    data={report}
+                                    fields={buildReportCardFields(report)}
+                                    isSelected={selectedReportId === report.EntID}
+                                    hideRightMouseMenu={true}
+                                    onClick={(event) => {
+                                        handleClickDownloadPdf(event, report);
+                                    }}
+                                    ContentImage={{
+                                        uniqueName: `${appqaReportProps.uniqueName}-reporti-${index}`,
                                         source: (
-                                            <Save24x24
-                                                size={FnGetCssVariable("--image-size-1")}
+                                            <Report24x24
+                                                size={FnGetCssVariable("--image-size-2")}
                                                 fill="none"
                                                 strokeWidth={1}
                                             />
                                         ),
                                         w: "var(--image-size-2)",
-                                        tooltip: "Click to Save Report Layout json",
+                                        tooltip: report._ReportProfile,
                                         type: "svg",
                                     }}
-                                    w={"var(--node_height)"}
-                                    disabled={false}
-                                    h={"var(--node_height)"}
-                                    actionCode={"savefloorlayout"}
-                                    handleMouse={handleClickInformation}
                                 />
-                            )}
-                            <ActionImage
-                                handleMouse={() => {
-                                    setIsDialogOpen(false);
-                                    setDialogContent(undefined);
-                                }}
-                                image={{
-                                    uniqueName: `${appqaReportProps.uniqueName}-i-close`,
-                                    source: (
-                                        <Close24x24
-                                            size={FnGetCssVariable("--image-size-2")}
-                                            fill="none"
-                                            strokeWidth={1}
-                                        />
-                                    ),
-                                    type: "svg",
-                                    w: "var(--image-size-2)",
-                                    h: "var(--image-size-2)",
-                                    tooltip: "close",
-                                }}
-                                uniqueName={`${appqaReportProps.uniqueName}-ai-close`}
-                                actionCode="cancel"
-                                w="var(--node_height)"
-                                h="var(--node_height)"
-                            />
-                        </div>
-                    </div>
-                    <DialogContent>
-                        {diagnosticLevel !== 0 && (
-                            <JsonViewer
-                                uniqueName={`${appqaReportProps.uniqueName}-dialog-content`}
-                                jsonData={dialogContent}
-                                showAsDiv={true}
-                            />
+                            ))
                         )}
-                        <PdfMaker
-                            config={updateLayoutWithSessionVars(
-                                dialogContent as any,
-                                getSessionVars
-                            )}
-                            autoGenerate={false}
-                            onSuccess={() => { }}
-                        />
-                    </DialogContent>
-                </Dialog>
-            ) : (
-                <>
-                    {dialogContent && (
-                        <div style={{ display: "none" }}>
-                            <PdfMaker
-                                config={updateLayoutWithSessionVars(
-                                    dialogContent as any,
-                                    getSessionVars
-                                )}
-                                autoGenerate={true}
-                                onSuccess={() => { }}
-                            />
-                        </div>
-                    )}
+                    </div>
                 </>
             )}
             <YesNoFormContainer

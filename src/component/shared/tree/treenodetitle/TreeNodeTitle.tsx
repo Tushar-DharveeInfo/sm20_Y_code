@@ -1,6 +1,6 @@
 
 import { Fragment, MouseEvent } from 'react'
-import { Cart24x24 } from '@n20a/libicon';
+import { Cart24x24, Check } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { FnGetLeafStatusIconConfig } from '../../allcommon/tree/FnGetLeafStatusIconConfig';
 import { getfeaturesData } from '../../context/contextandprovider/MainApp';
@@ -12,7 +12,6 @@ import { Image } from '../../basic/image/Image';
 import { NodeMenu } from '../../menu/nodemenu/NodeMenu';
 
 const TreeNodeTitle = (treeNode: ITreeNode, treeDataProps: IFeatureTree, featureId: string, showKebabIcon?: boolean, showCopyIcon?: boolean, selectedNodeExplorer?: ISelectedNodeInfo, handleKebabMenuSelect?: (selectedItem: IActionImageForSubMenu) => void) => {
-    console.log('treeNode TreeNodeTitle', treeNode)
     const featureData = getfeaturesData() as IMenuItem[] ?? null
     const clonedNode = { ...treeNode, title: "", icon: null, children: [] };
     const nodeTooltip = `${treeNode.Description ?? ""}${treeNode.WOID ? ` (${treeNode.WOID})` : ""}`
@@ -28,20 +27,43 @@ const TreeNodeTitle = (treeNode: ITreeNode, treeDataProps: IFeatureTree, feature
         );
     };
 
-    const container = treeDataProps.instanceName ?? "explorer_tree"
+    const container = treeDataProps?.instanceName ?? "explorer_tree"
 
     const handleDownloadClick = (event: MouseEvent<HTMLSpanElement>) => {
         event.preventDefault();
         event.stopPropagation();
-        treeDataProps.onAddToDownloadCart?.(treeNode);
+        treeDataProps?.onAddToDownloadCart?.(treeNode);
     };
+
+    const renderVerifiedIcon = () => {
+        if (!treeNode.IsAuthorized && !treeNode.verified) {
+            return null
+        }
+        return (
+            <span className="nz-tree-node-auth-icon" style={{ marginLeft: 6 }}>
+                <Image
+                    source={
+                        <Check
+                            size={FnGetCssVariable('--image-size-1')}
+                            fill="none"
+                            strokeWidth={1}
+                        />
+                    }
+                    uniqueName={`${treeNode.key}-icheck`}
+                    w={'var(--image-size-2)'}
+                    tooltip="Verified"
+                    type="svg"
+                />
+            </span>
+        )
+    }
 
     const renderIcon = () => {
         const newTreeNode = { ...treeNode };
         const showDownloadIcon =
             treeNode.treetype?.toLowerCase() === "product" &&
-            !!treeDataProps.onAddToDownloadCart;
-        const statusIconConfig = treeDataProps.showLeafStatusIcon
+            !!treeDataProps?.onAddToDownloadCart;
+        const statusIconConfig = treeDataProps?.showLeafStatusIcon
             ? FnGetLeafStatusIconConfig(treeNode)
             : null;
         const StatusIcon = statusIconConfig?.Icon;
@@ -112,11 +134,11 @@ const TreeNodeTitle = (treeNode: ITreeNode, treeDataProps: IFeatureTree, feature
                         />
                     </span>
                 )}
+
+                {renderVerifiedIcon()}
             </span>
         );
     };
-
-
 
     return (
         <span

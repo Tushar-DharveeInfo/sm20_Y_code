@@ -9,7 +9,7 @@ import './AppQaMenuContainer.css'
 
 const SUBMENU_SHOW_DELAY_MS = 200;
 
-const MORE_FEATURE = "45";
+const MORE_FEATURE = "450000";
 const TAG_LINE_CONTENT = "Service"
 
 type AppQaMenuContainerProps = {

@@ -2,12 +2,13 @@
 import { useEffect, useMemo } from 'react';
 import { ReportSchedulerForm } from '@n20a/libform';
 import '@n20a/libform/style.css';
-import { IDailySchedular } from '../../allinterface/settings/IDailySchedular';
-import { FnGetEnvVariableByKey } from '../../../appcontainer/allcommon/FnGetEnvVariableByKey';
-import { envVarEnums } from '../../../appcontainer/alldefaultprops/DefaultPropsAppContainer';
-import sampleDailySchedularEnv from '../../../../sampledata/features/dailySchedular';
+import sampleDailySchedularEnv from '../../../../sampledata/features/dailySchedular.json';
 import { Label } from '../../../shared/basic/label/Label';
-
+interface IDailySchedular {
+    uniqueName: string;
+    featureId?: string;
+    headerText?: string;
+}
 // Converts env response into schedulerConfigProps for ReportSchedulerForm.
 const buildSchedulerConfigProps = (response: unknown): Record<string, string> | null => {
     if (!response || typeof response !== 'object') {

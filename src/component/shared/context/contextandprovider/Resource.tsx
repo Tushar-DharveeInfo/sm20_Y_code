@@ -30,32 +30,39 @@ function ResourceProvider({ children }: IAppContextWrapper) {
     const FnGetJsonFromPublicFolder = async (filePath: string) => {
         const path = filePath.startsWith('/') ? filePath : `/${filePath}`;
 
-        const response = await fetch(path);
+        try {
+            let response = await fetch(path);
 
-        if (!response.ok) {
-            throw new Error(`Failed to load ${filePath} (${response.status})`);
+            if (!response.ok) {
+                const lowerPath = path.toLowerCase();
+                if (lowerPath !== path) {
+                    response = await fetch(lowerPath);
+                }
+            }
+
+            if (!response.ok) {
+                console.warn(`Failed to load ${filePath} (${response.status})`);
+                return undefined;
+            }
+
+            return await response.json();
+        } catch (err) {
+            console.warn(`Error loading ${filePath}:`, err);
+            return undefined;
         }
-
-        return (await response.json());
     };
 
     useEffect(() => {
         // Chart API, Chart Profile, and Report Template Data
-        void Promise.all([
-            // chart files
-            FnGetJsonFromPublicFolder(CHART_API_FILE).then(setChartApiJson),
-            FnGetJsonFromPublicFolder(CHART_PROFILE_FILE).then(setChartProfileJson),
+        void FnGetJsonFromPublicFolder(CHART_API_FILE).then((data) => data && setChartApiJson(data));
+        void FnGetJsonFromPublicFolder(CHART_PROFILE_FILE).then((data) => data && setChartProfileJson(data));
 
-            // report files
-            FnGetJsonFromPublicFolder(REPORT_PROFILE_FILE).then(setReportProfileJson),
-            FnGetJsonFromPublicFolder(REPORT_LAYOUT_FILE).then(setReportLayoutJson),
-            FnGetJsonFromPublicFolder(ORDER_FORM).then(setOrderFormJson),
-            FnGetJsonFromPublicFolder(PROFORMA_INVOICE).then(setProformaInvoiceJson),
-            FnGetJsonFromPublicFolder(QUOTE_FORM).then(setQuoteFormJson),
-        ]).catch((error) => {
-            console.error("Error updating resource json:", error);
-        });
-    }, [])
+        void FnGetJsonFromPublicFolder(REPORT_PROFILE_FILE).then((data) => data && setReportProfileJson(data));
+        void FnGetJsonFromPublicFolder(REPORT_LAYOUT_FILE).then((data) => data && setReportLayoutJson(data));
+        void FnGetJsonFromPublicFolder(ORDER_FORM).then((data) => data && setOrderFormJson(data));
+        void FnGetJsonFromPublicFolder(PROFORMA_INVOICE).then((data) => data && setProformaInvoiceJson(data));
+        void FnGetJsonFromPublicFolder(QUOTE_FORM).then((data) => data && setQuoteFormJson(data));
+    }, []);
 
 
     const providers: IResource = useMemo(() => ({

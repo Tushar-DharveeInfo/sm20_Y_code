@@ -71,9 +71,9 @@ enum SettingsEnums {
 }
 
 enum deviceModelTabs {
-    Search = "Search",
+    Search = "Search library",
     Property = "Property",
-    Result = "Result",
+    Result = "Found in Library",
 }
 
 enum SidebarEnum {

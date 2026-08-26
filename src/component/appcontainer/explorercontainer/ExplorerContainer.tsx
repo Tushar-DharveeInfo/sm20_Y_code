@@ -185,7 +185,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         }
 
         if (explorerToRender === "BS") {
-            // mainAppContext.setBusinessSelectedNode(info.node);
+            mainAppContext.setBusinessSelectedNode(info.node);
         }
     }
 

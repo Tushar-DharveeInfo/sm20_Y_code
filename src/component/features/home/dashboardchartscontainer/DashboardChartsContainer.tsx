@@ -1,5 +1,5 @@
-import '../../allcss/home/DashboardChartsContainer.css';
-import { IDashboardChartsContainer } from '../../allinterface/home/IDashboardChartsContainer';
+import './DashboardChartsContainer.css';
+import { IDashboardChartsContainer } from './IDashboardChartsContainer';
 import { Label } from '../../../shared/basic/label/Label';
 import { DashboardChart } from './DashbordChart';
 

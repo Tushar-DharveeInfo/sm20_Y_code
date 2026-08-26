@@ -1,11 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Splitter, SplitterPanel } from 'primereact/splitter';
-import { ISaasInstance } from '../../allinterface/settings/ISaasInstance';
 import { SettingsInstanceList } from '../../../shared/settingsform/settingsinstancelist/SettingsInstanceList';
 import { IActionLabelItem } from '../../../shared/allinterface/basic/IActionLabelItem';
 import { sampleBusinesses } from '../../allcommon/FnBusinessesSampleData';
 import { Label } from '../../../shared/basic/label/Label';
 import '../../../shared/settingsform/settingslibform/SettingsLibForm.css';
+interface ISaasInstance {
+    uniqueName: string;
+    featureId?: string;
+    headerText?: string;
+}
 
 const SaasInstance: React.FC<ISaasInstance> = (props) => {
     const { uniqueName, headerText } = props;

@@ -1,5 +1,25 @@
 
-import { TReportAddressFields, TReportDataset, TReportDocTypeInput } from "../allinterface/generatereport/IGenerateReport";
+
+type TReportTableRow = Record<string, unknown>;
+type TReportDataset = Record<string, TReportTableRow[]>;
+
+type TReportAddressFields = {
+    From: string;
+    contact: string;
+    billto: string;
+    shipto: string;
+};
+
+type TReportDocType =
+    | { PO: string }
+    | { Invoice: string }
+    | { Quote: string };
+
+type TReportDocTypeInput = {
+    doctype: TReportDocType;
+};
+
+
 
 
 /* Merges two dataset maps (p3 + p4) into a single lookup keyed by datatable id. */

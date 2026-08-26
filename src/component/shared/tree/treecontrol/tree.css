@@ -407,9 +407,6 @@ html {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: #ffff99;
-    border-radius: 50%;
-    padding: 1px;
 }
 
 .nz-treenode-secure-icon .nz-image-container {

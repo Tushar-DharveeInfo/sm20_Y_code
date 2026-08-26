@@ -7,23 +7,7 @@ import './SidebarContent.css'
 import { SidebarEnum } from '../../constants/Feature'
 import { ITreeNode } from '../allinterface/tree/ITreeControl'
 import { IErrorData } from '../allinterface/IApiResponse'
-import { IMenuItem } from '../allinterface/menu/IMainMenu'
-
-interface ISidebarContent {
-    Label: string;
-    uniqueName: string; // A unique identifier for notes
-    featureId: string;
-    selectedNode: ITreeNode; // selected node data
-    subTreeFeatureId?: string; // to handle custom logic 
-    selectedNodeMenu?: IMenuItem | undefined; // select nodemenu data
-    treeData?: ITreeNode[] | null; // tree data for the sidebar
-    selectedNodeExplorer?: ITreeNode;
-    isPropertyFound?: boolean; // to check property tab is available or not
-    handleReloadTree?: (featureId: string, entID?: string) => void;
-    apValueChange?: (value: any, EntID: string, event: unknown, selectedData: unknown, instanceName?: string) => void; // ap form value change
-    handleShowErrorDialog?: (message: string, isOpen: boolean) => void;
-}
-
+import { ISidebarContent } from '../allinterface/sidebar/ISidebarContent'
 // import { DeviceModel } from './devicemodel/DeviceModel'
 import { ForensicLog } from '../forensiclog/ForensicLog'
 // import { DiagnosticLogContainer } from './diagnosticlogcontainer/DiagnosticLogContainer'
@@ -33,12 +17,12 @@ import { PropertyFormContainer } from './propertyformcontainer/PropertyFormConta
 import { useHelpTipContext } from '../context/hooks/HelptipHooks'
 // import { Assign } from './assign/Assign'
 import { AlertLog } from './alertlog/AlertLog'
-import { buildPropertyFormDataFromSelectedNode } from '../allcommon/sidebar/FnBuildPropertyFormDataFromSelectedNode'
-import { FnIsRootBusinessNode } from '../allcommon/tree/FnIsRootBusinessNode'
-import { Label as LabelComponent } from '../basic/label/Label'
+import { ContactList } from './contactlist/ContactList'
+import { buildPropertyFormDataFromSelectedNode } from './propertyformcontainer/PropertySampleData'
 
 
 const SidebarContent = (sidebarProps: ISidebarContent) => {
+    console.log('sidebarProps', sidebarProps)
     const [Label, setLabel] = useState<string>("");
     const [selectedNode, setSelectedNode] = useState<ITreeNode>();
     const [actionlog, setActionlog] = useState<IErrorData[]>();
@@ -129,7 +113,7 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
 
     // SAMPLE DATA: build EditTextControl property form from selected-node key/value record.
     const propertyFormPackage = useMemo(() => {
-        if (!selectedNode || FnIsRootBusinessNode(selectedNode)) {
+        if (!selectedNode) {
             return undefined;
         }
         return buildPropertyFormDataFromSelectedNode(selectedNode);
@@ -167,28 +151,10 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
     ]);
 
     const renderPropertyContainer = () => {
-        if (selectedNode && FnIsRootBusinessNode(selectedNode)) {
-            return (
-                <div
-                    className="nz-wh-100 nz-d-flex-hv-center"
-                    style={{
-                        padding: 'var(--spacing-3)',
-                        textAlign: 'center',
-                        color: 'var(--text-color-secondary, #757575)'
-                    }}
-                >
-                    <LabelComponent
-                        uniqueName={`${sidebarProps.uniqueName}-root-message`}
-                        label="Select a component node to view details."
-                    />
-                </div>
-            );
-        }
-
         const shouldShowPropertyContainer =
             selectedNode &&
-            (sidebarProps.isPropertyFound || Label === "Details") &&
-            (Label === SidebarEnum.Property || Label === SidebarEnum.Profile || Label === "Details") &&
+            sidebarProps.isPropertyFound &&
+            (Label === SidebarEnum.Property || Label === SidebarEnum.Profile) &&
             !selectedNode.NodeType?.toLowerCase().includes("helptip");
 
         if (!shouldShowPropertyContainer || !propertyFormPackage) {
@@ -202,49 +168,51 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                     width: "100%"
                 }}
             >
-                <PropertyFormContainer
-                    uniqueName={`property-container-${sidebarProps.Label}`}
-                    treeData={sidebarProps.treeData ?? undefined}
-                    featureId={sidebarProps.featureId}
-                    subTreeFeatureId={sidebarProps.subTreeFeatureId}
-                    selectedNode={selectedNode}
-                    isReadOnly={isReadOnly}
-                    isAllowCustomAction={false}
-                    selectedNodeMenu={sidebarProps.selectedNodeMenu}
-                    entityTables={propertyFormPackage.entityTables}
-                    // kebabMenuData={propertyFormPackage.kebabMenuData}
-                    handleValueChange={sidebarProps.apValueChange}
-                    handleRefreshUpdatedRecord={(
-                        newAddedId: string,
-                        newAddedName: string,
-                        action?: "save" | "back"
-                    ) => {
-                        if (
-                            newAddedId &&
-                            action === "save" &&
-                            !sidebarProps.subTreeFeatureId
-                        ) {
-                            commonVariableContext.setReloadTreeFor({
-                                featureId: sidebarProps.featureId,
-                                entId: newAddedId
-                            });
-                        } else {
-                            sidebarProps.handleReloadTree?.(
-                                sidebarProps.featureId,
-                                newAddedId
-                            );
-                        }
-                    }}
-                />
+                {selectedNode.Name?.toLowerCase() === "businesses" ?
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "start", height: "100%" }}>
+                        Select a business/contect to view its details
+                    </div>
+                    : <PropertyFormContainer
+                        uniqueName={`property-container-${sidebarProps.Label}`}
+                        treeData={sidebarProps.treeData ?? undefined}
+                        featureId={sidebarProps.featureId}
+                        subTreeFeatureId={sidebarProps.subTreeFeatureId}
+                        selectedNode={selectedNode}
+                        isReadOnly={isReadOnly}
+                        isAllowCustomAction={false}
+                        selectedNodeMenu={sidebarProps.selectedNodeMenu}
+                        entityTables={propertyFormPackage.entityTables}
+                        kebabMenuData={propertyFormPackage.kebabMenuData}
+                        handleValueChange={sidebarProps.apValueChange}
+                        handleRefreshUpdatedRecord={(
+                            newAddedId: string,
+                            newAddedName: string,
+                            action?: "save" | "back"
+                        ) => {
+                            if (
+                                newAddedId &&
+                                action === "save" &&
+                                !sidebarProps.subTreeFeatureId
+                            ) {
+                                commonVariableContext.setReloadTreeFor({
+                                    featureId: sidebarProps.featureId,
+                                    entId: newAddedId
+                                });
+                            } else {
+                                sidebarProps.handleReloadTree?.(
+                                    sidebarProps.featureId,
+                                    newAddedId
+                                );
+                            }
+                        }}
+                    />}
+
             </div>
         );
     };
 
     // Render sidebar content based on selected sidebar tab.
     const renderSidebarContent = () => {
-        if (selectedNode && FnIsRootBusinessNode(selectedNode)) {
-            return null;
-        }
         switch (Label) {
             case SidebarEnum.Alerts:
                 return (
@@ -275,7 +243,18 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                     />
                 );
 
-
+            case SidebarEnum.List:
+            case SidebarEnum.ListContacts:
+            case "List":
+            case "List Contacts":
+                return (
+                    <ContactList
+                        uniqueName="sidebar-contact-list"
+                        headerText="Contacts"
+                        selectedNode={selectedNode}
+                        featureId={sidebarProps.featureId}
+                    />
+                );
             default:
                 return null;
         }
@@ -291,5 +270,4 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
 
 }
 
-export { SidebarContent };
-export type { ISidebarContent };
+export { SidebarContent }

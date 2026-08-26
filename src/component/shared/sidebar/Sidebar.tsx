@@ -61,13 +61,11 @@ interface IKebabMenuResponse {
 import { SidebarEnum } from '../../constants/Feature';
 import { isEqual } from 'lodash';
 import { FnParseJsonSafely } from '../../appcontainer/allcommon/FnParseJsonSafely';
-import propertySampleData from '../../../sampledata/sidebar/PropertySampleData.json';
-
-const {
+import {
     sampleBusinessPropertyKebabMenuResponse,
     sampleContactPropertyKebabMenuResponse,
     samplePropertyKebabMenuResponse,
-} = propertySampleData;
+} from './propertyformcontainer/PropertySampleData';
 import { FnIsRootBusinessNode } from '../allcommon/tree/FnIsRootBusinessNode';
 
 const SUB_MENU_OPEN_DELAY_MS = 200;
