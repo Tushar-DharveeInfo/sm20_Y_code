@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react';
 import { IconButton } from '@mui/material';
 import { CellClickedEvent, CellEditingStartedEvent, CellMouseDownEvent, CellValueChangedEvent, ColDef, Column, ColumnResizedEvent, GridOptions, GridReadyEvent, ICellRendererParams, PaginationChangedEvent, RowClickedEvent, RowNode, SelectionChangedEvent, ValueGetterParams } from 'ag-grid-community';
-import "../allcss/tablegrid/BasicGrid.css"
+import "./BasicGrid.css"
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { copyDisplayedColumnsData, handleMouseEvent, handleResize, hideShowPaginatation, onGridReady, syncPaginationDisplay } from './GridEvent';

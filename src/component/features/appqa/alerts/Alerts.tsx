@@ -3,7 +3,7 @@ import { handleNestedZoneContainerKeyDown } from "../../../shared/allcommon/basi
 import { ICascadeFilterContext } from "../../../shared/searchfilter/searchcontrolwithfilter/ISearchControlWithFilter";
 import { Alertlog, IAlertLogRecord } from "@n20a/libalerts";
 import "@n20a/libalerts/style.css";
-import "./AppqaAlerts.css";
+import "./Alerts.css";
 import { useSessionContext } from "../../../shared/context/hooks/SessionHooks";
 import { IAppqaAlerts } from "./IAlerts";
 import { Label } from "../../../shared/basic/label/Label";

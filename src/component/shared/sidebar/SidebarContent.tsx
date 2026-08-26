@@ -7,7 +7,6 @@ import './SidebarContent.css'
 import { SidebarEnum } from '../../constants/Feature'
 import { ITreeNode } from '../allinterface/tree/ITreeControl'
 import { IErrorData } from '../allinterface/IApiResponse'
-import { ISidebarContent } from '../allinterface/sidebar/ISidebarContent'
 // import { DeviceModel } from './devicemodel/DeviceModel'
 import { ForensicLog } from '../forensiclog/ForensicLog'
 // import { DiagnosticLogContainer } from './diagnosticlogcontainer/DiagnosticLogContainer'
@@ -19,7 +18,22 @@ import { useHelpTipContext } from '../context/hooks/HelptipHooks'
 import { AlertLog } from './alertlog/AlertLog'
 import { ContactList } from './contactlist/ContactList'
 import { buildPropertyFormDataFromSelectedNode } from './propertyformcontainer/PropertySampleData'
+import { IMenuItem } from '../allinterface/menu/IMainMenu'
 
+interface ISidebarContent {
+    Label: string;
+    uniqueName: string; // A unique identifier for notes
+    featureId: string;
+    selectedNode: ITreeNode; //selected node data
+    subTreeFeatureId?: string;//to handle custom logic 
+    selectedNodeMenu?: IMenuItem | undefined // select nodemenu data
+    treeData?: ITreeNode[] | null; // tree data for the sidebar
+    selectedNodeExplorer?: ITreeNode;
+    isPropertyFound?: boolean; // to check property tab is available or not
+    handleReloadTree?: (featureId: string, entID?: string) => void;
+    apValueChange?: (value: any, EntID: string, event: unknown, selectedData: unknown, instanceName?: string) => void; // ap form value change
+    handleShowErrorDialog?: (message: string, isOpen: boolean) => void;
+}
 
 const SidebarContent = (sidebarProps: ISidebarContent) => {
     console.log('sidebarProps', sidebarProps)

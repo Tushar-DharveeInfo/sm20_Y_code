@@ -1,11 +1,14 @@
 
 import { Close24x24 } from "@n20a/libicon";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
-import { IAudio } from "../../allinterface/sidebar/IAudio";
 import { IImage } from "../../allinterface/basic/IImage";
 import { ActionImage } from "../../basic/actionimage/ActionImage"
 import { Label } from "../../basic/label/Label"
-import { Notes } from "@n20a/libavnotes";
+import { INote, Notes } from "@n20a/libavnotes";
+interface IAudio {
+    noteProps: INote
+    handleClose: () => void;
+}
 
 const Audio = (props: IAudio) => {
     const deleteImage: IImage = {

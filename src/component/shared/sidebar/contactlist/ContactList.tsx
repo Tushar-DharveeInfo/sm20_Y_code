@@ -6,11 +6,17 @@ import { handleNestedZoneContainerKeyDown } from "../../allcommon/basic/FnHandle
 import { Label } from "../../basic/label/Label";
 import { CardLayout } from "../../cardlayout/CardLayout";
 import { ICardLayoutField } from "../../cardlayout/CardLayout";
-import { IContactList } from "../../allinterface/sidebar/IContactList";
 import { IContact } from "../../allinterface/tree/IContact";
 import { sampleContacts } from "../../../features/allcommon/FnContactsSampleData";
 import "./ContactList.css";
-
+import { ITreeNode } from "../../allinterface/tree/ITreeControl";
+interface IContactList {
+    uniqueName: string;
+    headerText?: string;
+    selectedNode?: ITreeNode;
+    featureId?: string;
+    handleShowUserMessage?: (messageText: string) => void;
+}
 const buildContactCardFields = (contact: IContact): ICardLayoutField[] => {
     const fields: ICardLayoutField[] = [
         {

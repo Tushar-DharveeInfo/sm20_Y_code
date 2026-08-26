@@ -3,11 +3,14 @@
 import { Close24x24 } from "@n20a/libicon"
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable"
 import { IImage } from "../../allinterface/basic/IImage"
-import { IVideo } from "../../allinterface/sidebar/IVideo"
 import { ActionImage } from "../../basic/actionimage/ActionImage"
 import { Label } from "../../basic/label/Label"
-import { Notes } from "@n20a/libavnotes"
-
+import { INote, Notes } from "@n20a/libavnotes"
+interface IVideo {
+    noteProps: INote
+    sendNotes: (message: INote) => void;
+    handleClose: () => void;
+}
 const Video = (props: IVideo) => {
     const deleteImage: IImage = {
         uniqueName: `close-icon`,

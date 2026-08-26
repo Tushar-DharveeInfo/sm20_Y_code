@@ -6,8 +6,9 @@ import { Label } from "../../basic/label/Label";
 import { Close24x24 } from "@n20a/libicon";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
 import { IImage } from "../../allinterface/basic/IImage";
-import { IUploadVideo } from "../../allinterface/sidebar/IUploadVideo";
-
+interface IUploadVideo {
+    handleClose: () => void;
+}
 const UploadVideo = (props: IUploadVideo) => {
     const [open, setOpen] = useState(true);
     const deleteImage: IImage = {
