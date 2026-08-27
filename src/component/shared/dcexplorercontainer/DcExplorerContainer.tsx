@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Key } from 'rc-tree/lib/interface'
 import './DCExplorerContainer.css'
 import formControlsBusinessFilter from '../../../smsampledata/formcontrol/formControlsBusinessFilter.json'
-import { sampleBusinesses } from '../../features/allcommon/FnBusinessesSampleData.ts'
-import { sampleContacts } from '../../features/allcommon/FnContactsSampleData.ts'
+import { sampleBusinesses } from '../allcommon/FnBusinessesSampleData.ts'
+import { sampleContacts } from '../allcommon/FnContactsSampleData.ts'
 import {
   filterBusinessRecords,
   filterContactRecords,

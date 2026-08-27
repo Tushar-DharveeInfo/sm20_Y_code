@@ -1,11 +1,11 @@
 import { Close24x24, Filter24x24 } from '@n20a/libicon'
 import { YesNoControl } from '@n20a/libform'
 import '@n20a/libform/index.css'
-import { IDirtyFlagImage } from '../allinterface/basic/IDirtyFlagImage'
-import { FnGetCssVariable } from '../../appcontainer/allcommon/FnGetCssVariable'
-import { Label } from '../basic/label/Label'
-import { ActionImage } from '../basic/actionimage/ActionImage'
-import { DirtyFlagImage } from '../basic/dirtyflagimage/DirtyFlagImage'
+import { IDirtyFlagImage } from '../../../../shared/allinterface/basic/IDirtyFlagImage'
+import { FnGetCssVariable } from '../../../../appcontainer/allcommon/FnGetCssVariable'
+import { Label } from '../../../../shared/basic/label/Label'
+import { ActionImage } from '../../../../shared/basic/actionimage/ActionImage'
+import { DirtyFlagImage } from '../../../../shared/basic/dirtyflagimage/DirtyFlagImage'
 
 export interface ITicketFilterValues {
     /*When true show all tickets; when false show Pending only. */

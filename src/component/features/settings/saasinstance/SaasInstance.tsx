@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Splitter, SplitterPanel } from 'primereact/splitter';
 import { SettingsInstanceList } from '../../../shared/settingsform/settingsinstancelist/SettingsInstanceList';
 import { IActionLabelItem } from '../../../shared/allinterface/basic/IActionLabelItem';
-import { sampleBusinesses } from '../../allcommon/FnBusinessesSampleData';
+import { sampleBusinesses } from '../../../shared/allcommon/FnBusinessesSampleData';
 import { Label } from '../../../shared/basic/label/Label';
 import '../../../shared/settingsform/settingslibform/SettingsLibForm.css';
 import { SettingsEnums } from '../../../constants/Feature';

@@ -9,15 +9,15 @@ import {
     getAncestorKeys,
     type ILibraryBusinessScope,
     type ILibraryTicketMode,
-} from '../allcommon/tree/FnBuildTicketTree'
-import { FnSearchKeywordInLocalTree } from '../allcommon/tree/FnSearchKeywordInLocalTree'
-import { ISelectedNodeInfo, ITreeNode } from '../allinterface/tree/ITreeControl'
-import { SearchControl } from '../searchfilter/searchcontrol/SearchControl'
-import { TreeControl } from '../tree/treecontrol/TreeControl'
+} from '../../../appqa/allcommon/FnBuildTicketTree'
+import { FnSearchKeywordInLocalTree } from '../../../../shared/allcommon/tree/FnSearchKeywordInLocalTree'
+import { ISelectedNodeInfo, ITreeNode } from '../../../../shared/allinterface/tree/ITreeControl'
+import { SearchControl } from '../../../../shared/searchfilter/searchcontrol/SearchControl'
+import { TreeControl } from '../../../../shared/tree/treecontrol/TreeControl'
 import { TicketDetailPane } from './TicketDetailPane'
 import { TicketFilterForm, type ITicketFilterValues } from './TicketFilterForm'
-import type { ITicket } from '../allinterface/tree/ITicket'
-import { Label } from '../basic/label/Label';
+import type { ITicket } from '../../../../shared/allinterface/tree/ITicket'
+import { Label } from '../../../../shared/basic/label/Label';
 
 interface IFeatureTree {
     hideKebabMenu?: boolean;// if true kebab menu on node will not show

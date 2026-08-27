@@ -7,7 +7,7 @@ import { Label } from "../../basic/label/Label";
 import { CardLayout } from "../../cardlayout/CardLayout";
 import { ICardLayoutField } from "../../cardlayout/CardLayout";
 import { IContact } from "../../allinterface/tree/IContact";
-import { sampleContacts } from "../../../features/allcommon/FnContactsSampleData";
+import { sampleContacts } from "../../allcommon/FnContactsSampleData";
 import "./ContactList.css";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 interface IContactList {

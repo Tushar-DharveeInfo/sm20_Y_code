@@ -1,6 +1,6 @@
 
 import { LibraryEnums } from '../../../constants/Feature'
-import { DeviceModel } from '../../../shared/devicemodel/DeviceModel'
+import { DeviceModel } from './devicemodel/DeviceModel'
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
 import './DeviceLibrary.css'
 import { Label } from '../../../shared/basic/label/Label'

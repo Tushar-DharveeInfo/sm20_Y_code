@@ -3,11 +3,11 @@ import { Close24x24, Download24x24 } from "@n20a/libicon";
 import { PdfMaker, PdfOutputMeta } from "@n20a/libreport";
 import "@n20a/libreport/style.css";
 import "./PdfMakerContainer.css";
-import { FnGetCssVariable } from "../../appcontainer/allcommon/FnGetCssVariable";
-import { ActionImage } from "../basic/actionimage/ActionImage";
-import { Label } from "../basic/label/Label";
-import { JsonViewer } from "../jsonviewer/JsonViewer";
-import { useCommonVariableContext } from "../context/hooks/CommonVariableHooks";
+import { FnGetCssVariable } from "../../../../appcontainer/allcommon/FnGetCssVariable";
+import { ActionImage } from "../../../../shared/basic/actionimage/ActionImage";
+import { Label } from "../../../../shared/basic/label/Label";
+import { JsonViewer } from "../../../../shared/jsonviewer/JsonViewer";
+import { useCommonVariableContext } from "../../../../shared/context/hooks/CommonVariableHooks";
 import { IPdfMakerContainer } from "./IPdfMakerContainer";
 
 const PdfMakerContainer = (props: IPdfMakerContainer) => {

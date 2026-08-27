@@ -1,6 +1,6 @@
 
-import { OverlayTab } from '../basic/overlaytab/OverlayTab.tsx'
-import { FnDownloadPdf } from '../allcommon/basic/FnDownloadPdf.ts';
+import { OverlayTab } from "../../basic/overlaytab/OverlayTab";
+import { FnDownloadPdf } from "../../../features/appqa/allcommon/FnDownloadPdf";
 
 interface IPdfDownloadOverlay {
     uniqueName: string;

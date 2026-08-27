@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import './ComponentsWrapperContainer.css';
 import { StatusBarContainer } from '../statusbarcontainer/StatusBarContainer';
 import { OptionalContainer } from '../../shared/basic/actionimagestrip/OptionalContainer';
-import { Helptip } from '../../features/appqa/help/Help';
+import { Helptip } from '../../shared/help/Help';
 
 interface IOverlayContainer {
     isVisible: boolean,

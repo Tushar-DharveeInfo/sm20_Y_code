@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { Label } from '../basic/label/Label'
-import { IControl } from '../allinterface/settingsform/ISettingsLibForm'
-import { SettingsLibForm } from '../settingsform/settingslibform/SettingsLibForm'
-import type { ITicket } from '../allinterface/tree/ITicket'
-import { FnFormatTicketDate } from '../allcommon/tree/FnFormatTicketDate'
+import { Label } from '../../../../shared/basic/label/Label'
+import { IControl } from '../../../../shared/allinterface/settingsform/ISettingsLibForm'
+import { SettingsLibForm } from '../../../../shared/settingsform/settingslibform/SettingsLibForm'
+import type { ITicket } from '../../../../shared/allinterface/tree/ITicket'
+import { FnFormatTicketDate } from '../../../../shared/allcommon/tree/FnFormatTicketDate'
 
 interface ITicketDetailPane {
     uniqueName: string

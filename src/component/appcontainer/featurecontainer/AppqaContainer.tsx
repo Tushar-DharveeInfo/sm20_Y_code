@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { AppQA } from '../../constants/Feature.ts';
 import ErrorBoundary from '../../shared/errorboundary/ErrorBoundary.tsx';
 import { Loader } from '../../shared/loader/Loader.tsx';
-import Help from '../../features/appqa/help/Help.tsx';
+import Help from '../../shared/help/Help.tsx';
 import { IFeatureContainer } from './FeatureContainer.tsx';
 import { IFeatureItem } from '../../shared/context/allinterface/IMainApp.ts';
 import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu.ts';

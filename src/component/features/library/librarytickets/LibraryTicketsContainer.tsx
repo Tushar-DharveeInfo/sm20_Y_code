@@ -3,10 +3,10 @@ import { Splitter, SplitterPanel } from 'primereact/splitter'
 import TicketExplorerContainer, {
     type ILibraryBusinessScope,
     type ILibraryTicketMode,
-} from '../../../shared/ticketexplorercontainer/TicketExplorerContainer'
+} from './ticketexplorercontainer/TicketExplorerContainer'
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
 import type { ITicket } from '../../../shared/allinterface/tree/ITicket'
-import { TicketDetailPane } from '../../../shared/ticketexplorercontainer/TicketDetailPane'
+import { TicketDetailPane } from './ticketexplorercontainer/TicketDetailPane'
 import './LibraryTickets.css'
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp'
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu'

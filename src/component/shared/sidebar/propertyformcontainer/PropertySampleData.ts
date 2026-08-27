@@ -3,8 +3,8 @@ import type { IDataset } from "../../allinterface/sidebar/IPropertyFormContainer
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import type { IBusiness } from "../../allinterface/tree/IBusiness";
 import type { IContact } from "../../allinterface/tree/IContact";
-import { sampleBusinesses } from "../../../features/allcommon/FnBusinessesSampleData";
-import { sampleContacts } from "../../../features/allcommon/FnContactsSampleData";
+import { sampleBusinesses } from "../../allcommon/FnBusinessesSampleData";
+import { sampleContacts } from "../../allcommon/FnContactsSampleData";
 import getTableVsPropertySample from "../../../../smsampledata/sidebar/GetTableVsPropertySample.json";
 
 /*

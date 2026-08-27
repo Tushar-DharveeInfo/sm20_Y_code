@@ -1,10 +1,10 @@
-import { ITreeNode } from "../../allinterface/entity/ITreeNode"
-import { IFeatureTree } from "../../allinterface/tree/ITreeForHierarchicalDataContainer"
-import { TreeNodeIcon } from "../../tree/treenodeicon/TreeNodeIcon"
-import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle"
-import { FnFormatTicketDateOnly } from "./FnFormatTicketDate"
-import { ITicket } from "../../allinterface/tree/ITicket"
-import { ITicketFilterValues } from "../../ticketexplorercontainer/TicketFilterForm"
+import { ITreeNode } from "../../../shared/allinterface/entity/ITreeNode"
+import { IFeatureTree } from "../../../shared/allinterface/tree/ITreeForHierarchicalDataContainer"
+import { TreeNodeIcon } from "../../../shared/tree/treenodeicon/TreeNodeIcon"
+import { TreeNodeTitle } from "../../../shared/tree/treenodetitle/TreeNodeTitle"
+import { FnFormatTicketDateOnly } from "../../../shared/allcommon/tree/FnFormatTicketDate"
+import { ITicket } from "../../../shared/allinterface/tree/ITicket"
+import { ITicketFilterValues } from "../../library/librarytickets/ticketexplorercontainer/TicketFilterForm"
 
 function formatDateRequested(value: Date | string): string {
     return FnFormatTicketDateOnly(value)

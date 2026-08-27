@@ -3,7 +3,7 @@
  * Replace this import with API response data when available.
  */
 import contactsSample from "../../../smsampledata/tree/contacts.json";
-import type { IContact, IContactsResponse } from "../../shared/allinterface/tree/IContact";
+import type { IContact, IContactsResponse } from "../allinterface/tree/IContact";
 
 const sampleContacts: IContact[] =
     (contactsSample as IContactsResponse).contacts ?? [];
