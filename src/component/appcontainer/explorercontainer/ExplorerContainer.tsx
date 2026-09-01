@@ -21,7 +21,7 @@ import { ActionImage } from '../../shared/basic/actionimage/ActionImage'
 import { FnGetCssVariable } from '../allcommon/FnGetCssVariable'
 import { DcExplorerContainer } from '../../shared/dcexplorercontainer/DcExplorerContainer'
 import { SidebarContainer } from '../sidebarcontainer/SidebarContainer'
-import LibraryTicketsContainer from '../../features/library/librarytickets/LibraryTicketsContainer'
+import { FeatureRenderContainer } from '../featurecontainer/FeatureRenderContainer'
 import { ILibraryTicketMode } from '../../features/library/librarytickets/ticketexplorercontainer/TicketExplorerContainer'
 import { YesNoFormContainer } from '../../shared/basic/yesnoformcontainer/YesNoFormContainer'
 import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks'
@@ -361,18 +361,23 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                                 }} w={'var(--node_height)'} h={'var(--node_height)'} actionCode={'information'} handleMouse={handleClickInformation} /> : <></>
                             }
                         </div>
-                        <div className='nz-wh-100 nz-d-flex-hv-left' style={{ overflow: 'hidden' }}>
-                            {explorerToRender === "MCS" && selectedNodeInfo?.node && treeData && libraryMode && <LibraryTicketsContainer
-                                key={libraryMode}
-                                uniqueName={'feature-library-mcs-tickets'}
-                                featureId={explorerContainerProps.featureId}
-                                headerText={explorerContainerProps.headerText ?? 'MCS Tickets'}
-                                libraryMode={libraryMode}
+                        <div className='nz-wh-100 nz-d-flex-hv-left nz-feature-explorer-right-pane' style={{ overflow: 'hidden' }}>
+                            <FeatureRenderContainer
+                                key={explorerContainerProps.featureId}
+                                allowFeatureToRender={true}
+                                asRightPane={true}
                                 selectedNode={selectedNodeInfo?.node}
                                 treeData={treeData}
-
-                            />}
-
+                                featureContainerProps={{
+                                    uniqueName: explorerContainerProps.uniqueName,
+                                    featureId: explorerContainerProps.featureId,
+                                    allowShowHeader: explorerContainerProps.allowShowHeader,
+                                    headerText: explorerContainerProps.headerText,
+                                    selectedFeatureData: explorerContainerProps.selectedFeatureData,
+                                    updateStatusBarData: explorerContainerProps.updateStatusBarData,
+                                }}
+                                handleShowUserMessage={explorerContainerProps.handleShowUserMessage ?? (() => undefined)}
+                            />
                         </div>
                     </SplitterPanel>
                 </Splitter>}

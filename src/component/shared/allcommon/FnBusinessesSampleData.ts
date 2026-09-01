@@ -1,14 +1,11 @@
 /*
- * SAMPLE DATA: businesses from businesses.json for explorer tree mapping.
+ * SAMPLE DATA: businesses from datasets/businesses.json for explorer tree mapping.
  * Replace this import with API response data when available.
  */
-import businessesSample from "../../../smsampledata/tree/businesses.json";
-import type { IBusiness, IBusinessesResponse } from "../allinterface/tree/IBusiness";
+import businessesSample from "../../../smsampledata/datasets/businesses.json";
+import type { IBusinessDoc } from "../allinterface/IDatasets";
 
-const rawBusinesses: IBusiness[] =
-    (businessesSample as IBusinessesResponse).businesses ?? [];
-
-const sampleBusinesses: IBusiness[] = [...rawBusinesses].sort((a, b) =>
+const sampleBusinesses: IBusinessDoc[] = [...(businessesSample as IBusinessDoc[])].sort((a, b) =>
     (a.bname ?? "").localeCompare(b.bname ?? "")
 );
 

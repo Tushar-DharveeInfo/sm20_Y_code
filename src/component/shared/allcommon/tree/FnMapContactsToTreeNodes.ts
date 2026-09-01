@@ -1,4 +1,4 @@
-import { IContact } from "../../allinterface/tree/IContact";
+import { IContactDoc } from "../../allinterface/IDatasets";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { IFeatureTree } from "../../allinterface/tree/ITreeForFlatDataContainer";
 import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";
@@ -7,13 +7,13 @@ import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";
  * Maps contact records to ITreeNode[].
  * Accepts data from sample JSON or a future API response so the call  can swap sources.
  *
- * - title / Name: contact
- * - IsAuthorized: verified (rendered as check icon in TreeNodeTitle)
+ * - title / Name: cname
+ * - IsAuthorized: monitor (rendered as check icon in TreeNodeTitle)
  * - Description: status (used as node tooltip)
  * - icon: not set (null)
  */
 const FnMapContactsToTreeNodes = (
-    contacts: IContact[],
+    contacts: IContactDoc[],
     featureTreeProps?: IFeatureTree,
     featureId?: string,
     parentEntID?: string | null
@@ -29,35 +29,35 @@ const FnMapContactsToTreeNodes = (
             EntID: contact.cid,
             NodeEntityname: "Contact",
             NodeType: "Contact",
-            Name: contact.contact,
+            Name: contact.cname,
             Description: contact.status,
             NodeState: contact.status,
-            IsAuthorized: contact.verified,
-            title: contact.contact,
+            IsAuthorized: contact.monitor,
+            title: contact.cname,
             icon: null,
             children: [],
             treetype: "Contact",
-            Type: contact.ctype,
+            Type: contact.contacttype,
             parentEntID: parentEntID ?? contact.bid,
             stepNo: 1,
             HasChildren: 0,
             isLeaf: true,
             checkable: false,
             bid: contact.bid,
-            ctype: contact.ctype,
+            cid: contact.cid,
+            contacttype: contact.contacttype,
             email: contact.email,
-            phone1: contact.phone1,
-            phone2: contact.phone2,
-            address_street: contact.address_street,
-            address_city: contact.address_city,
-            address_state: contact.address_state,
-            address_zip: contact.address_zip,
-            address_country: contact.address_country,
-            dateCreated: contact.dateCreated,
-            dateUpdated: contact.dateUpdated,
-            verified: contact.verified,
+            phone: contact.phone,
+            address1: contact.address1,
+            city: contact.city,
+            state: contact.state,
+            country: contact.country,
+            zip: contact.zip,
+            datecreated: contact.datecreated,
+            dateupdated: contact.dateupdated,
+            monitor: contact.monitor,
             status: contact.status,
-            contact: contact.contact,
+            cname: contact.cname,
         };
 
         if (featureTreeProps && featureId) {

@@ -6,6 +6,7 @@ import { MainAppProvider } from "./contextandprovider/MainApp";
 import { ResourceProvider } from "./contextandprovider/Resource";
 import { SelectedNodeProvider } from "./contextandprovider/SelectedNode";
 import { SessionProvider } from "./contextandprovider/Session";
+import { SmDataProvider } from "./contextandprovider/SmData";
 import { StatusBarProvider } from "./contextandprovider/StatusBar";
 
 /* Wraps the app with live context providers in dependency order. */
@@ -18,6 +19,7 @@ const AppContextWrapper = ({ children }: IAppContextWrapper) => {
         CommonVariableProvider,
         ResourceProvider,
         SelectedNodeProvider,
+        SmDataProvider,
         ApProfileProvider
     ];
 

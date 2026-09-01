@@ -328,14 +328,22 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                 "timezoneoffset"
             ]);
 
-            const addressControls = controls.filter(control =>
-                addressFieldNames.has(control.Name?.toLowerCase() ?? "")
-            );
+            const shouldExtractAddressFields = Boolean(isAddressFormRequired)
+                || controls.some((control) => control.DisplayControl === DisplayControlEnums.AddressForm)
+                || controls.some((control) => (control.Name ?? "").toLowerCase() === "address1");
+
+            const addressControls = shouldExtractAddressFields
+                ? controls.filter(control =>
+                    addressFieldNames.has(control.Name?.toLowerCase() ?? "")
+                )
+                : [];
 
             // Remove address controls from normal controls
-            const controlsForForm = controls.filter(control =>
-                !addressFieldNames.has(control.Name?.toLowerCase() ?? "")
-            );
+            const controlsForForm = shouldExtractAddressFields
+                ? controls.filter(control =>
+                    !addressFieldNames.has(control.Name?.toLowerCase() ?? "")
+                )
+                : controls;
 
             const parsedProfile =
                 id || isAutoSave

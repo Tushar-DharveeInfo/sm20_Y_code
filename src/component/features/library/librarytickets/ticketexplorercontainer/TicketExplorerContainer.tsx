@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Key } from 'rc-tree/lib/interface'
 import { Splitter, SplitterPanel } from 'primereact/splitter'
 import './TicketExplorerContainer.css';
-import { sampleTickets } from './TicketSampleData';
 import {
     buildTicketTree,
     findFirstTicketLeaf,
@@ -16,8 +15,9 @@ import { SearchControl } from '../../../../shared/searchfilter/searchcontrol/Sea
 import { TreeControl } from '../../../../shared/tree/treecontrol/TreeControl'
 import { TicketDetailPane } from './TicketDetailPane'
 import { TicketFilterForm, type ITicketFilterValues } from './TicketFilterForm'
-import type { ITicket } from '../../../../shared/allinterface/tree/ITicket'
+import type { ITicketDoc } from '../../../../shared/allinterface/IDatasets'
 import { Label } from '../../../../shared/basic/label/Label';
+import { useSmDataContext } from '../../../../shared/context/hooks/SmDataHooks'
 
 interface IFeatureTree {
     hideKebabMenu?: boolean;// if true kebab menu on node will not show
@@ -52,7 +52,7 @@ interface ITicketExplorerContainer {
     /* Emit selected ticket leaf node to parent containers. */
     handleTicketNodeSelect?: (node: ITreeNode | null) => void
     /* Emit selected ticket record to parent containers. */
-    handleTicketSelect?: (ticket: ITicket | null) => void
+    handleTicketSelect?: (ticket: ITicketDoc | null) => void
     /* Emit current ticket tree data to parent containers. */
     handleTicketTreeData?: (treeData: ITreeNode[]) => void
 }
@@ -89,13 +89,15 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
         showDetailPane = true,
         hideHeader = false,
     } = ticketExplorerContainerProps
+    const smDataContext = useSmDataContext()
+    const tickets = smDataContext.datasets.tickets
     const featureTreeProps = useMemo(() => buildFeatureTreeProps(), [])
     const [treeData, setTreeData] = useState<ITreeNode[]>([])
     const [defaultExpandedKeys, setDefaultExpandedKeys] = useState<Key[]>([])
     const [defaultSelectedKeys, setDefaultSelectedKeys] = useState<Key[]>([])
     const [defaultSelectedNodeInfo, setDefaultSelectedNodeInfo] =
         useState<ISelectedNodeInfo | null>(null)
-    const [selectedTicket, setSelectedTicket] = useState<ITicket | null>(null)
+    const [selectedTicket, setSelectedTicket] = useState<ITicketDoc | null>(null)
     const [searchText, setSearchText] = useState('')
     const [searchHistory, setSearchHistory] = useState<string[]>([])
     const [isShowFilterForm, setIsShowFilterForm] = useState(false)
@@ -121,14 +123,14 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
         }
         setDefaultSelectedKeys([node.key])
         setDefaultSelectedNodeInfo(info)
-        setSelectedTicket((node.ticketRecord as ITicket) ?? null)
+        setSelectedTicket((node.ticketRecord as ITicketDoc) ?? null)
         ticketExplorerContainerProps.handleTicketNodeSelect?.(node)
 
     }
 
     const setTicketTree = (filter: ITicketFilterValues) => {
         const nodes = buildTicketTree(
-            sampleTickets,
+            tickets,
             filter,
             featureTreeProps,
             ticketExplorerContainerProps.featureId ?? 'ticket-explorer',
@@ -155,7 +157,7 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
     useEffect(() => {
         setTicketTree(appliedFilter)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [libraryMode, businessScope])
+    }, [libraryMode, businessScope, tickets])
 
     const handleFilterClick = () => {
         if (isShowFilterForm) {
@@ -207,7 +209,7 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
         setDefaultSelectedKeys(selectedKeys)
         setDefaultSelectedNodeInfo(info)
         if (info.node.NodeType === 'ProdNo' && info.node.ticketRecord) {
-            setSelectedTicket(info.node.ticketRecord as ITicket)
+            setSelectedTicket(info.node.ticketRecord as ITicketDoc)
             ticketExplorerContainerProps.handleTicketNodeSelect?.(info.node)
         } else {
             setSelectedTicket(null)

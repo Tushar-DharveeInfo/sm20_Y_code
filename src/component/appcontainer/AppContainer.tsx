@@ -173,7 +173,8 @@ const AppContainer = (appContainerProps: IAppContainer) => {
                 || featureId === AppQA.Signout
                 || featureId === AppQA.Launch
                 || featureId === AppQA.Theme
-                || featureId === AppQA.Report) {
+                || featureId === AppQA.Report
+                || featureId === AppQA.ToDo) {
                 setSelectedAppQAData(location.state)
             }
             else {

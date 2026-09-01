@@ -1,7 +1,7 @@
 import type { IMenuItem } from "../../allinterface/menu/IMainMenu";
 import type { IDataset } from "../../allinterface/sidebar/IPropertyFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
-import type { IBusiness } from "../../allinterface/tree/IBusiness";
+import type { IBusinessDoc } from "../../allinterface/IDatasets";
 import type { IContact } from "../../allinterface/tree/IContact";
 import { sampleBusinesses } from "../../allcommon/FnBusinessesSampleData";
 import { sampleContacts } from "../../allcommon/FnContactsSampleData";
@@ -234,7 +234,7 @@ const resolvePropertyRecordFromSelectedNode = (
 
     if (entityName === "business") {
         const businessId = String(node.bid || node.NodeEntID || node.EntID || node.key || "").toLowerCase();
-        const business: IBusiness | undefined = sampleBusinesses.find(
+        const business: IBusinessDoc | undefined = sampleBusinesses.find(
             (item) => item.bid?.toLowerCase() === businessId || item.bname?.toLowerCase() === (node.Name ?? node.bname ?? "").toLowerCase()
         );
         if (business) {

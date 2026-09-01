@@ -98,6 +98,18 @@
   {
     "Secured": "",
     "EntityName": "Feature",
+    "MenuID": "10",
+    "Feature": "49",
+    "NodeType": "",
+    "Label": "ToDo",
+    "Tooltip": "Your To Do List",
+    "SortOrder": "9",
+    "DefaultQA": "",
+    "Alias": ""
+  },
+  {
+    "Secured": "",
+    "EntityName": "Feature",
     "MenuID": "100",
     "Feature": "100",
     "NodeType": "",
@@ -164,7 +176,7 @@
     "Label": "VisioStencils",
     "Tooltip": "Explore VisioStencils Clients",
     "SortOrder": "3",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -202,6 +214,54 @@
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": "Authorized"
+  },
+  {
+    "Secured": "",
+    "EntityName": "Feature",
+    "MenuID": "250",
+    "Feature": "250",
+    "NodeType": "",
+    "Label": "Prospect",
+    "Tooltip": "Not a customer",
+    "SortOrder": "250",
+    "DefaultQA": "",
+    "Alias": ""
+  },
+  {
+    "Secured": "1",
+    "EntityName": "Feature",
+    "MenuID": "250",
+    "Feature": "252",
+    "NodeType": "",
+    "Label": "Recent",
+    "Tooltip": "Updated in last 60 days",
+    "SortOrder": "1",
+    "DefaultQA": "1",
+    "Alias": ""
+  },
+  {
+    "Secured": "1",
+    "EntityName": "Feature",
+    "MenuID": "250",
+    "Feature": "254",
+    "NodeType": "",
+    "Label": "All",
+    "Tooltip": "All Prospects",
+    "SortOrder": "2",
+    "DefaultQA": "",
+    "Alias": ""
+  },
+  {
+    "Secured": "1",
+    "EntityName": "Feature",
+    "MenuID": "250",
+    "Feature": "256",
+    "NodeType": "",
+    "Label": "Verify",
+    "Tooltip": "Contact information to be Verified",
+    "SortOrder": "3",
+    "DefaultQA": "",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -266,6 +326,54 @@
   {
     "Secured": "1",
     "EntityName": "Feature",
+    "MenuID": "500",
+    "Feature": "500",
+    "NodeType": "",
+    "Label": "Service",
+    "Tooltip": "Services",
+    "SortOrder": "500",
+    "DefaultQA": "",
+    "Alias": "Service"
+  },
+  {
+    "Secured": "1",
+    "EntityName": "Feature",
+    "MenuID": "500",
+    "Feature": "502",
+    "NodeType": "",
+    "Label": "Services",
+    "Tooltip": "Client Service",
+    "SortOrder": "1",
+    "DefaultQA": "",
+    "Alias": ""
+  },
+  {
+    "Secured": "",
+    "EntityName": "Feature",
+    "MenuID": "500",
+    "Feature": "504",
+    "NodeType": "",
+    "Label": "Catalog and Discounts",
+    "Tooltip": "Catalog and Reseller Discount",
+    "SortOrder": "2",
+    "DefaultQA": "",
+    "Alias": "DataTable"
+  },
+  {
+    "Secured": "",
+    "EntityName": "Feature",
+    "MenuID": "500",
+    "Feature": "506",
+    "NodeType": "",
+    "Label": "Download Excel tempates",
+    "Tooltip": "Excel (.xlsx) templates to create NetZoom import sheets",
+    "SortOrder": "3",
+    "DefaultQA": "",
+    "Alias": "xlsx"
+  },
+  {
+    "Secured": "1",
+    "EntityName": "Feature",
     "MenuID": "900",
     "Feature": "900",
     "NodeType": "",
@@ -300,15 +408,27 @@
     "Alias": "HypervisorNode"
   },
   {
+    "Secured": "1",
+    "EntityName": "Feature",
+    "MenuID": "900",
+    "Feature": "920",
+    "NodeType": "",
+    "Label": "Import",
+    "Tooltip": "Import businesses json",
+    "SortOrder": "3",
+    "DefaultQA": "",
+    "Alias": "Download"
+  },
+  {
     "Secured": "",
     "EntityName": "Feature",
     "MenuID": "208",
     "Feature": "2082",
     "NodeType": "",
-    "Label": "Profile",
-    "Tooltip": "Profile",
+    "Label": "Notes",
+    "Tooltip": "Notes",
     "SortOrder": "1",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -317,11 +437,11 @@
     "MenuID": "208",
     "Feature": "2084",
     "NodeType": "",
-    "Label": "List",
-    "Tooltip": "List Contacts",
+    "Label": "Alerts",
+    "Tooltip": "Alerts",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "SelectColumns"
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -329,11 +449,11 @@
     "MenuID": "208",
     "Feature": "2086",
     "NodeType": "",
-    "Label": "Order",
-    "Tooltip": "Orders",
+    "Label": "Log",
+    "Tooltip": "Log",
     "SortOrder": "3",
-    "DefaultQA": "",
-    "Alias": "orders"
+    "DefaultQA": "1",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -341,11 +461,11 @@
     "MenuID": "208",
     "Feature": "2088",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Profile",
+    "Tooltip": "Profile",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -353,11 +473,11 @@
     "MenuID": "208",
     "Feature": "2090",
     "NodeType": "",
-    "Label": "Notes",
-    "Tooltip": "Notes",
+    "Label": "List",
+    "Tooltip": "List Contacts",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "orders"
   },
   {
     "Secured": "",
@@ -365,8 +485,8 @@
     "MenuID": "208",
     "Feature": "2092",
     "NodeType": "",
-    "Label": "Log",
-    "Tooltip": "Log",
+    "Label": "Order",
+    "Tooltip": "Orders",
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": ""
@@ -377,10 +497,10 @@
     "MenuID": "212",
     "Feature": "2122",
     "NodeType": "",
-    "Label": "Profile",
-    "Tooltip": "Profile",
+    "Label": "Notes",
+    "Tooltip": "Notes",
     "SortOrder": "1",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -389,11 +509,11 @@
     "MenuID": "212",
     "Feature": "2124",
     "NodeType": "",
-    "Label": "List",
-    "Tooltip": "List Contacts",
+    "Label": "Alerts",
+    "Tooltip": "Alerts",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "SelectColumns"
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -401,11 +521,11 @@
     "MenuID": "212",
     "Feature": "2126",
     "NodeType": "",
-    "Label": "Order",
-    "Tooltip": "Orders",
+    "Label": "Log",
+    "Tooltip": "Log",
     "SortOrder": "3",
-    "DefaultQA": "",
-    "Alias": "orders"
+    "DefaultQA": "1",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -413,11 +533,11 @@
     "MenuID": "212",
     "Feature": "2128",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Profile",
+    "Tooltip": "Profile",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -425,11 +545,11 @@
     "MenuID": "212",
     "Feature": "2130",
     "NodeType": "",
-    "Label": "Notes",
-    "Tooltip": "Notes",
+    "Label": "List",
+    "Tooltip": "List Contacts",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "orders"
   },
   {
     "Secured": "",
@@ -437,8 +557,8 @@
     "MenuID": "212",
     "Feature": "2132",
     "NodeType": "",
-    "Label": "Log",
-    "Tooltip": "Log",
+    "Label": "Order",
+    "Tooltip": "Orders",
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": ""
@@ -449,10 +569,10 @@
     "MenuID": "216",
     "Feature": "2162",
     "NodeType": "",
-    "Label": "Profile",
-    "Tooltip": "Profile",
+    "Label": "Notes",
+    "Tooltip": "Notes",
     "SortOrder": "1",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -461,11 +581,11 @@
     "MenuID": "216",
     "Feature": "2164",
     "NodeType": "",
-    "Label": "List",
-    "Tooltip": "List Contacts",
+    "Label": "Alerts",
+    "Tooltip": "Alerts",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "SelectColumns"
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -473,11 +593,11 @@
     "MenuID": "216",
     "Feature": "2166",
     "NodeType": "",
-    "Label": "Order",
-    "Tooltip": "Orders",
+    "Label": "Log",
+    "Tooltip": "Log",
     "SortOrder": "3",
-    "DefaultQA": "",
-    "Alias": "orders"
+    "DefaultQA": "1",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -485,11 +605,11 @@
     "MenuID": "216",
     "Feature": "2168",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Profile",
+    "Tooltip": "Profile",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -497,11 +617,11 @@
     "MenuID": "216",
     "Feature": "2170",
     "NodeType": "",
-    "Label": "Notes",
-    "Tooltip": "Notes",
+    "Label": "List",
+    "Tooltip": "List Contacts",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "orders"
   },
   {
     "Secured": "",
@@ -509,8 +629,8 @@
     "MenuID": "216",
     "Feature": "2172",
     "NodeType": "",
-    "Label": "Log",
-    "Tooltip": "Log",
+    "Label": "Order",
+    "Tooltip": "Orders",
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": ""
@@ -521,10 +641,10 @@
     "MenuID": "218",
     "Feature": "2182",
     "NodeType": "",
-    "Label": "Profile",
-    "Tooltip": "Profile",
+    "Label": "Notes",
+    "Tooltip": "Notes",
     "SortOrder": "1",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -533,11 +653,11 @@
     "MenuID": "218",
     "Feature": "2184",
     "NodeType": "",
-    "Label": "List",
-    "Tooltip": "List Contacts",
+    "Label": "Alerts",
+    "Tooltip": "Alerts",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "SelectColumns"
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -545,11 +665,11 @@
     "MenuID": "218",
     "Feature": "2186",
     "NodeType": "",
-    "Label": "Order",
-    "Tooltip": "Orders",
+    "Label": "Log",
+    "Tooltip": "Log",
     "SortOrder": "3",
-    "DefaultQA": "",
-    "Alias": "orders"
+    "DefaultQA": "1",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -557,11 +677,11 @@
     "MenuID": "218",
     "Feature": "2188",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Profile",
+    "Tooltip": "Profile",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -569,11 +689,11 @@
     "MenuID": "218",
     "Feature": "2190",
     "NodeType": "",
-    "Label": "Notes",
-    "Tooltip": "Notes",
+    "Label": "List",
+    "Tooltip": "List Contacts",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "orders"
   },
   {
     "Secured": "",
@@ -581,8 +701,8 @@
     "MenuID": "218",
     "Feature": "2192",
     "NodeType": "",
-    "Label": "Log",
-    "Tooltip": "Log",
+    "Label": "Order",
+    "Tooltip": "Orders",
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": ""
@@ -593,10 +713,10 @@
     "MenuID": "220",
     "Feature": "2202",
     "NodeType": "",
-    "Label": "Profile",
-    "Tooltip": "Profile",
+    "Label": "Notes",
+    "Tooltip": "Notes",
     "SortOrder": "1",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -605,11 +725,11 @@
     "MenuID": "220",
     "Feature": "2204",
     "NodeType": "",
-    "Label": "List",
-    "Tooltip": "List Contacts",
+    "Label": "Alerts",
+    "Tooltip": "Alerts",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "SelectColumns"
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -617,11 +737,11 @@
     "MenuID": "220",
     "Feature": "2206",
     "NodeType": "",
-    "Label": "Order",
-    "Tooltip": "Orders",
+    "Label": "Log",
+    "Tooltip": "Log",
     "SortOrder": "3",
-    "DefaultQA": "",
-    "Alias": "orders"
+    "DefaultQA": "1",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -629,11 +749,11 @@
     "MenuID": "220",
     "Feature": "2208",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Profile",
+    "Tooltip": "Profile",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -641,11 +761,11 @@
     "MenuID": "220",
     "Feature": "2210",
     "NodeType": "",
-    "Label": "Notes",
-    "Tooltip": "Notes",
+    "Label": "List",
+    "Tooltip": "List Contacts",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "orders"
   },
   {
     "Secured": "",
@@ -653,8 +773,8 @@
     "MenuID": "220",
     "Feature": "2212",
     "NodeType": "",
-    "Label": "Log",
-    "Tooltip": "Log",
+    "Label": "Order",
+    "Tooltip": "Orders",
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": ""
@@ -665,10 +785,10 @@
     "MenuID": "308",
     "Feature": "3082",
     "NodeType": "",
-    "Label": "Profile",
-    "Tooltip": "Profile",
+    "Label": "Notes",
+    "Tooltip": "Notes",
     "SortOrder": "1",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -677,11 +797,11 @@
     "MenuID": "308",
     "Feature": "3084",
     "NodeType": "",
-    "Label": "List",
-    "Tooltip": "List Contacts",
+    "Label": "Alerts",
+    "Tooltip": "Alerts",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "SelectColumns"
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -689,11 +809,11 @@
     "MenuID": "308",
     "Feature": "3086",
     "NodeType": "",
-    "Label": "Order",
-    "Tooltip": "Orders",
+    "Label": "Log",
+    "Tooltip": "Log",
     "SortOrder": "3",
-    "DefaultQA": "",
-    "Alias": "orders"
+    "DefaultQA": "1",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -701,11 +821,11 @@
     "MenuID": "308",
     "Feature": "3088",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Profile",
+    "Tooltip": "Profile",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -713,11 +833,11 @@
     "MenuID": "308",
     "Feature": "3090",
     "NodeType": "",
-    "Label": "Notes",
-    "Tooltip": "Notes",
+    "Label": "List",
+    "Tooltip": "List Contacts",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "orders"
   },
   {
     "Secured": "",
@@ -725,8 +845,8 @@
     "MenuID": "308",
     "Feature": "3092",
     "NodeType": "",
-    "Label": "Log",
-    "Tooltip": "Log",
+    "Label": "Order",
+    "Tooltip": "Orders",
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": ""
@@ -737,10 +857,10 @@
     "MenuID": "312",
     "Feature": "3122",
     "NodeType": "",
-    "Label": "Profile",
-    "Tooltip": "Profile",
+    "Label": "Notes",
+    "Tooltip": "Notes",
     "SortOrder": "1",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -749,11 +869,11 @@
     "MenuID": "312",
     "Feature": "3124",
     "NodeType": "",
-    "Label": "List",
-    "Tooltip": "List Contacts",
+    "Label": "Alerts",
+    "Tooltip": "Alerts",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "SelectColumns"
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -761,11 +881,11 @@
     "MenuID": "312",
     "Feature": "3126",
     "NodeType": "",
-    "Label": "Order",
-    "Tooltip": "Orders",
+    "Label": "Log",
+    "Tooltip": "Log",
     "SortOrder": "3",
-    "DefaultQA": "",
-    "Alias": "orders"
+    "DefaultQA": "1",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -773,11 +893,11 @@
     "MenuID": "312",
     "Feature": "3128",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Profile",
+    "Tooltip": "Profile",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -785,11 +905,11 @@
     "MenuID": "312",
     "Feature": "3130",
     "NodeType": "",
-    "Label": "Notes",
-    "Tooltip": "Notes",
+    "Label": "List",
+    "Tooltip": "List Contacts",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "orders"
   },
   {
     "Secured": "",
@@ -797,8 +917,8 @@
     "MenuID": "312",
     "Feature": "3132",
     "NodeType": "",
-    "Label": "Log",
-    "Tooltip": "Log",
+    "Label": "Order",
+    "Tooltip": "Orders",
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": ""
@@ -809,10 +929,10 @@
     "MenuID": "316",
     "Feature": "3162",
     "NodeType": "",
-    "Label": "Profile",
-    "Tooltip": "Profile",
+    "Label": "Notes",
+    "Tooltip": "Notes",
     "SortOrder": "1",
-    "DefaultQA": "1",
+    "DefaultQA": "",
     "Alias": ""
   },
   {
@@ -821,11 +941,11 @@
     "MenuID": "316",
     "Feature": "3164",
     "NodeType": "",
-    "Label": "List",
-    "Tooltip": "List Contacts",
+    "Label": "Alerts",
+    "Tooltip": "Alerts",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "SelectColumns"
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -833,11 +953,11 @@
     "MenuID": "316",
     "Feature": "3166",
     "NodeType": "",
-    "Label": "Order",
-    "Tooltip": "Orders",
+    "Label": "Log",
+    "Tooltip": "Log",
     "SortOrder": "3",
-    "DefaultQA": "",
-    "Alias": "orders"
+    "DefaultQA": "1",
+    "Alias": ""
   },
   {
     "Secured": "",
@@ -845,11 +965,11 @@
     "MenuID": "316",
     "Feature": "3168",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Profile",
+    "Tooltip": "Profile",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -857,11 +977,11 @@
     "MenuID": "316",
     "Feature": "3170",
     "NodeType": "",
-    "Label": "Notes",
-    "Tooltip": "Notes",
+    "Label": "List",
+    "Tooltip": "List Contacts",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "orders"
   },
   {
     "Secured": "",
@@ -869,8 +989,8 @@
     "MenuID": "316",
     "Feature": "3172",
     "NodeType": "",
-    "Label": "Log",
-    "Tooltip": "Log",
+    "Label": "Order",
+    "Tooltip": "Orders",
     "SortOrder": "6",
     "DefaultQA": "",
     "Alias": ""

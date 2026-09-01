@@ -1,5 +1,4 @@
-import React from 'react';
-import { DcExplorerContainer } from '../../../shared/dcexplorercontainer/DcExplorerContainer';
+import { FeaturePlaceholder } from '../featureplaceholder/FeaturePlaceholder';
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
 import { ClientEnums } from '../../../constants/Feature';
@@ -10,24 +9,15 @@ interface IVisioStencilsProps {
     headerText?: string;
     featureData?: IFeatureItem[];
     selectedFeatureData?: IMenuItem;
-    onNodeSelect?: (selectedKeys: any[], info: any) => void;
 }
 
-const VisioStencils: React.FC<IVisioStencilsProps> = (props) => {
-    const {
-        uniqueName = 'feature-visiostencils',
-        featureId = ClientEnums.VisioStencils,
-        onNodeSelect
-    } = props;
-
+const VisioStencils = (props: IVisioStencilsProps) => {
     return (
-        <div className="nz-feature-visiostencils nz-wh-100">
-            <DcExplorerContainer
-                uniqueName={`${uniqueName}-explorer`}
-                featureId={featureId}
-                handleNodeSelect={onNodeSelect}
-            />
-        </div>
+        <FeaturePlaceholder
+            uniqueName={props.uniqueName ?? 'feature-visiostencils'}
+            featureId={props.featureId ?? ClientEnums.VisioStencils}
+            featureName={props.headerText ?? 'VisioStencils'}
+        />
     );
 };
 

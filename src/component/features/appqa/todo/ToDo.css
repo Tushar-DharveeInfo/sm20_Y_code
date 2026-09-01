@@ -1,0 +1,9 @@
+.nz-appqa-todo {
+    height: 100%;
+    width: 100%;
+    background-color: var(--bgfeaturepane1);
+}
+
+.nz-appqa-todo .nz-node-list-box {
+    cursor: pointer;
+}

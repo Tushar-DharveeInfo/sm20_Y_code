@@ -1,16 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Key } from 'rc-tree/lib/interface'
 import './DCExplorerContainer.css'
-import formControlsBusinessFilter from '../../../smsampledata/formcontrol/formControlsBusinessFilter.json'
-import { sampleBusinesses } from '../allcommon/FnBusinessesSampleData.ts'
-import { sampleContacts } from '../allcommon/FnContactsSampleData.ts'
 import {
   filterBusinessRecords,
-  filterContactRecords,
   getAppliedFilterJson,
   hasActiveContactFilters,
   normalizeFilterFieldName,
 } from '../allcommon/searchfilter/FnFilterBusinessContactRecords.ts'
+import { useSmDataContext } from '../context/hooks/SmDataHooks.ts'
 import {
   FnGetClientExplorerAutoFilter,
 } from '../allcommon/searchfilter/FnGetClientExplorerAutoFilter.ts'
@@ -46,6 +43,7 @@ function buildFeatureTreeProps(): IFeatureTree {
 }
 
 const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => {
+  const smDataContext = useSmDataContext()
   const [featureTreeProps, setFeatureTreeProps] = useState<IFeatureTree | null>(null)
   const [treeContainerFlatDataProps, setTreeContainerFlatDataProps] = useState<ITreeForFlatDataContainer>()
   const [treeData, setTreeData] = useState<ITreeNode[]>()
@@ -86,6 +84,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
     }
     setDefaultSelectedKeys([node.key])
     setDefaultSelectedNodeInfo(info)
+    smDataContext.setExplorerSelection(node, getAppliedFilterJson(filterFormDataRef.current))
     dcExplorerContainerProps.handleNodeSelect?.([node.key], info, expandedKeys, currentTree)
   }
 
@@ -123,6 +122,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
     } else {
       setDefaultSelectedKeys([])
       setDefaultSelectedNodeInfo(null)
+      smDataContext.setExplorerSelection(undefined, getAppliedFilterJson(filterFormDataRef.current))
     }
   }
 
@@ -134,10 +134,10 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
   ) => {
     const autoFilter = FnGetClientExplorerAutoFilter(featureId)
     const mergedForm: IDCFilterControlValues = { ...autoFilter, ...form }
-    let businesses = filterBusinessRecords(sampleBusinesses, mergedForm)
+    let businesses = filterBusinessRecords(smDataContext.datasets.businesses, mergedForm)
     if (hasActiveContactFilters(mergedForm)) {
       const matchingBids = new Set(
-        filterContactRecords(sampleContacts, mergedForm).map((contact) => contact.bid)
+        smDataContext.getContactsForTree("", mergedForm).map((contact) => contact.bid)
       )
       businesses = businesses.filter((business) => matchingBids.has(business.bid))
     }
@@ -147,6 +147,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
   // Reload business tree when featureId changes (Client menu auto-filters included).
   useEffect(() => {
     if (!dcExplorerContainerProps.featureId) return
+    if (!smDataContext.isBusinessesLoaded) return
     if (prevFeatureIdRef.current === dcExplorerContainerProps.featureId) return
     prevFeatureIdRef.current = dcExplorerContainerProps.featureId
 
@@ -166,7 +167,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
 
     // TODO: replace sampleBusinesses with API response when available
     applyBusinessTreeFromFilter(autoFilter, featureProps, dcExplorerContainerProps.featureId)
-  }, [dcExplorerContainerProps.featureId, dcExplorerContainerProps.uniqueName])
+  }, [dcExplorerContainerProps.featureId, dcExplorerContainerProps.uniqueName, smDataContext.isBusinessesLoaded])
 
   const handleNodeExpand = async (expandedNodeKeys: Key[], info: IExpandedNodeInfo) => {
     if (!info?.expanded || !info.node || !treeContainerFlatDataProps || !featureTreeProps) return
@@ -182,11 +183,9 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
       return
     }
 
-    // TODO: replace sampleContacts with API response when available
-    const contactsForBusiness = filterContactRecords(
-      sampleContacts,
-      filterFormData,
-      info.node.NodeEntID ?? info.node.key
+    const contactsForBusiness = smDataContext.getContactsForTree(
+      String(info.node.NodeEntID ?? info.node.key),
+      filterFormData
     )
     const contactNodes = FnMapContactsToTreeNodes(
       contactsForBusiness,
@@ -224,6 +223,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
   const handleNodeSelect = (selectedKeys: Key[], info: ISelectedNodeInfo, expandedNodeKeys?: Key[]) => {
     setDefaultSelectedKeys(selectedKeys)
     setDefaultSelectedNodeInfo(info)
+    smDataContext.setExplorerSelection(info.node, getAppliedFilterJson(filterFormDataRef.current))
     dcExplorerContainerProps.handleNodeSelect?.(
       selectedKeys,
       info,
@@ -252,6 +252,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
     handleFilterClick()
   }
 
+  // Track draft filter edits until apply; map libform field names to control names.
   const handleFilterFormChange = (value: string | undefined, name: string) => {
     if (value === undefined) return
     const field = normalizeFilterFieldName(name)
@@ -265,6 +266,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
     setIsFilterChange(true)
   }
 
+  // Apply saved filter json (drop ANY) and refresh the explorer tree, or open the form.
   const handleFilterClick = () => {
     if (isShowFilterForm) {
       if (isFilterChangeRef.current && featureTreeProps && dcExplorerContainerProps.featureId) {
@@ -352,7 +354,6 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
         <FilterFormContainer
           uniqueName={`${dcExplorerContainerProps.uniqueName}-filter-form`}
           allowHeader={true}
-          controls={formControlsBusinessFilter}
           isFilterChange={isFilterChange}
           controlValues={filterFormData}
           headerText="Filter Business / Contact"

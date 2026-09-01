@@ -1,5 +1,4 @@
-import React from 'react';
-import { DcExplorerContainer } from '../../../shared/dcexplorercontainer/DcExplorerContainer';
+import { FeaturePlaceholder } from '../featureplaceholder/FeaturePlaceholder';
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
 import { ClientEnums } from '../../../constants/Feature';
@@ -10,24 +9,15 @@ interface IClientIdentityManagementProps {
     headerText?: string;
     featureData?: IFeatureItem[];
     selectedFeatureData?: IMenuItem;
-    onNodeSelect?: (selectedKeys: any[], info: any) => void;
 }
 
-const ClientIdentityManagement: React.FC<IClientIdentityManagementProps> = (props) => {
-    const {
-        uniqueName = 'feature-clientidentitymanagement',
-        featureId = ClientEnums.ClientIdentityManagement,
-        onNodeSelect
-    } = props;
-
+const ClientIdentityManagement = (props: IClientIdentityManagementProps) => {
     return (
-        <div className="nz-feature-clientidentitymanagement nz-wh-100">
-            <DcExplorerContainer
-                uniqueName={`${uniqueName}-explorer`}
-                featureId={featureId}
-                handleNodeSelect={onNodeSelect}
-            />
-        </div>
+        <FeaturePlaceholder
+            uniqueName={props.uniqueName ?? 'feature-clientidentitymanagement'}
+            featureId={props.featureId ?? ClientEnums.ClientIdentityManagement}
+            featureName={props.headerText ?? 'Client Identity Management'}
+        />
     );
 };
 

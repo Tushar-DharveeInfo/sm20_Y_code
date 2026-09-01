@@ -397,6 +397,7 @@ const FnBuildFormElementsFromControls = (
                                 required: col.IsRequired ? true : false,
                                 disabled: isDisabled,
                                 displayunit: displayUnit,
+                                max: col.MaxDate || undefined,
                                 onChangedValue: isReadOnlyControl ? undefined : handleChangedControlValue
                             };
                         }
@@ -421,13 +422,18 @@ const FnBuildFormElementsFromControls = (
                         multiple: displayControl === "fileSelect" ? false : undefined,
                         fndisplaycontrolValues: async () => {
                             if (Array.isArray(col.Options) && col.Options.length) {
+                                const mapped = col.Options.map((option): IOptionItem => ({
+                                    label: String(option.label ?? option.value ?? ""),
+                                    value: String(option.value ?? ""),
+                                    disabled: Boolean(option.disabled),
+                                }));
+                                const anyOptions = mapped.filter((option) => String(option.value).toUpperCase() === "ANY");
+                                const otherOptions = mapped
+                                    .filter((option) => String(option.value).toUpperCase() !== "ANY")
+                                    .sort((a, b) => a.label.localeCompare(b.label));
                                 const optionObject: IDisplayControlValuesResult = {
                                     value: value ?? "",
-                                    options: col.Options.map((option): IOptionItem => ({
-                                        label: String(option.label ?? option.value ?? ""),
-                                        value: String(option.value ?? ""),
-                                        disabled: Boolean(option.disabled),
-                                    })).sort((a, b) => a.label.localeCompare(b.label)),
+                                    options: [...anyOptions, ...otherOptions],
                                 };
                                 return optionObject;
                             }

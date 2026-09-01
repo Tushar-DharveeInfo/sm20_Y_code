@@ -3,8 +3,42 @@ import { IFeatureTree } from "../../../shared/allinterface/tree/ITreeForHierarch
 import { TreeNodeIcon } from "../../../shared/tree/treenodeicon/TreeNodeIcon"
 import { TreeNodeTitle } from "../../../shared/tree/treenodetitle/TreeNodeTitle"
 import { FnFormatTicketDateOnly } from "../../../shared/allcommon/tree/FnFormatTicketDate"
-import { ITicket } from "../../../shared/allinterface/tree/ITicket"
+import type { ITicketDoc } from "../../../shared/allinterface/IDatasets"
 import { ITicketFilterValues } from "../../library/librarytickets/ticketexplorercontainer/TicketFilterForm"
+
+function ticketStatus(ticket: ITicketDoc): string {
+    return (ticket.status ?? "").trim()
+}
+
+/** Leaf node Status used for Released / Accepted / Received / Open icons. */
+function toLeafNodeStatus(status: string): "Released" | "Accepted" | "Received" | "Open" {
+    const normalized = status.toLowerCase()
+    if (normalized === "released") {
+        return "Released"
+    }
+    if (normalized === "accepted" || normalized === "resolved") {
+        return "Accepted"
+    }
+    if (normalized === "open") {
+        return "Open"
+    }
+    return "Received"
+}
+
+function isClosedLibraryStatus(status: string): boolean {
+    const normalized = status.toLowerCase()
+    return normalized === "accepted" || normalized === "resolved" || normalized === "released"
+}
+
+function isOpenLibraryStatus(status: string): boolean {
+    const normalized = status.toLowerCase()
+    return (
+        normalized === "pending" ||
+        normalized === "open" ||
+        normalized === "in progress" ||
+        normalized === "need info"
+    )
+}
 
 function formatDateRequested(value: Date | string): string {
     return FnFormatTicketDateOnly(value)
@@ -16,7 +50,7 @@ function createBaseNode(params: {
     nodeType: string
     parentEntID: string | null
     isLeaf: boolean
-    ticket?: ITicket
+    ticket?: ITicketDoc
     description?: string
 }): ITreeNode {
     const node: ITreeNode = {
@@ -27,7 +61,7 @@ function createBaseNode(params: {
         NodeType: params.nodeType,
         Name: params.name,
         Description: params.description ?? params.name,
-        NodeState: params.ticket?.Status ?? null,
+        NodeState: params.ticket ? toLeafNodeStatus(ticketStatus(params.ticket)) : null,
         IsAuthorized: false,
         title: params.name,
         icon: null,
@@ -40,7 +74,7 @@ function createBaseNode(params: {
         isLeaf: params.isLeaf,
         checkable: false,
         ticketRecord: params.ticket,
-        Status: params.ticket?.Status,
+        Status: params.ticket ? toLeafNodeStatus(ticketStatus(params.ticket)) : undefined,
     }
     return node
 }
@@ -67,13 +101,13 @@ function finalizeNode(
     return node
 }
 
-/*Filters tickets: All unchecked → Pending only. */
+/*Filters tickets: All unchecked → open/pending only. */
 export function filterTickets(
-    tickets: ITicket[],
+    tickets: ITicketDoc[],
     filter: ITicketFilterValues
-): ITicket[] {
+): ITicketDoc[] {
     if (filter.showAll) return [...tickets]
-    return tickets.filter((ticket) => ticket.Status === 'Pending')
+    return tickets.filter((ticket) => isOpenLibraryStatus(ticketStatus(ticket)))
 }
 
 /*Library ticket list modes (Received = not Accepted, Approved = Accepted only). */
@@ -90,15 +124,15 @@ export interface ILibraryBusinessScope {
 
 /*Apply Library Received / Accepted status filter. */
 export function filterTicketsByLibraryMode(
-    tickets: ITicket[],
+    tickets: ITicketDoc[],
     mode?: ILibraryTicketMode
-): ITicket[] {
+): ITicketDoc[] {
     if (!mode || mode === 'all' || mode === 'mcs') return [...tickets]
     if (mode === 'accepted') {
-        return tickets.filter((ticket) => ticket.Status === 'Accepted')
+        return tickets.filter((ticket) => isClosedLibraryStatus(ticketStatus(ticket)))
     }
-    // received: tickets not yet accepted
-    return tickets.filter((ticket) => ticket.Status !== 'Accepted')
+    // received: tickets not yet accepted / resolved
+    return tickets.filter((ticket) => !isClosedLibraryStatus(ticketStatus(ticket)))
 }
 
 /**
@@ -108,28 +142,24 @@ export function filterTicketsByLibraryMode(
  * - Contact (CID leaf) → tickets for that business + contact
  */
 export function filterTicketsByBusinessScope(
-    tickets: ITicket[],
+    tickets: ITicketDoc[],
     scope?: ILibraryBusinessScope | null
-): ITicket[] {
+): ITicketDoc[] {
     if (!scope?.nodeType || scope.nodeType === 'Root') {
         return [...tickets]
     }
 
     if (scope.nodeType === 'Contact') {
         return tickets.filter((ticket) => {
-            const businessOk = scope.businessName
-                ? ticket.Business === scope.businessName
-                : true
-            const contactOk = scope.contactName
-                ? ticket.contact === scope.contactName
-                : true
+            const businessOk = scope.bid ? ticket.bid === scope.bid : true
+            const contactOk = scope.cid ? ticket.cid === scope.cid : true
             return businessOk && contactOk
         })
     }
 
     if (scope.nodeType === 'Business') {
-        if (!scope.businessName) return [...tickets]
-        return tickets.filter((ticket) => ticket.Business === scope.businessName)
+        if (!scope.bid) return [...tickets]
+        return tickets.filter((ticket) => ticket.bid === scope.bid)
     }
 
     return [...tickets]
@@ -141,7 +171,7 @@ export function filterTicketsByBusinessScope(
  * - By DateRequested: By Requested Date → Date → Mfg → ProdNo (leaf)
  */
 export function buildTicketTree(
-    tickets: ITicket[],
+    tickets: ITicketDoc[],
     filter: ITicketFilterValues,
     featureTreeProps?: IFeatureTree,
     featureId?: string,
@@ -172,23 +202,24 @@ export function buildTicketTree(
 }
 
 function buildByMfgTree(
-    tickets: ITicket[],
+    tickets: ITicketDoc[],
     featureTreeProps?: IFeatureTree,
     featureId?: string,
     parentEntID: string | null = null
 ): ITreeNode[] {
-    const byMfg = new Map<string, ITicket[]>()
+    const byMfg = new Map<string, ITicketDoc[]>()
     tickets.forEach((ticket) => {
-        const list = byMfg.get(ticket.Mfg) ?? []
+        const mfg = ticket.mfg ?? ""
+        const list = byMfg.get(mfg) ?? []
         list.push(ticket)
-        byMfg.set(ticket.Mfg, list)
+        byMfg.set(mfg, list)
     })
 
     const mfgNames = [...byMfg.keys()].sort((a, b) => a.localeCompare(b))
 
     return mfgNames.map((mfg) => {
         const mfgTickets = byMfg.get(mfg) ?? []
-        mfgTickets.sort((a, b) => a.ProdNo.localeCompare(b.ProdNo))
+        mfgTickets.sort((a, b) => (a.prodno ?? "").localeCompare(b.prodno ?? ""))
 
         const mfgNode = createBaseNode({
             key: `mfg##${mfg}`,
@@ -202,13 +233,13 @@ function buildByMfgTree(
         mfgNode.children = mfgTickets.map((ticket) =>
             finalizeNode(
                 createBaseNode({
-                    key: `prod##${mfg}##${ticket.ProdNo}##${ticket.Ticket}`,
-                    name: ticket.ProdNo,
+                    key: `prod##${mfg}##${ticket.prodno}##${ticket.ticketid}`,
+                    name: ticket.prodno,
                     nodeType: 'ProdNo',
                     parentEntID: mfgNode.key,
                     isLeaf: true,
                     ticket,
-                    description: `${ticket.Ticket} · ${ticket.Status}`,
+                    description: `${ticket.ticketid} · ${ticketStatus(ticket)}`,
                 }),
                 featureTreeProps,
                 featureId
@@ -226,21 +257,21 @@ function daySortKey(value: Date | string): number {
 }
 
 function buildByDateTree(
-    tickets: ITicket[],
+    tickets: ITicketDoc[],
     featureTreeProps?: IFeatureTree,
     featureId?: string,
     parentEntID: string | null = null
 ): ITreeNode[] {
-    const byDate = new Map<number, { label: string; tickets: ITicket[] }>()
+    const byDate = new Map<number, { label: string; tickets: ITicketDoc[] }>()
     tickets.forEach((ticket) => {
-        const sortKey = daySortKey(ticket.dateRequested)
+        const sortKey = daySortKey(ticket.daterequested)
         const existing = byDate.get(sortKey)
         if (existing) {
             existing.tickets.push(ticket)
             return
         }
         byDate.set(sortKey, {
-            label: formatDateRequested(ticket.dateRequested),
+            label: formatDateRequested(ticket.daterequested),
             tickets: [ticket],
         })
     })
@@ -250,11 +281,12 @@ function buildByDateTree(
 
     return dateGroups.map(([sortKey, group]) => {
         const dateLabel = group.label
-        const byMfg = new Map<string, ITicket[]>()
+        const byMfg = new Map<string, ITicketDoc[]>()
         group.tickets.forEach((ticket) => {
-            const list = byMfg.get(ticket.Mfg) ?? []
+            const mfg = ticket.mfg ?? ""
+            const list = byMfg.get(mfg) ?? []
             list.push(ticket)
-            byMfg.set(ticket.Mfg, list)
+            byMfg.set(mfg, list)
         })
 
         const dateNode = createBaseNode({
@@ -269,7 +301,7 @@ function buildByDateTree(
         const mfgNames = [...byMfg.keys()].sort((a, b) => a.localeCompare(b))
         dateNode.children = mfgNames.map((mfg) => {
             const mfgTickets = (byMfg.get(mfg) ?? []).sort((a, b) =>
-                a.ProdNo.localeCompare(b.ProdNo)
+                (a.prodno ?? "").localeCompare(b.prodno ?? "")
             )
             const mfgNode = createBaseNode({
                 key: `date##${sortKey}##mfg##${mfg}`,
@@ -282,13 +314,13 @@ function buildByDateTree(
             mfgNode.children = mfgTickets.map((ticket) =>
                 finalizeNode(
                     createBaseNode({
-                        key: `prod##${sortKey}##${mfg}##${ticket.ProdNo}##${ticket.Ticket}`,
-                        name: ticket.ProdNo,
+                        key: `prod##${sortKey}##${mfg}##${ticket.prodno}##${ticket.ticketid}`,
+                        name: ticket.prodno,
                         nodeType: 'ProdNo',
                         parentEntID: mfgNode.key,
                         isLeaf: true,
                         ticket,
-                        description: `${ticket.Ticket} · ${ticket.Status}`,
+                        description: `${ticket.ticketid} · ${ticketStatus(ticket)}`,
                     }),
                     featureTreeProps,
                     featureId

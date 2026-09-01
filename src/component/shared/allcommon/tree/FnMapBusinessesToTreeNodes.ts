@@ -1,4 +1,4 @@
-import { IBusiness } from "../../allinterface/tree/IBusiness";
+import { IBusinessDoc } from "../../allinterface/IDatasets";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { IFeatureTree } from "../../allinterface/tree/ITreeForFlatDataContainer";
 import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";
@@ -13,7 +13,7 @@ import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";
  * - icon: not set (null)
  */
 const FnMapBusinessesToTreeNodes = (
-    businesses: IBusiness[],
+    businesses: IBusinessDoc[],
     featureTreeProps?: IFeatureTree,
     featureId?: string
 ): ITreeNode[] => {
@@ -42,18 +42,20 @@ const FnMapBusinessesToTreeNodes = (
             HasChildren: 1,
             isLeaf: false,
             checkable: false,
+            bid: business.bid,
             btype: business.btype,
-            salesExec: business.salesExec,
+            salesexec: business.salesexec,
             country: business.country,
             state: business.state,
-            daysNoticePeriod: business.daysNoticePeriod,
-            mmFinYear: business.mmFinYear,
-            relatedBids: business.relatedBids,
-            dateCreated: business.dateCreated,
-            dateUpdated: business.dateUpdated,
+            daysnoticeperiod: business.daysnoticeperiod,
+            mmfinyear: business.mmfinyear,
+            relatedbids: business.relatedbids,
+            datecreated: business.datecreated,
+            dateupdated: business.dateupdated,
             verified: business.verified,
             status: business.status,
             bname: business.bname,
+            tag: business.tag,
         };
 
         if (featureTreeProps && featureId) {

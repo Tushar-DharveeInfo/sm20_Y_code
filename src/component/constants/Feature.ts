@@ -15,7 +15,7 @@ const FeatureQARange = { MIN: 1000, MAX: 9000 }
 const KebabMenuRange = { MIN: 10000, MAX: 100000 }
 
 
-// Appqa Constants — ids match sampledata/auth/smFeatures.json MenuID 10 items
+// Appqa Constants — ids match public/smFeatures.json MenuID 10 items
 enum AppQA {
     Signout = "41",
     Help = "42",
@@ -25,15 +25,16 @@ enum AppQA {
     Alerts = "46",
     Log = "47",
     Report = "48",
+    ToDo = "49",
 }
 
-// Home feature ids — match sampledata/auth/smFeatures.json MenuID 100
+// Home feature ids — match public/smFeatures.json MenuID 100
 enum HomeEnums {
     Home = "100",
     HomeDashboard = "102",
 }
 
-// Client menu feature ids — match smFeatures.json MenuID 200
+// Client menu feature ids — match public/smFeatures.json MenuID 200
 enum ClientEnums {
     Client = "200",
     ClientIdentityManagement = "204",
@@ -41,19 +42,18 @@ enum ClientEnums {
     VisioStencils = "212",
     SSIAndOtherServices = "216",
     Reseller = "218",
-    Mcs = '220'
+    Mcs = "220",
 }
 
-
-// Services menu feature ids — match smFeatures.json MenuID 500
-enum ServicesEnums {
-    Service = "500",
-    Services = "502",
-    CatalogAndDiscounts = "504",
-    ImportTemplates = '506'
+// Prospect menu feature ids — match public/smFeatures.json MenuID 250
+enum ProspectEnums {
+    Prospect = "250",
+    Recent = "252",
+    All = "254",
+    Verify = "256",
 }
 
-// Library menu feature ids — match smFeatures.json MenuID 300
+// Library menu feature ids — match public/smFeatures.json MenuID 300
 enum LibraryEnums {
     Library = "300",
     DeviceLibrary = "304",
@@ -62,7 +62,15 @@ enum LibraryEnums {
     McsDevelopment = "316",
 }
 
-// Settings menu feature ids — match smFeatures.json MenuID 900
+// Services menu feature ids — match public/smFeatures.json MenuID 500
+enum ServicesEnums {
+    Service = "500",
+    Services = "502",
+    CatalogAndDiscounts = "504",
+    DownloadExcelTempates = "506",
+}
+
+// Settings menu feature ids — match public/smFeatures.json MenuID 900
 enum SettingsEnums {
     Settings = "900",
     DailySchedular = "902",
@@ -93,6 +101,7 @@ export {
     FeatureMenuRange, AppQA, AppQARange
     , HomeEnums
     , ClientEnums
+    , ProspectEnums
     , ServicesEnums
     , LibraryEnums
     , SettingsEnums

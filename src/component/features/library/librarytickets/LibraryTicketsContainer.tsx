@@ -5,13 +5,14 @@ import TicketExplorerContainer, {
     type ILibraryTicketMode,
 } from './ticketexplorercontainer/TicketExplorerContainer'
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
-import type { ITicket } from '../../../shared/allinterface/tree/ITicket'
+import type { ITicketDoc } from '../../../shared/allinterface/IDatasets'
 import { TicketDetailPane } from './ticketexplorercontainer/TicketDetailPane'
 import './LibraryTickets.css'
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp'
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu'
 
 import { useSelectedNodeContext } from '../../../shared/context/hooks/SelectedNodeHooks'
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks'
 
 interface ILibraryTicketsContainer {
     uniqueName: string
@@ -35,12 +36,12 @@ function resolveBusinessScope(
     }
 
     if (node.NodeType === 'Contact') {
-        const parentBid = String(node.parentEntID ?? node.bid ?? '')
+        const parentBid = String(node.bid ?? node.parentEntID ?? '')
         const parentBusiness = findNodeByKey(treeData ?? [], parentBid)
         return {
             nodeType: 'Contact',
-            cid: String(node.NodeEntID ?? node.key),
-            contactName: String(node.Name ?? node.contact ?? ''),
+            cid: String(node.cid ?? node.NodeEntID ?? node.key),
+            contactName: String(node.Name ?? node.cname ?? node.contact ?? ''),
             bid: parentBid || null,
             businessName: parentBusiness
                 ? String(parentBusiness.Name ?? parentBusiness.bname ?? '')
@@ -51,7 +52,7 @@ function resolveBusinessScope(
     if (node.NodeType === 'Business') {
         return {
             nodeType: 'Business',
-            bid: String(node.NodeEntID ?? node.key),
+            bid: String(node.bid ?? node.NodeEntID ?? node.key),
             businessName: String(node.Name ?? node.bname ?? ''),
         }
     }
@@ -78,10 +79,12 @@ function findNodeByKey(nodes: ITreeNode[], key: string): ITreeNode | null {
  * Pane 2 — placeholder for tickets component
  */
 const LibraryTicketsContainer = (props: ILibraryTicketsContainer) => {
+    const smDataContext = useSmDataContext()
     const selectedNodeContext = useSelectedNodeContext()
     const effectiveLibraryMode = props.libraryMode ?? props.mode ?? 'all'
     const effectiveSelectedNode =
         props.selectedNode ??
+        smDataContext.selectedNode ??
         selectedNodeContext?.selectedNode ??
         selectedNodeContext?.selectedNodeExplorer?.node ??
         ({ NodeType: 'Root', key: 'root' } as ITreeNode)
@@ -90,21 +93,37 @@ const LibraryTicketsContainer = (props: ILibraryTicketsContainer) => {
     const [businessScope, setBusinessScope] = useState<ILibraryBusinessScope>({
         nodeType: 'Root',
     })
-    const [selectedTicket, setSelectedTicket] = useState<ITicket | null>(null)
+    const [selectedTicket, setSelectedTicket] = useState<ITicketDoc | null>(null)
 
     useEffect(() => {
+        const { bid, cid } = smDataContext.selection
+        if (cid) {
+            setBusinessScope({
+                nodeType: 'Contact',
+                bid: bid ?? null,
+                cid,
+            })
+            return
+        }
+        if (bid) {
+            setBusinessScope({
+                nodeType: 'Business',
+                bid,
+            })
+            return
+        }
         setBusinessScope(resolveBusinessScope(effectiveSelectedNode, effectiveTreeData))
-    }, [effectiveSelectedNode, effectiveTreeData, props.featureId])
+    }, [effectiveSelectedNode, effectiveTreeData, props.featureId, smDataContext.selection])
 
     const ticketKey = useMemo(
         () =>
             [
                 effectiveLibraryMode,
                 businessScope.nodeType,
-                businessScope.bid ?? '',
-                businessScope.cid ?? '',
+                businessScope.bid ?? smDataContext.selection.bid ?? '',
+                businessScope.cid ?? smDataContext.selection.cid ?? '',
             ].join('|'),
-        [effectiveLibraryMode, businessScope]
+        [effectiveLibraryMode, businessScope, smDataContext.selection]
     )
 
     return (

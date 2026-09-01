@@ -1,11 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Splitter, SplitterPanel } from 'primereact/splitter';
 import { SettingsInstanceList } from '../../../shared/settingsform/settingsinstancelist/SettingsInstanceList';
 import { IActionLabelItem } from '../../../shared/allinterface/basic/IActionLabelItem';
 import { sampleBusinesses } from '../../../shared/allcommon/FnBusinessesSampleData';
+import { FnMapBusinessesToTreeNodes } from '../../../shared/allcommon/tree/FnMapBusinessesToTreeNodes';
 import { Label } from '../../../shared/basic/label/Label';
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 import '../../../shared/settingsform/settingslibform/SettingsLibForm.css';
 import { SettingsEnums } from '../../../constants/Feature';
+import { ImpersonateUser } from './ImpersonateUser';
 
 interface ISaasInstance {
     uniqueName: string;
@@ -15,6 +18,7 @@ interface ISaasInstance {
 
 const SaasInstance: React.FC<ISaasInstance> = (props) => {
     const { uniqueName, headerText, featureId = SettingsEnums.Instance } = props;
+    const smDataContext = useSmDataContext();
 
     // Build action items from sample businesses showing company names only (no CIDs)
     const companyActionItems: IActionLabelItem[] = useMemo(() => {
@@ -30,9 +34,30 @@ const SaasInstance: React.FC<ISaasInstance> = (props) => {
             .sort((a, b) => a.label.localeCompare(b.label));
     }, []);
 
-    const [selectedItem, setSelectedItem] = useState<IActionLabelItem | null>(
-        companyActionItems.length > 0 ? companyActionItems[0] : null
-    );
+    const [selectedItem, setSelectedItem] = useState<IActionLabelItem | null>(() => {
+        const contextBid = smDataContext.selection.bid;
+        const fromContext = contextBid
+            ? companyActionItems.find((ci) => ci.actionCode === contextBid)
+            : undefined;
+        return fromContext ?? (companyActionItems.length > 0 ? companyActionItems[0] : null);
+    });
+
+    const { setExplorerSelection, selection } = smDataContext;
+    const filterJson = selection.filterJson ?? {};
+
+    const applyBidToContext = useCallback((bid?: string) => {
+        if (!bid) {
+            setExplorerSelection(undefined, filterJson);
+            return;
+        }
+        const business = sampleBusinesses.find((b) => b.bid === bid);
+        const node = business ? FnMapBusinessesToTreeNodes([business])[0] : undefined;
+        setExplorerSelection(node, filterJson);
+    }, [filterJson, setExplorerSelection]);
+
+    useEffect(() => {
+        applyBidToContext(selectedItem?.actionCode);
+    }, [applyBidToContext, selectedItem?.actionCode]);
 
     const handleSelectListItem = (
         _event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
@@ -42,6 +67,7 @@ const SaasInstance: React.FC<ISaasInstance> = (props) => {
         const item = companyActionItems.find((ci) => ci.actionCode === actionCode);
         if (item) {
             setSelectedItem(item);
+            applyBidToContext(item.actionCode);
         }
     };
 
@@ -51,6 +77,7 @@ const SaasInstance: React.FC<ISaasInstance> = (props) => {
     ) => {
         if (actionCode === "add") {
             setSelectedItem(null);
+            applyBidToContext(undefined);
         }
     };
 
@@ -99,17 +126,20 @@ const SaasInstance: React.FC<ISaasInstance> = (props) => {
                                 />
                             </div>
                             <div className="nz-wh-100 nz-d-flex-hv-center" style={{ flex: 1, padding: '2rem' }}>
-                                <div
-                                    className="nz-to-be-implemented-card nz-d-flex-column nz-align-center nz-justify-center"
-
-                                >
-                                    <span style={{ fontSize: '1.25rem', fontWeight: 600 }}>
-                                        {selectedItem?.label ?? "Company"}
-                                    </span>
-                                    <span style={{ fontSize: '1rem', fontStyle: 'italic' }}>
-                                        To be implemented
-                                    </span>
-                                </div>
+                                {selectedItem ? (
+                                    <ImpersonateUser
+                                        key={selectedItem.actionCode}
+                                        data={{
+                                            tenantshortname: String(selection.bid ?? selectedItem.actionCode ?? ''),
+                                            userid: String(selection.cid ?? ''),
+                                        }}
+                                    />
+                                ) : (
+                                    <Label
+                                        uniqueName={`${uniqueName}-select-company`}
+                                        label="Select a SAAS instance to impersonate"
+                                    />
+                                )}
                             </div>
                         </div>
                     </SplitterPanel>

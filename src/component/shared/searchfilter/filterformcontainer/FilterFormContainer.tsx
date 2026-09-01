@@ -1,13 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { Close24x24, Filter24x24 } from '@n20a/libicon'
 
 import '@n20a/libform/index.css'
 import './FilterFormContainer.css'
 
+// Business explorer filter UI (libform): snapshot on open, apply as key/value json.
+
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable'
 import { IDirtyFlagImage } from '../../allinterface/basic/IDirtyFlagImage'
 import { IControl } from '../../allinterface/settingsform/ISettingsLibForm'
 import { IFilterFormContainer } from '../../allinterface/searchfilter/IFilterFormContainer'
+import { FnBuildBusinessExplorerFilterControls } from '../../allcommon/searchfilter/FnBuildBusinessExplorerFilterControls'
+import { getAppliedFilterJson, normalizeFilterFieldName } from '../../allcommon/searchfilter/FnFilterBusinessContactRecords'
+import { FnGetSourceDataset } from '../../allcommon/FnLoadSampleDatasets'
+import { useSmDataContext } from '../../context/hooks/SmDataHooks'
+import type { IDCFilterControlValues } from '../../allinterface/searchfilter/IFilterFormContainer'
 
 import { DirtyFlagImage } from '../../basic/dirtyflagimage/DirtyFlagImage'
 import { Label } from '../../basic/label/Label'
@@ -15,36 +22,68 @@ import { SettingsLibForm } from '../../settingsform/settingslibform/SettingsLibF
 import { handleContainerKeyDown, handleFormControlsBubbleKeyDown, handleFormControlsKeyDown } from '../../allcommon/basic/FnHandleContainerKeyDown'
 import { ActionImage } from '../../basic/actionimage/ActionImage'
 
-function toFilterValueString(value: unknown): string {
+// True when the changed libform field is the Verified / Contact verified checkbox.
+function isVerifiedField(name: string | undefined): boolean {
+    const field = String(name ?? "").toLowerCase();
+    return (
+        field === "verified"
+        || field === "cverified"
+        || field.endsWith("_verified")
+        || field.endsWith("_cverified")
+        || field.includes("_verified_")
+        || field.includes("_cverified_")
+    );
+}
+
+// Store checkbox values as "true"/"false" (libform may emit 1/0).
+function toFilterValueString(value: unknown, name?: string): string {
+    if (isVerifiedField(name)) {
+        if (value === true || value === 1 || value === "1" || String(value).toLowerCase() === "true") {
+            return "true";
+        }
+        return "false";
+    }
+    if (typeof value === "boolean") return value ? "true" : "false";
     if (typeof value === "string") return value;
     if (value === null || value === undefined) return "";
     return String(value);
 }
 
 const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => {
-    const [controls, setControls] = useState<IControl[]>([]);
-    const [isShowFilterForm, setIsShowFilterForm] = useState<boolean>(false);
+    const smDataContext = useSmDataContext();
     const filterFormContainerRef = useRef<HTMLDivElement>(null);
     const handleFilterFormChangeRef = useRef(filterFormContainerProps.handleFilterFormChange);
-    // Snapshot applied filter values once on open so the form restores prior selections.
-    const appliedFilterValues =
-        filterFormContainerProps.controlValues &&
+    const setFilterJsonRef = useRef(smDataContext.setFilterJson);
+    const draftFilterRef = useRef<IDCFilterControlValues>({});
+
+    // Snapshot controls and applied values once on open so combo edits do not rebuild the form.
+    const snapshotRef = useRef<{
+        values: Record<string, string | undefined>;
+        profileString: string;
+        controls: IControl[];
+    } | null>(null);
+
+    if (snapshotRef.current === null) {
+        const propsValues =
+            filterFormContainerProps.controlValues &&
             typeof filterFormContainerProps.controlValues === "object"
-            ? (filterFormContainerProps.controlValues as Record<string, string | undefined>)
-            : {};
-    const initialProfileStringRef = useRef(JSON.stringify([appliedFilterValues]));
-
-    useEffect(() => {
-        handleFilterFormChangeRef.current = filterFormContainerProps.handleFilterFormChange;
-    }, [filterFormContainerProps.handleFilterFormChange]);
-
-    useEffect(() => {
-        const values = appliedFilterValues;
-        setControls(
-            (filterFormContainerProps.controls.length > 0
+                ? { ...(filterFormContainerProps.controlValues as Record<string, string | undefined>) }
+                : {};
+        const values = { ...smDataContext.filterJson, ...propsValues };
+        const businesses = smDataContext.datasets.businesses.length
+            ? smDataContext.datasets.businesses
+            : FnGetSourceDataset("businesses");
+        const contacts = smDataContext.datasets.contacts.length
+            ? smDataContext.datasets.contacts
+            : FnGetSourceDataset("contacts");
+        const sourceControls =
+            filterFormContainerProps.controls && filterFormContainerProps.controls.length > 0
                 ? filterFormContainerProps.controls
-                : []
-            ).map((control) => {
+                : FnBuildBusinessExplorerFilterControls(businesses, contacts, values);
+        snapshotRef.current = {
+            values,
+            profileString: JSON.stringify([values]),
+            controls: sourceControls.map((control) => {
                 const saved = values[control.Name];
                 if (saved === undefined || saved === null || saved === "") {
                     return control;
@@ -54,17 +93,26 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
                     Value: saved,
                     DefaultAPValue: saved,
                 };
-            })
-        );
-        // Only seed controls when the filter panel mounts / controls identity changes.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterFormContainerProps.controls]);
+            }),
+        };
+        draftFilterRef.current = { ...values };
+    }
+
+    const { controls, profileString } = snapshotRef.current;
+
+    useEffect(() => {
+        handleFilterFormChangeRef.current = filterFormContainerProps.handleFilterFormChange;
+        setFilterJsonRef.current = smDataContext.setFilterJson;
+    }, [filterFormContainerProps.handleFilterFormChange, smDataContext.setFilterJson]);
+
+    useEffect(() => {
+        setFilterJsonRef.current(getAppliedFilterJson(draftFilterRef.current));
+    }, []);
 
     // Observes filter form width and toggles row layout for responsive controls.
     useEffect(() => {
         const container = document.querySelector('.nz-filter-form-container');
         if (!container || controls.length === 0) {
-            setIsShowFilterForm(true);
             return;
         }
 
@@ -94,14 +142,12 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
                 observerRefs.resizeTimeout = setTimeout(() => {
                     for (const entry of entries) {
                         applyLayout(entry.contentRect.width, formControls);
-                        setIsShowFilterForm(true);
                     }
                 }, 100);
             });
 
             observerRefs.resizeObserver.observe(container);
             applyLayout(container.clientWidth, formControls);
-            setIsShowFilterForm(true);
         };
 
         observerRefs.mutationObserver = new MutationObserver(() => {
@@ -127,23 +173,24 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
         filterFormContainerProps.handleActionImageClick?.(event, actionCode);
     }
 
+    const storeFilterKeyValue = (name: string, value: string) => {
+        const field = normalizeFilterFieldName(name) ?? name;
+        draftFilterRef.current = { ...draftFilterRef.current, [field]: value };
+        setFilterJsonRef.current(getAppliedFilterJson(draftFilterRef.current));
+        handleFilterFormChangeRef.current?.(value, field);
+    };
+
     const handleValueChange = useCallback((value: unknown, name: string | undefined, isDefault?: boolean): void => {
-        if (!name || isDefault || !handleFilterFormChangeRef.current) return;
+        if (!name || isDefault) return;
 
         if (name === "dateRange" && value && typeof value === "object") {
             const range = value as { startDate?: unknown; endDate?: unknown };
-            handleFilterFormChangeRef.current(
-                range.startDate != null ? String(range.startDate) : "",
-                "StartDate"
-            );
-            handleFilterFormChangeRef.current(
-                range.endDate != null ? String(range.endDate) : "",
-                "EndDate"
-            );
+            storeFilterKeyValue("StartDate", range.startDate != null ? String(range.startDate) : "");
+            storeFilterKeyValue("EndDate", range.endDate != null ? String(range.endDate) : "");
             return;
         }
 
-        handleFilterFormChangeRef.current(toFilterValueString(value), name);
+        storeFilterKeyValue(name, toFilterValueString(value, name));
     }, []);
 
     const filterIcon: IDirtyFlagImage = {
@@ -193,17 +240,18 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
                     </div>
                 </div>
             </div>}
-            <div ref={filterFormContainerRef} className={`nz-filter-form-content${!isShowFilterForm ? " nz-hide-filter-form" : ""}`}
+            <div ref={filterFormContainerRef} className="nz-filter-form-content"
                 onKeyDownCapture={handleFormControlsKeyDown}
                 onKeyDown={handleFormControlsBubbleKeyDown}>
                 {controls.length > 0 && (
                     <SettingsLibForm
                         uniqueName={`${filterFormContainerProps.uniqueName}-settings-form`}
                         controls={controls}
-                        profileString={initialProfileStringRef.current}
+                        profileString={profileString}
                         isAutoSave={true}
                         allowShowHeader={false}
                         allowShowSectionHeader={true}
+                        isAddressFormRequired={false}
                         handleActionImageClick={handleActionImageClick}
                         handleValueChange={handleValueChange}
                         isDisableForm={false}

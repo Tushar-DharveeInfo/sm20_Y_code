@@ -7,19 +7,34 @@
 }
 
 .nz-filter-form-container .nz-filter-form-content {
-    flex-grow: 1;
-    overflow: hidden;
-    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
-    padding: var(--spacing-2);
+    /* padding: var(--spacing-2); */
 }
 
-.nz-filter-form-container .nz-form-container {
-    height: auto;
-    display: flex;
-    flex-direction: column;
+.nz-filter-form-container .nz-form-container,
+.nz-filter-form-container .nz-wh-100.nz-settings-lib-form-container,
+.nz-filter-form-container .nz-settings-lib-form-container,
+.nz-filter-form-container .nz-settings-lib-form-content,
+.nz-filter-form-container .nz-settings-lib-form-controls {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex-grow: 0 !important;
+}
+
+.nz-filter-form-container .nz-settings-lib-form-controls {
+    display: block !important;
+}
+
+.nz-filter-form-container .nz-settings-lib-form-content,
+.nz-filter-form-container .nz-settings-lib-form-content.nz-setting-lib-form-external-scroll,
+.nz-filter-form-container .nz-settings-lib-form-content.nz-setting-lib-form-external-scroll div {
+    visibility: visible !important;
 }
 
 .nz-filter-form-container .nz-filter-tree-container {
@@ -41,7 +56,7 @@
     /* Adds spacing between children */
 }
 
-.nz-filter-form-container .nz-form-control-labeled > .nz-label-container {
+.nz-filter-form-container .nz-form-control-labeled>.nz-label-container {
     flex: 1 0;
     /* Takes up one portion of the available space */
     font-size: var(--default_font_size);
@@ -52,14 +67,14 @@
     /* Align the text to the left */
 }
 
-.nz-filter-form-container .nz-form-control-labeled > div:last-child {
+.nz-filter-form-container .nz-form-control-labeled>div:last-child {
     flex: 2 0;
     /* Takes up two portions of the available space */
     display: flex;
     align-items: center;
 }
 
-.nz-filter-form-container .nz-form-control-labeled > div:last-child > div {
+.nz-filter-form-container .nz-form-control-labeled>div:last-child>div {
     width: 100%;
 }
 
@@ -82,6 +97,7 @@
     /* Stacks its children vertically */
     gap: 10px !important;
 }
+
 .nz-filter-form-container .nz-inline-controls .nz-form-control-labeled.row-layout .nz-label-container {
     max-width: 100px;
 }
@@ -94,7 +110,7 @@
     align-items: center;
 }
 
-.nz-filter-form-container .nz-filter-form-content > .nz-label-container {
+.nz-filter-form-container .nz-filter-form-content>.nz-label-container {
     height: var(--node_height);
     min-height: var(--node_height);
     padding: 0px var(--spacing-1);
@@ -102,8 +118,12 @@
     align-items: center;
 }
 
+.nz-filter-form-container .nz-form-section,
+.nz-filter-form-container .nz-form-section-body,
 .nz-filter-form-container .nz-form-controls {
-    overflow-y: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
 }
 
 .nz-filter-form-container .rc-tree-list-holder-inner {
@@ -118,15 +138,11 @@
     margin-top: 18px !important;
 }
 
-.nz-filter-form-container.nz-div-row-layout
-    .nz-inline-controls
-    + .nz-filter-form-container.nz-div-row-layout
-    .nz-inline-controls
-    .nz-fc-ai-container {
+.nz-filter-form-container.nz-div-row-layout .nz-inline-controls+.nz-filter-form-container.nz-div-row-layout .nz-inline-controls .nz-fc-ai-container {
     flex-wrap: nowrap !important;
 }
 
-.nz-filter-form-container .nz-inline-controls > div:first-child {
+.nz-filter-form-container .nz-inline-controls>div:first-child {
     width: unset !important;
     flex-grow: 1;
 }
@@ -155,6 +171,13 @@
 .nz-filter-form-container .nz-filter-form-content .nz-form-controls {
     padding: 0px 5px;
     box-sizing: border-box;
+}
+
+.nz-filter-form-container .nz-filter-country-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) var(--spacing-2);
 }
 
 /* Section container */

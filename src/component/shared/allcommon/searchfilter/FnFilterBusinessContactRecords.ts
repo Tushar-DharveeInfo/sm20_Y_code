@@ -1,18 +1,32 @@
+// Apply explorer filter json to businesses/contacts; skip ANY and empty values.
+import { IBusinessDoc, IContactDoc } from "../../allinterface/IDatasets";
 import { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
-import { IBusiness } from "../../allinterface/tree/IBusiness";
-import { IContact } from "../../allinterface/tree/IContact";
+import { FILTER_ANY } from "./FnGetDistinctDatasetValues";
+
+function isTruthyFlag(value: unknown): boolean {
+    const raw = String(value ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "1";
+}
 
 function parseVerified(value: string | undefined): boolean | undefined {
-    if (value === "true") return true;
-    if (value === "false") return false;
+    if (value === undefined || value === null || value === "") return undefined;
+    if (isTruthyFlag(value)) return true;
+    const raw = String(value).trim().toLowerCase();
+    if (raw === "false" || raw === "0") return false;
     return undefined;
 }
 
-function isAppliedValue(value: unknown): boolean {
-    return value !== undefined && value !== null && value !== "";
+function isAnyValue(value: unknown): boolean {
+    return String(value ?? "").trim().toUpperCase() === FILTER_ANY;
 }
 
-/*Normalizes CountryForm names (United States) to sample codes (USA). */
+function isAppliedValue(value: unknown): boolean {
+    if (value === undefined || value === null || value === "") return false;
+    if (typeof value === "boolean") return value === true;
+    if (isAnyValue(value)) return false;
+    return true;
+}
+
 function normalizeCountryKey(value: unknown): string {
     const raw = String(value ?? "").trim().toLowerCase();
     if (!raw) return "";
@@ -59,32 +73,33 @@ function normalizeStateKey(value: unknown): string {
 
 const KNOWN_FILTER_FIELDS = [
     "bname",
-    "company",
-    "CompanyName",
     "status",
     "verified",
     "country",
     "state",
-    "noticePeriod",
-    "finYearMonth",
+    "daysnoticeperiod",
+    "mmfinyear",
     "StartDate",
     "EndDate",
     "dateRange",
     "btype",
-    "assignedTo",
+    "salesexec",
     "tag",
+    "selectdatetype",
+    "cverified",
+    "contacttype",
+    "cstatus",
+    "ctags",
+    "noticePeriod",
+    "finYearMonth",
+    "assignedTo",
     "contactType",
     "contactStatus",
     "contactVerified",
-    "contactCountry",
-    "contactState",
     "contactTag",
 ] as const;
 
-/**
- * Maps libform keys like "Filter Business_status_0_3_0" to the control Name ("status").
- * Plain field names are returned as-is.
- */
+// Map libform keys like "Filter Business_status_0" to the control name ("status").
 export function normalizeFilterFieldName(key: string): string | null {
     const lowerKey = key.toLowerCase();
     const exact = (KNOWN_FILTER_FIELDS as readonly string[]).find(
@@ -93,7 +108,6 @@ export function normalizeFilterFieldName(key: string): string | null {
     if (exact) {
         return exact;
     }
-    // Prefer longer names first so "contactStatus" wins over "status"
     const sorted = [...KNOWN_FILTER_FIELDS].sort((a, b) => b.length - a.length);
     for (const field of sorted) {
         const lowerField = field.toLowerCase();
@@ -109,65 +123,93 @@ export function normalizeFilterFieldName(key: string): string | null {
     return null;
 }
 
-/*Keeps only applied fields, using plain control names (no DisplayGroup prefixes). */
+// Saved filter json: only keys whose value is not ANY / empty / unchecked.
 export function getAppliedFilterJson(
     form: IDCFilterControlValues
 ): IDCFilterControlValues {
     const applied: IDCFilterControlValues = {};
     Object.entries(form).forEach(([key, value]) => {
         if (!isAppliedValue(value)) return;
-        const field = normalizeFilterFieldName(key);
-        if (field) {
-            applied[field] = value;
+        const field = normalizeFilterFieldName(key) ?? key;
+        if (field === "verified" || field === "cverified") {
+            if (!isTruthyFlag(value)) return;
+            applied[field] = "true";
+            return;
         }
+        applied[field] = String(value);
     });
     return applied;
 }
 
-/*Maps Filter Business form fields onto business JSON property names (applied keys only). */
+function quarterNumber(value: string): number | undefined {
+    const upper = value.trim().toUpperCase();
+    if (upper === "Q1") return 1;
+    if (upper === "Q2") return 2;
+    if (upper === "Q3") return 3;
+    if (upper === "Q4") return 4;
+    return undefined;
+}
+
+function recordQuarter(mmfinyear: number, datecreated: string): number | undefined {
+    if (mmfinyear >= 1 && mmfinyear <= 4) {
+        return mmfinyear;
+    }
+    if (mmfinyear >= 1 && mmfinyear <= 12) {
+        return Math.ceil(mmfinyear / 3);
+    }
+    const created = new Date(datecreated);
+    if (Number.isNaN(created.getTime())) {
+        return undefined;
+    }
+    return Math.ceil((created.getUTCMonth() + 1) / 3);
+}
+
+// Map form fields onto business document properties.
 export function buildBusinessRecordFilter(
     form: IDCFilterControlValues
 ): Record<string, unknown> {
     const filter: Record<string, unknown> = {};
     if (isAppliedValue(form.bname)) filter.bname = form.bname;
-    if (isAppliedValue(form.company)) filter.bname = form.company;
-    if (isAppliedValue(form.CompanyName)) filter.bname = form.CompanyName;
     if (isAppliedValue(form.status)) filter.status = form.status;
-    const verified = parseVerified(form.verified);
-    if (verified !== undefined) filter.verified = verified;
+    if (isTruthyFlag(form.verified)) filter.verified = true;
     if (isAppliedValue(form.country)) filter.country = form.country;
     if (isAppliedValue(form.state)) filter.state = form.state;
-    if (isAppliedValue(form.noticePeriod)) filter.daysNoticePeriod = Number(form.noticePeriod);
-    if (isAppliedValue(form.finYearMonth)) filter.mmFinYear = Number(form.finYearMonth);
+    if (isAppliedValue(form.daysnoticeperiod)) filter.daysnoticeperiod = Number(form.daysnoticeperiod);
+    if (isAppliedValue(form.noticePeriod)) filter.daysnoticeperiod = Number(form.noticePeriod);
+    if (isAppliedValue(form.mmfinyear)) filter.mmfinyear = form.mmfinyear;
     if (isAppliedValue(form.btype)) filter.btype = form.btype;
-    if (isAppliedValue(form.assignedTo)) filter.salesExec = form.assignedTo;
+    if (isAppliedValue(form.salesexec)) filter.salesexec = form.salesexec;
+    if (isAppliedValue(form.assignedTo)) filter.salesexec = form.assignedTo;
     if (isAppliedValue(form.tag)) filter.tag = form.tag;
     return filter;
 }
 
-/*Maps Filter Contact form fields onto contact JSON property names (applied keys only). */
+// Map form fields onto contact document properties.
 export function buildContactRecordFilter(
     form: IDCFilterControlValues
 ): Record<string, unknown> {
     const filter: Record<string, unknown> = {};
-    if (isAppliedValue(form.contactType)) {
-        filter.ctype = String(form.contactType).toLowerCase();
+    const contactType = form.contacttype ?? form.contactType;
+    if (isAppliedValue(contactType)) {
+        filter.contacttype = String(contactType).toLowerCase();
     }
-    if (isAppliedValue(form.contactStatus)) filter.status = form.contactStatus;
-    const verified = parseVerified(form.contactVerified);
-    if (verified !== undefined) filter.verified = verified;
-    if (isAppliedValue(form.contactCountry)) filter.address_country = form.contactCountry;
-    if (isAppliedValue(form.contactState)) filter.address_state = form.contactState;
+    const contactStatus = form.cstatus ?? form.contactStatus;
+    if (isAppliedValue(contactStatus)) filter.status = contactStatus;
+    const verified = parseVerified(form.cverified ?? form.contactVerified);
+    if (verified === true) filter.monitor = true;
+    if (isAppliedValue(form.ctags ?? form.contactTag)) {
+        filter.ctag = form.ctags ?? form.contactTag;
+    }
     return filter;
 }
 
-function matchesDateUpdated(
-    dateUpdated: string,
+function matchesDateInRange(
+    dateValue: string,
     startDate?: string,
     endDate?: string
 ): boolean {
     if (!startDate && !endDate) return true;
-    const recordTime = new Date(dateUpdated).getTime();
+    const recordTime = new Date(dateValue).getTime();
     if (Number.isNaN(recordTime)) return false;
     if (startDate) {
         const startTime = new Date(startDate).getTime();
@@ -185,7 +227,7 @@ function hasActiveFilter(filter: Record<string, unknown>): boolean {
 }
 
 function matchesBusinessFilters(
-    business: IBusiness,
+    business: IBusinessDoc,
     filter: Record<string, unknown>
 ): boolean {
     for (const key of Object.keys(filter)) {
@@ -193,7 +235,9 @@ function matchesBusinessFilters(
         if (!isAppliedValue(filterVal)) continue;
         const recordVal = (business as unknown as Record<string, unknown>)[key];
         if (key === "bname") {
-            if (String(recordVal ?? "").trim().toLowerCase() !== String(filterVal).trim().toLowerCase()) return false;
+            if (!String(recordVal ?? "").trim().toLowerCase().startsWith(String(filterVal).trim().toLowerCase())) {
+                return false;
+            }
             continue;
         }
         if (key === "country") {
@@ -213,25 +257,36 @@ function matchesBusinessFilters(
             if (!wanted || !tags.includes(wanted)) return false;
             continue;
         }
+        if (key === "mmfinyear") {
+            const wantedQuarter = quarterNumber(String(filterVal));
+            const actualQuarter = recordQuarter(Number(business.mmfinyear), business.datecreated);
+            if (wantedQuarter === undefined || actualQuarter !== wantedQuarter) return false;
+            continue;
+        }
         if (recordVal !== filterVal) return false;
     }
     return true;
 }
 
 function matchesContactFilters(
-    contact: IContact,
+    contact: IContactDoc,
     filter: Record<string, unknown>
 ): boolean {
     for (const key of Object.keys(filter)) {
         const filterVal = filter[key];
         if (!isAppliedValue(filterVal)) continue;
         const recordVal = (contact as unknown as Record<string, unknown>)[key];
-        if (key === "address_country") {
-            if (normalizeCountryKey(recordVal) !== normalizeCountryKey(filterVal)) return false;
+        if (key === "contacttype") {
+            if (String(recordVal ?? "").trim().toLowerCase() !== String(filterVal).trim().toLowerCase()) return false;
             continue;
         }
-        if (key === "address_state") {
-            if (normalizeStateKey(recordVal) !== normalizeStateKey(filterVal)) return false;
+        if (key === "ctag") {
+            const tags = String(recordVal ?? "")
+                .split(",")
+                .map((item) => item.trim().toLowerCase())
+                .filter(Boolean);
+            const wanted = String(filterVal).trim().toLowerCase();
+            if (!wanted || !tags.includes(wanted)) return false;
             continue;
         }
         if (recordVal !== filterVal) return false;
@@ -239,26 +294,31 @@ function matchesContactFilters(
     return true;
 }
 
-/*Filters businesses with country/state-aware matching (+ optional dateUpdated range). */
+// Filter cached businesses by applied json, including optional date-type range.
 export function filterBusinessRecords(
-    businesses: IBusiness[],
+    businesses: IBusinessDoc[],
     form: IDCFilterControlValues
-): IBusiness[] {
+): IBusinessDoc[] {
     const filter = buildBusinessRecordFilter(form);
+    const dateField = isAppliedValue(form.selectdatetype) ? form.selectdatetype : undefined;
     return businesses.filter((business) => {
         if (!matchesBusinessFilters(business, filter)) {
             return false;
         }
-        return matchesDateUpdated(business.dateUpdated, form.StartDate, form.EndDate);
+        if (!dateField || (!form.StartDate && !form.EndDate)) {
+            return true;
+        }
+        const dateValue = String((business as unknown as Record<string, unknown>)[dateField] ?? "");
+        return matchesDateInRange(dateValue, form.StartDate, form.EndDate);
     });
 }
 
-/*Filters contacts with country/state-aware matching. Optionally scope by bid. */
+// Filter cached contacts by applied json, optionally scoped to a bid.
 export function filterContactRecords(
-    contacts: IContact[],
+    contacts: IContactDoc[],
     form: IDCFilterControlValues,
     bid?: string
-): IContact[] {
+): IContactDoc[] {
     const filter = buildContactRecordFilter(form);
     if (bid) {
         filter.bid = bid;
@@ -266,7 +326,7 @@ export function filterContactRecords(
     return contacts.filter((contact) => matchesContactFilters(contact, filter));
 }
 
-/*True when any contact-side filter is active. */
+// True when any contact-side filter is active (tree shows only matching businesses).
 export function hasActiveContactFilters(form: IDCFilterControlValues): boolean {
     return hasActiveFilter(buildContactRecordFilter(form));
 }

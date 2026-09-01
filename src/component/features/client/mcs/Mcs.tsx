@@ -1,5 +1,4 @@
-import React from 'react';
-import { DcExplorerContainer } from '../../../shared/dcexplorercontainer/DcExplorerContainer';
+import { FeaturePlaceholder } from '../featureplaceholder/FeaturePlaceholder';
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
 import { ClientEnums } from '../../../constants/Feature';
@@ -10,24 +9,15 @@ interface IMcsProps {
     headerText?: string;
     featureData?: IFeatureItem[];
     selectedFeatureData?: IMenuItem;
-    onNodeSelect?: (selectedKeys: any[], info: any) => void;
 }
 
-const Mcs: React.FC<IMcsProps> = (props) => {
-    const {
-        uniqueName = 'feature-mcs',
-        featureId = ClientEnums.Mcs,
-        onNodeSelect
-    } = props;
-
+const Mcs = (props: IMcsProps) => {
     return (
-        <div className="nz-feature-mcs nz-wh-100">
-            <DcExplorerContainer
-                uniqueName={`${uniqueName}-explorer`}
-                featureId={featureId}
-                handleNodeSelect={onNodeSelect}
-            />
-        </div>
+        <FeaturePlaceholder
+            uniqueName={props.uniqueName ?? 'feature-mcs'}
+            featureId={props.featureId ?? ClientEnums.Mcs}
+            featureName={props.headerText ?? 'MCS'}
+        />
     );
 };
 

@@ -12,7 +12,7 @@ import { ICardLayoutField } from "../../../shared/cardlayout/CardLayout";
 import { FnFormatDateWithAppFormat } from "../../../appcontainer/allcommon/FnFormatDateWithAppFormat";
 import { useResourceContext } from "../../../shared/context/hooks/ResourceHooks";
 import { useCommonVariableContext } from "../../../shared/context/hooks/CommonVariableHooks";
-import PdfMakerContainer from "../../../shared/pdfmakercontainer/PdfMakerContainer";
+import PdfMakerContainer from "./pdfmakercontainer/PdfMakerContainer";
 import reportSampleData from "../../../../smsampledata/appqa/ReportSampleData.json";
 const { sampleReportSessionVars } = reportSampleData;
 

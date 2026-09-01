@@ -1,5 +1,4 @@
-import React from 'react';
-import { DcExplorerContainer } from '../../../shared/dcexplorercontainer/DcExplorerContainer';
+import { FeaturePlaceholder } from '../featureplaceholder/FeaturePlaceholder';
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
 import { ClientEnums } from '../../../constants/Feature';
@@ -10,24 +9,15 @@ interface INetZoomProps {
     headerText?: string;
     featureData?: IFeatureItem[];
     selectedFeatureData?: IMenuItem;
-    onNodeSelect?: (selectedKeys: any[], info: any) => void;
 }
 
-const NetZoom: React.FC<INetZoomProps> = (props) => {
-    const {
-        uniqueName = 'feature-netzoom',
-        featureId = ClientEnums.NetZoom,
-        onNodeSelect
-    } = props;
-
+const NetZoom = (props: INetZoomProps) => {
     return (
-        <div className="nz-feature-netzoom nz-wh-100">
-            <DcExplorerContainer
-                uniqueName={`${uniqueName}-explorer`}
-                featureId={featureId}
-                handleNodeSelect={onNodeSelect}
-            />
-        </div>
+        <FeaturePlaceholder
+            uniqueName={props.uniqueName ?? 'feature-netzoom'}
+            featureId={props.featureId ?? ClientEnums.NetZoom}
+            featureName={props.headerText ?? 'NetZoom'}
+        />
     );
 };
 
