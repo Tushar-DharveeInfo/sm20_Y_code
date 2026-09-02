@@ -1,11 +1,11 @@
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { OpenSidebar24x24 } from '@n20a/libicon'
 import { Splitter, SplitterPanel, SplitterResizeEndEvent } from 'primereact/splitter'
 import { Key } from 'rc-tree/lib/interface'
 import { useSearchParams } from 'react-router-dom'
 import './ExplorerContainer.css'
-import { FeatureQARange, LibraryEnums } from '../../constants/Feature';
+import { FeatureQARange, LibraryEnums, SettingsEnums } from '../../constants/Feature';
 // import { FnFindNearestNodeByType } from '../../shared/allcommon/FnFindNearestNodeByType'
 import { useCommonVariableContext } from '../../shared/context/hooks/CommonVariableHooks'
 import { useSelectedNodeContext } from '../../shared/context/hooks/SelectedNodeHooks'
@@ -19,15 +19,17 @@ import { ISelectedNodeInfo, ITreeNode } from '../../shared/allinterface/tree/ITr
 import { Label } from '../../shared/basic/label/Label'
 import { ActionImage } from '../../shared/basic/actionimage/ActionImage'
 import { FnGetCssVariable } from '../allcommon/FnGetCssVariable'
-import { DcExplorerContainer } from '../../shared/dcexplorercontainer/DcExplorerContainer'
+import { TreeExplorerContainer } from '../../shared/treeexplorercontainer/TreeExplorerContainer'
+import { SettingsInstanceList } from '../../shared/settingsform/settingsinstancelist/SettingsInstanceList'
+import { IActionLabelItem } from '../../shared/allinterface/basic/IActionLabelItem'
+import { sampleBusinesses } from '../../shared/allcommon/FnBusinessesSampleData'
+import { FnMapBusinessesToTreeNodes } from '../../shared/allcommon/tree/FnMapBusinessesToTreeNodes'
+import { useSmDataContext } from '../../shared/context/hooks/SmDataHooks'
 import { SidebarContainer } from '../sidebarcontainer/SidebarContainer'
 import { FeatureRenderContainer } from '../featurecontainer/FeatureRenderContainer'
-import { ILibraryTicketMode } from '../../features/library/librarytickets/ticketexplorercontainer/TicketExplorerContainer'
 import { YesNoFormContainer } from '../../shared/basic/yesnoformcontainer/YesNoFormContainer'
 import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks'
-import { CheckInfo } from 'rc-tree/lib/Tree'
 
-const ReuseDataForFeatures: string[] = [];
 
 interface IExplorerContainer {
     uniqueName: string;//unique identifier for the control
@@ -54,42 +56,45 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     console.log('explorerContainerProps', explorerContainerProps)
     const [selectedNodeInfo, setSelectedNodeInfo] = useState<ISelectedNodeInfo>();
     const [isShowSidebar, setIsShowSidebar] = useState<boolean>(false);
-    const [originalTreeData, setOriginalTreeData] = useState<ITreeNode[]>([]);
-    const [originalTreeDataForInventory, setOriginalTreeDataForInventory] = useState<ITreeNode[]>([]);
     const [featureQAData, setFeatureQAData] = useState<IFeatureItem[]>();
-    const [showSidebarFullWidth, setShowSidebarFullWidth] = useState<boolean>(false);
-    const [isSidebar, setIsSidebar] = useState<string | undefined>("sidebarOpen");
-    const [libraryMode, setLibraryMode] = useState<ILibraryTicketMode>("all")
+    const [isSidebar, setIsSidebar] = useState<string | undefined>("sidebarClose");
     const [defaultCheckedKeys, setDefaultCheckedKeys] = useState<Key[]>([]);
     const [manuallyNodeSelected, setManuallyNodeSelected] = useState<boolean>(false);
     const [confirmMessage, setConfirmMessage] = useState<string>("");
-    const [isShowOkButton, setIsShowOkButton] = useState<boolean>();
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
-    // The feature-change effect that used to pick the explorer is commented out, so the BS tree is always rendered.
-    const [explorerToRender, setExplorerToRender] = useState<"BS" | "NONE" | "MCS">("BS");
-    const [activeView] = useState<"INVENTORY" | "DEFAULT">("DEFAULT");
+    // The feature-change effect that used to pick the explorer is commented out, so the BUSINESSTREE tree is always rendered.
+    const [explorerToRender, setExplorerToRender] = useState<"BUSINESSTREE" | "NONE" | "MCS" | "SAASINSTANCE">("BUSINESSTREE");
     const [treeData, setTreeData] = useState<ITreeNode[]>();
     const [selectedKebabMenuExplorer] = useState<IMenuItem>();
 
     const [isShowSidebarIcon] = useState<boolean>(true);
 
-    const [searchParams] = useSearchParams();
-
-    // const mainAppContext = useMainAppContext();
     const commonVariableContext = useCommonVariableContext();
-    // const statusBarContext = useStatusBarContext();
     const sessionContext = useSessionContext();
     const selectedNodeContext = useSelectedNodeContext();
     const mainAppContext = useMainAppContext();
+    const smDataContext = useSmDataContext();
 
-    // const isAllowNewAuditRef = useRef<boolean>(false);
+    const saasCompanyItems: IActionLabelItem[] = useMemo(() => {
+        return sampleBusinesses
+            .map((business) => ({
+                label: business.bname,
+                actionCode: business.bid,
+                tooltip: business.bname,
+                profileString: JSON.stringify([{ Enabled: business.verified ?? true, Public: true, AddEdit: false }]),
+                subGroupName: "SAASInstance",
+                isInUse: true,
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, []);
+
+    const [selectedSaasItem, setSelectedSaasItem] = useState<IActionLabelItem | null>(null);
+
     const originalTreeDataRef = useRef<ITreeNode[]>(explorerContainerProps.originalTreeData);
     const defaultCheckedKeyRef = useRef<Key[]>([]);
     const featureIdRef = useRef(explorerContainerProps.featureId);
     const outerTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const retryTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // const navigate = useNavigate();
-
     // Clears explorer tree refs when container unmounts.
     useEffect(() => {
         return () => {
@@ -101,25 +106,74 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     // Keeps latest feature id in ref for deferred callbacks.
     useEffect(() => {
         featureIdRef.current = explorerContainerProps.featureId;
-        const fnGetLibMode = () => {
-            if (LibraryEnums.RequestsReceived === explorerContainerProps.featureId) {
-                return "received"
-            } else if (LibraryEnums.ApprovedTickets === explorerContainerProps.featureId) {
-                return "accepted"
-            } else {
-                return "all"
-            }
-        }
         setDefaultCheckedKeys([])
         const MSCTree = [LibraryEnums.McsDevelopment, LibraryEnums.ApprovedTickets, LibraryEnums.RequestsReceived] as string[]
-        if (explorerContainerProps.featureId && MSCTree.includes(explorerContainerProps.featureId)) {
+        if (explorerContainerProps.featureId === SettingsEnums.Instance) {
+            setExplorerToRender("SAASINSTANCE");
+        } else if (explorerContainerProps.featureId && MSCTree.includes(explorerContainerProps.featureId)) {
             setExplorerToRender("MCS");
         } else {
-            setExplorerToRender("BS");
+            setExplorerToRender("BUSINESSTREE");
         }
-        setLibraryMode(fnGetLibMode() as ILibraryTicketMode) //fnGetLibMode()
-        // setSelectedFloorNode(undefined);
     }, [explorerContainerProps.featureId]);
+
+    const applySaasBidToContext = useCallback((bid?: string) => {
+        const filterJson = smDataContext.selection.filterJson ?? {};
+        if (!bid) {
+            smDataContext.setExplorerSelection(undefined, filterJson);
+            return;
+        }
+        const business = sampleBusinesses.find((row) => row.bid === bid);
+        const node = business ? FnMapBusinessesToTreeNodes([business])[0] : undefined;
+        smDataContext.setExplorerSelection(node, filterJson);
+        if (node) {
+            setSelectedNodeInfo({
+                event: "select",
+                selected: true,
+                node,
+                selectedNodes: [node],
+            });
+        }
+    }, [smDataContext]);
+
+    useEffect(() => {
+        if (explorerToRender !== "SAASINSTANCE") {
+            return;
+        }
+        const contextBid = smDataContext.selection.bid;
+        const fromContext = contextBid
+            ? saasCompanyItems.find((item) => item.actionCode === contextBid)
+            : undefined;
+        const nextItem = fromContext ?? (saasCompanyItems.length > 0 ? saasCompanyItems[0] : null);
+        setSelectedSaasItem(nextItem);
+        applySaasBidToContext(nextItem?.actionCode);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [explorerToRender, saasCompanyItems]);
+
+    const handleSelectSaasListItem = (
+        _event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+        actionCode?: string
+    ) => {
+        if (!actionCode) {
+            return;
+        }
+        const item = saasCompanyItems.find((company) => company.actionCode === actionCode);
+        if (!item) {
+            return;
+        }
+        setSelectedSaasItem(item);
+        applySaasBidToContext(item.actionCode);
+    };
+
+    const handleSaasActionButtonClick = (
+        _event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+        actionCode?: string
+    ) => {
+        if (actionCode === "add") {
+            setSelectedSaasItem(null);
+            applySaasBidToContext(undefined);
+        }
+    };
 
     // Opens sidebar when node is selected directly from native tree events.
     useEffect(() => {
@@ -160,11 +214,16 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                 && qaId < FeatureQARange.MAX
             );
         });
-        if (hasSidebarQa || isShowSidebar) {
+        // Open sidebar on a user click, not on the tree's first auto-select.
+        const isAutoSelection =
+            info.event === "auto-select"
+            || info.event === "found-select"
+            || info.event === "auto-select-expand";
+        if (!isAutoSelection && (hasSidebarQa || isShowSidebar)) {
             setIsShowSidebar(true);
             setIsSidebar('sidebarOpen');
         }
-        if (info.event === "select") {
+        if (info.event === "select" || info.nativeEvent) {
             setManuallyNodeSelected(true);
         }
         else {
@@ -184,7 +243,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             }
         }
 
-        if (explorerToRender === "BS") {
+        if (explorerToRender === "BUSINESSTREE") {
             mainAppContext?.setBusinessSelectedNode?.(info.node);
         }
     }
@@ -225,6 +284,15 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         else {
             sessionContext.setSessionList([...sessionContext.SessionList, sidebarVariable]);
         }
+        const explorerNode = selectedNodeContext.selectedNodeExplorer ?? selectedNodeContext.selectedNode;
+        if (!selectedNodeInfo?.node && explorerNode) {
+            setSelectedNodeInfo({
+                event: "select",
+                selected: true,
+                node: explorerNode,
+                selectedNodes: [explorerNode],
+            });
+        }
         setIsShowSidebar(true);
         setIsSidebar('sidebarOpen');
     }
@@ -243,17 +311,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                 sidebarContainer.style.width = rightPane.offsetWidth + "px";
                 commonVariableContext.setSidebarWidth(rightPane.offsetWidth);
             }
-            if (showSidebarFullWidth) {
-                // make sidebar full width of right pane if floor 
-                if (rightPane) {
-                    const width = (rightPane as HTMLElement).getBoundingClientRect().width;
-                    const sidebarDiv = document.querySelector('.nz-qa-sidebar-container .MuiPaper-root') as HTMLElement | null;
-                    sidebarContainer.style.width = width + "px";
-                    if (sidebarDiv) {
-                        sidebarDiv.style.width = width + "px";
-                    }
-                }
-            }
+
         }
     }
 
@@ -265,33 +323,6 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         }
     }
 
-    // Handles kebab menu actions and renders feature-specific controls/popups.
-    const handleKebabMenuSelect = async () => {
-
-    }
-
-
-    // Clears cached original tree data based on active feature cache rules.
-    const handleClearCacheTreeData = (): void => {
-        if (explorerContainerProps.featureId && ReuseDataForFeatures.includes(explorerContainerProps.featureId)) {
-            setOriginalTreeDataForInventory([]);
-        }
-        else {
-            setOriginalTreeData([]);
-            originalTreeDataRef.current = [];
-            setOriginalTreeDataForInventory([]);
-        }
-        explorerContainerProps.clearCacheTreeData?.();
-    }
-
-    function handleNodeCheck(checked: any, info: CheckInfo<ITreeNode>): void {
-        throw new Error('Function not implemented.')
-    }
-
-
-    function handleConfirmYesClick(): void {
-
-    }
 
     const FnRedirectService = () => {
         const url = new URL(window.location.href);
@@ -309,62 +340,83 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     return (
         <div key={explorerContainerProps.uniqueName} id="FeatureContainer" className="nz-explorer-container" >
             <div className="nz-feature-explorer-container">
-                {explorerToRender !== "NONE" && activeView !== "INVENTORY" && <Splitter className='nz-w-100 nz-h-100' onResizeEnd={handleExplorerResizeEnd} tabIndex={-1}>
+                {explorerToRender !== "NONE" && <Splitter className='nz-w-100 nz-h-100' onResizeEnd={handleExplorerResizeEnd} tabIndex={-1}>
                     <SplitterPanel tabIndex={-1} size={25} minSize={10} className={`nz-d-flex-column nz-justify-center nz-explorer-pane${!explorerContainerProps.subTreeFeatureId ? " nz-dc-explorer-pane nz-exp-pane" : " nz-pane-1"}`}>
                         {explorerContainerProps.allowShowHeader &&
                             <div className='nz-sub-header  nz-d-flex-row nz-align-center nz-justify-between nz-explorer-header'>
                                 <Label uniqueName={explorerContainerProps.uniqueName + "header"} label={explorerContainerProps.headerText ?? ""} fontWeight="bold" />
                             </div>}
-
-                        {explorerToRender === "BS" && <DcExplorerContainer
+                        {/* left Pane(explorer) render container*/}
+                        {explorerToRender === "BUSINESSTREE" && <TreeExplorerContainer
                             uniqueName={`${explorerContainerProps.uniqueName}-dc-explorer`}
                             featureId={explorerContainerProps.featureId}
                             subTreeFeatureId={explorerContainerProps.subTreeFeatureId}
                             selectedNodeExplorer={explorerContainerProps.selectedNodeExplorer}
                             isReloadTreeCache={explorerContainerProps.selectedFeatureData?.isReloadCache}
-                            defaultCheckedKeys={defaultCheckedKeys}
-                            originalTreeData={explorerContainerProps.originalTreeData ? explorerContainerProps.originalTreeData : originalTreeData}
+                            originalTreeData={explorerContainerProps.originalTreeData}
                             handleNodeSelect={handleNodeSelect}
-                            handleNodeCheck={handleNodeCheck}
                             updateOriginalTreeDataset={updateOriginalTreeDataset}
-                            handleKebabMenuSelect={handleKebabMenuSelect}
-                            clearCacheTreeData={handleClearCacheTreeData}
-                            updateStatusBarData={explorerContainerProps.updateStatusBarData}
-                            handleShowUserMessage={explorerContainerProps.handleShowUserMessage}
                         />}
 
-                        {explorerToRender === "MCS" && <DcExplorerContainer
+                        {explorerToRender === "MCS" && <TreeExplorerContainer
                             uniqueName={`${explorerContainerProps.uniqueName}-business-explorer`}
                             featureId={explorerContainerProps.featureId}
                             wrapWithRootLabel="Businesses"
                             handleNodeSelect={handleNodeSelect}
                         />}
-                    </SplitterPanel>
-                    <SplitterPanel tabIndex={-1} size={75} minSize={10} className={`nz-d-flex-column nz-align-center nz-layout-with-sidebar-pane${!explorerContainerProps.subTreeFeatureId ? " nz-pane-1" : " nz-pane-2"}`}>
-                        <div className='nz-h-40-px nz-d-flex-row nz-align-center nz-justify-between nz-sub-header nz-w-100'>
-                            <div className="nz-d-flex-row nz-align-center nz-w-100">
-                                <div className='nz-fq-container-header'>
-                                    <Label uniqueName={`${explorerContainerProps.uniqueName}-fqa-container`}
-                                        label={selectedNodeInfo?.node ? `${selectedNodeInfo.node.NodeType}: ${selectedNodeInfo.node.Name}` : "Layout"}
-                                    />
-                                </div>
+
+                        {explorerToRender === "SAASINSTANCE" && (
+                            <div className="nz-form-instance-container nz-w-100 nz-h-100">
+                                <SettingsInstanceList
+                                    uniqueName={`${explorerContainerProps.uniqueName}-alist`}
+                                    actionLabelItems={saasCompanyItems}
+                                    isAddMode={selectedSaasItem === null}
+                                    selectedItem={selectedSaasItem || undefined}
+                                    allowFilter={true}
+                                    handleSelectListItem={handleSelectSaasListItem}
+                                    handleActionButtonClick={handleSaasActionButtonClick}
+                                    allowAdd={false}
+                                    allowDelete={false}
+                                    showEditButton={false}
+                                    allowTestApi={false}
+                                    allowPreflight={false}
+                                    disableAdd={false}
+                                    disableEdit={!selectedSaasItem}
+                                    disableDelete={!selectedSaasItem}
+                                    disableTestApi={true}
+                                />
                             </div>
-                            {featureQAData?.length && isShowSidebarIcon ? <ActionImage uniqueName={`${explorerContainerProps.uniqueName}-explorer-tree-info-ai`}
-                                image={{
-                                    uniqueName: `${explorerContainerProps.uniqueName}-explorer-tree-info-image`,
-                                    source: <OpenSidebar24x24 size={FnGetCssVariable('--image-size-2')}
-                                        fill="none"
-                                        strokeWidth={1} />,
-                                    w: 'var(--image-size-2)',
-                                    tooltip: "Click to view node details in sidebar",
-                                    type: "svg"
-                                }} w={'var(--node_height)'} h={'var(--node_height)'} actionCode={'information'} handleMouse={handleClickInformation} /> : <></>
-                            }
-                        </div>
+                        )}
+                    </SplitterPanel>
+
+                    <SplitterPanel tabIndex={-1} size={75} minSize={10} className={`nz-d-flex-column nz-align-center nz-layout-with-sidebar-pane${!explorerContainerProps.subTreeFeatureId ? " nz-pane-1" : " nz-pane-2"}`}>
+                        {explorerToRender !== "SAASINSTANCE" && (
+                            <div className='nz-h-40-px nz-d-flex-row nz-align-center nz-justify-between nz-sub-header nz-w-100'>
+                                <div className="nz-d-flex-row nz-align-center nz-w-100">
+                                    <div className='nz-fq-container-header'>
+                                        <Label uniqueName={`${explorerContainerProps.uniqueName}-fqa-container`}
+                                            label={selectedNodeInfo?.node ? `${selectedNodeInfo.node.NodeType}: ${selectedNodeInfo.node.Name}` : "Layout"}
+                                        />
+                                    </div>
+                                </div>
+                                {featureQAData?.length && isShowSidebarIcon && treeData?.length ? <ActionImage uniqueName={`${explorerContainerProps.uniqueName}-explorer-tree-info-ai`}
+                                    image={{
+                                        uniqueName: `${explorerContainerProps.uniqueName}-explorer-tree-info-image`,
+                                        source: <OpenSidebar24x24 size={FnGetCssVariable('--image-size-2')}
+                                            fill="none"
+                                            strokeWidth={1} />,
+                                        w: 'var(--image-size-2)',
+                                        tooltip: "Click to view node details in sidebar",
+                                        type: "svg"
+                                    }} w={'var(--node_height)'} h={'var(--node_height)'} actionCode={'information'} handleMouse={handleClickInformation} /> : <></>
+                                }
+                            </div>
+                        )}
+                        {/* right Pane render container*/}
                         <div className='nz-wh-100 nz-d-flex-hv-left nz-feature-explorer-right-pane' style={{ overflow: 'hidden' }}>
                             <FeatureRenderContainer
                                 key={explorerContainerProps.featureId}
-                                allowFeatureToRender={true}
+                                doNotRenderExplorerTree={true}
                                 asRightPane={true}
                                 selectedNode={selectedNodeInfo?.node}
                                 treeData={treeData}
@@ -381,7 +433,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                         </div>
                     </SplitterPanel>
                 </Splitter>}
-                {(explorerContainerProps.selectedNodeExplorer || selectedNodeInfo?.node) && isSidebar &&
+                {/* siderbar render container */}
+                {(explorerContainerProps.selectedNodeExplorer || selectedNodeInfo?.node || selectedNodeContext.selectedNodeExplorer) && isSidebar === "sidebarOpen" &&
                     featureQAData?.length ?
                     <SidebarContainer
                         uniqueName={`${explorerContainerProps.uniqueName}-sidebar`}
@@ -391,20 +444,17 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                             explorerContainerProps.subTreeFeatureId
                                 ? explorerContainerProps.selectedNodeExplorer && !manuallyNodeSelected
                                     ? explorerContainerProps.selectedNodeExplorer.node
-                                    : selectedNodeInfo?.node
-                                : selectedNodeInfo?.node
+                                    : selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer
+                                : selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer
                         }
                         featureId={explorerContainerProps.featureId}
                         selectedNodeExplorer={explorerContainerProps.selectedNodeExplorer ? explorerContainerProps.selectedNodeExplorer.node : undefined}
                         subTreeFeatureId={explorerContainerProps.subTreeFeatureId}
-                        fullView={showSidebarFullWidth}
                         headerText={""}
                         selectedFeatureQa={selectedKebabMenuExplorer ?? null}
                         showPopupSidebar={false}
                         selectedMenuFeature={explorerContainerProps.selectedFeatureData}
-                        treeData={treeData?.length ? treeData
-                            : originalTreeData?.length ? originalTreeData
-                                : originalTreeDataForInventory}
+                        treeData={treeData}
                         handleCloseSidebar={() => {
                             setIsSidebar('sidebarClose');
                             setIsShowSidebar(false);
@@ -420,9 +470,6 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                 isOpen={isConfirmOpen}
                 uniqueName={'appqatask-confirm'}
                 message={confirmMessage}
-                showOkButton={isShowOkButton}
-                // container={yesNoDialogContainerRef.current}
-                handleYesButtonClick={handleConfirmYesClick}
                 handleNoButtonClick={() => {
                     setConfirmMessage("");
                     setIsConfirmOpen(false);

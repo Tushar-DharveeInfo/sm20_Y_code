@@ -63,10 +63,7 @@ const FnMapContactsToTreeNodes = (
         if (featureTreeProps && featureId) {
             treeNode.title = TreeNodeTitle(
                 treeNode,
-                featureTreeProps,
-                featureId,
-                !featureTreeProps.hideKebabMenu,
-                !featureTreeProps.hideCopyIcon
+                featureTreeProps
             );
         }
 

@@ -596,15 +596,15 @@ const Sidebar = (sidebarProps: ISidebar) => {
             if (!isSameTab) {
                 FnSetSubmenu(selectedTabLabel);
             }
-            if (payload.Label && !sidebarProps.isHideMaximizeButton && [SidebarEnum.Log.toLowerCase(), SidebarEnum.Alerts.toLowerCase()].includes(payload.Label.toLowerCase())) {
-                setIsShowFullViewBtn(false);
-                setWidthOfSidebarForFqas()
+            // if (payload.Label && !sidebarProps.isHideMaximizeButton && [SidebarEnum.Log.toLowerCase(), SidebarEnum.Alerts.toLowerCase()].includes(payload.Label.toLowerCase())) {
+            //     setIsShowFullViewBtn(false);
+            //     setWidthOfSidebarForFqas()
+            // }
+            // else {
+            if (isShowFullViewBtn) {
+                setDrawerWidth(commonVariableContext.sidebarWidth ?? window.innerWidth / 4)
             }
-            else {
-                if (isShowFullViewBtn) {
-                    setDrawerWidth(commonVariableContext.sidebarWidth ?? window.innerWidth / 4)
-                }
-            }
+            // }
 
             setActiveTab(selectedTabLabel);
             setSelectedQa(actionCode ?? "");

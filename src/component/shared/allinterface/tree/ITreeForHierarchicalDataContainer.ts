@@ -51,7 +51,7 @@ interface IFeatureTree {
     allowCustomCheck?: boolean;//If true user need to handle handleCheck event 
     disableSelection?: boolean;// If true it will not allow selection  
     showLeafStatusIcon?: boolean;
-    onAddToDownloadCart?: (node: ITreeNode) => () => void;// to add to download cart
+    onAddToDownloadCart?: (node: ITreeNode) => void;// to add to download cart
 }
 
 interface ITreeForHierarchicalDataContainer {
@@ -81,7 +81,7 @@ interface ITreeForHierarchicalDataContainer {
     disableDelete?: boolean; // To disable Delete
     allowMultiple?: boolean; // Whether multiple node selection is allowed
     className?: string; // Optional CSS class name for styling
-    treeDataFor?: string; // This is used for Device Model whether it is "0" forLibrary or "1" for Inventory 
+    treeDataFor?: string; // This is used for Device Model whether it is "0" forLibrary 
     allowGenerateUID?: boolean // it will create unic key of tree node
     allowUseParentIDForKey?: boolean;// if true convert function will use parentId for generate unique key
     selectedNodeExplorer?: { event: 'select'; selected: boolean; node: ITreeNode; selectedNodes: ITreeNode[]; nativeEvent: MouseEvent; }; // Explorer pane node if needed

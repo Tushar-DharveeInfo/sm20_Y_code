@@ -25,7 +25,6 @@ interface IFeatureContainer {
 const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
     const [originalTreeData, setOriginalTreeData] = useState<ITreeNode[]>([]);
     const [showOverlay, setShowOverlay] = useState<boolean>(false);
-    const [originalTreeDataForInventory, setOriginalTreeDataForInventory] = useState<ITreeNode[]>([]);
     const [confirmMessage, setConfirmMessage] = useState<string>("");
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
     const [isShowOkButton, setIsShowOkButton] = useState<boolean>();
@@ -33,7 +32,7 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
 
     const allowAppQaToRender = Boolean(featureContainerProps.appqaId);
     /* Features listed in FeaturesWithOwnLayout replace the explorer content. */
-    const allowFeatureToRender = !allowAppQaToRender
+    const doNotRenderExplorerTree = !allowAppQaToRender
         && FeaturesWithOwnLayout.includes(featureContainerProps.featureId);
 
 
@@ -189,7 +188,6 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
     const updateOriginalTreeDataset = async (updatedTreedata: ITreeNode[], expandedKeys: Key[], selectedKeys: Key[], userTreeData: ITreeNode[] | null) => {
         if (updatedTreedata.length === 0 && expandedKeys.length === 0 && selectedKeys.length === 0 && !userTreeData?.length) {
             setOriginalTreeData([]);
-            setOriginalTreeDataForInventory([]);
         }
         else {
             if (featureContainerProps.featureId && ReuseDataForFeatures.includes(featureContainerProps.featureId)) {
@@ -270,7 +268,7 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
     return (
         <div ref={containerDivRef} key={featureContainerProps.uniqueName} id="FeatureContainer" className={`nz-feature-container ${getClassNameBasedOnFeatureId(featureContainerProps.featureId)}`}>
             <div style={{
-                display: allowAppQaToRender || allowFeatureToRender ? 'none' : 'flex'
+                display: allowAppQaToRender || doNotRenderExplorerTree ? 'none' : 'flex'
             }} className='nz-wh-100 nz-feature-content'>
 
                 <ExplorerContainer uniqueName={`${featureContainerProps.uniqueName}-explorer-container`}
@@ -290,10 +288,10 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
             {/* Renders feature modules dynamically based on featureId.
                 Returns null if no matching feature module exists */}
             <div style={{
-                display: allowFeatureToRender ? 'flex' : 'none'
+                display: doNotRenderExplorerTree ? 'flex' : 'none'
             }} className='nz-wh-100 nz-feature-render-content'>
                 <FeatureRenderContainer
-                    allowFeatureToRender={allowFeatureToRender}
+                    doNotRenderExplorerTree={doNotRenderExplorerTree}
                     featureContainerProps={featureContainerProps}
                     handleShowUserMessage={handleShowUserMessage}
                 />

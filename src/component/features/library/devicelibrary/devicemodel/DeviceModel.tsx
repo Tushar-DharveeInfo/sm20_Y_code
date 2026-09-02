@@ -677,7 +677,7 @@ const DeviceModel = (props: IDeviceModel) => {
 				}
 
 				const apiData = await formatDataForFlatTree(filterData)
-				const hierarchyData = await FnConvertFlatDataToHierarchyData({ "deviceModel": apiData }, null, props.featureId, "DeviceModel", disableSort)
+				const hierarchyData = await FnConvertFlatDataToHierarchyData({ "deviceModel": apiData }, "DeviceModel", disableSort)
 				if (hierarchyData) {
 					const updatedTreeData = FnUpdateNodeWithTitleAndIcon(hierarchyData, treeProps.featureTreeProps, props.featureId)
 
@@ -1216,7 +1216,7 @@ const DeviceModel = (props: IDeviceModel) => {
 									featureId={props.featureId}
 									treeData={props.treeData}
 									isLensDirty={isLensDirty}
-									ShowOnlyLibraryRadioB={props.ShowOnlyLibraryRadioB}
+									ShowOnlyLibraryRadioB={props.ShowOnlyLibraryRadioB ?? false}
 									isDisableForm={disableFromWhileSearching}
 									handleValueChangeRadio={handleValueChange}
 									handleLensMouse={handleLensMouse}

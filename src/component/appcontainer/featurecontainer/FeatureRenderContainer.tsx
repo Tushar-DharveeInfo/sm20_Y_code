@@ -35,7 +35,7 @@ interface IFeatureRenderTarget {
 }
 
 interface IFeatureRenderContainer {
-    allowFeatureToRender: boolean;
+    doNotRenderExplorerTree: boolean;
     asRightPane?: boolean;
     featureContainerProps: IFeatureRenderTarget;
     selectedNode?: ITreeNode;
@@ -49,7 +49,6 @@ const FeaturesWithOwnLayout: string[] = [
     HomeEnums.HomeDashboard,
     LibraryEnums.DeviceLibrary,
     SettingsEnums.DailySchedular,
-    SettingsEnums.Instance,
     SettingsEnums.Import,
     ServicesEnums.CatalogAndDiscounts,
     ServicesEnums.DownloadExcelTempates
@@ -57,14 +56,14 @@ const FeaturesWithOwnLayout: string[] = [
 
 function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderContainer) {
     const {
-        allowFeatureToRender,
+        doNotRenderExplorerTree,
         featureContainerProps,
         handleShowUserMessage,
         selectedNode,
         treeData,
     } = featureRenderContainerProps;
 
-    if (!allowFeatureToRender) {
+    if (doNotRenderExplorerTree) {
         return null;
     }
 
@@ -105,7 +104,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-requests-received'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                             selectedNode={selectedNode}
                             treeData={treeData}
@@ -122,7 +120,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-approved-tickets'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                             selectedNode={selectedNode}
                             treeData={treeData}
@@ -139,7 +136,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-mcs-development'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                             selectedNode={selectedNode}
                             treeData={treeData}
@@ -156,7 +152,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-client-identity-management'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                         />
                     </Suspense>
@@ -171,7 +166,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-client-netzoom'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
+
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                         />
                     </Suspense>
@@ -186,7 +181,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-client-visiostencils'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                         />
                     </Suspense>
@@ -201,7 +195,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-client-ssi-and-other-services'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                         />
                     </Suspense>
@@ -216,7 +209,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-client-reseller'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                         />
                     </Suspense>
@@ -231,7 +223,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-client-mcs'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                         />
                     </Suspense>
@@ -270,7 +261,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-services-catalog-and-discounts'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                         />
                     </Suspense>
@@ -285,7 +275,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-services-download-excel-tempates'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                         />
                     </Suspense>
@@ -300,10 +289,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-services'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
-                            selectedNode={selectedNode}
-                            treeData={treeData}
                         />
                     </Suspense>
                 </ErrorBoundary>

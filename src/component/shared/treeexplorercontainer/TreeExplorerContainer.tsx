@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Key } from 'rc-tree/lib/interface'
-import './DCExplorerContainer.css'
+import './TreeExplorerContainer.css'
 import {
   filterBusinessRecords,
   getAppliedFilterJson,
@@ -16,7 +16,7 @@ import { FnMapBusinessesToTreeNodes } from '../allcommon/tree/FnMapBusinessesToT
 import { FnMapContactsToTreeNodes } from '../allcommon/tree/FnMapContactsToTreeNodes.ts'
 import { FnSearchKeywordInLocalTree } from '../allcommon/FnSearchKeywordInLocalTree.ts'
 import { IDCFilterControlValues } from '../allinterface/searchfilter/IFilterFormContainer.ts'
-import { IDcExplorerContainer } from './IDcExplorerContainer.ts'
+import { ITreeExplorerContainer } from './ITreeExplorerContainer.ts'
 import { IExpandedNodeInfo, ISelectedNodeInfo, ITreeNode } from '../allinterface/tree/ITreeControl.ts'
 import { IFeatureTree, ITreeForFlatDataContainer } from '../allinterface/tree/ITreeForFlatDataContainer.ts'
 import { FilterFormContainer } from '../searchfilter/filterformcontainer/FilterFormContainer.tsx'
@@ -42,7 +42,7 @@ function buildFeatureTreeProps(): IFeatureTree {
   }
 }
 
-const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => {
+const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContainer) => {
   const smDataContext = useSmDataContext()
   const [featureTreeProps, setFeatureTreeProps] = useState<IFeatureTree | null>(null)
   const [treeContainerFlatDataProps, setTreeContainerFlatDataProps] = useState<ITreeForFlatDataContainer>()
@@ -85,11 +85,11 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
     setDefaultSelectedKeys([node.key])
     setDefaultSelectedNodeInfo(info)
     smDataContext.setExplorerSelection(node, getAppliedFilterJson(filterFormDataRef.current))
-    dcExplorerContainerProps.handleNodeSelect?.([node.key], info, expandedKeys, currentTree)
+    treeExplorerContainerProps.handleNodeSelect?.([node.key], info, expandedKeys, currentTree)
   }
 
   const setBusinessTree = (nodes: ITreeNode[]) => {
-    const rootLabel = dcExplorerContainerProps.wrapWithRootLabel
+    const rootLabel = treeExplorerContainerProps.wrapWithRootLabel
     const treeNodes = rootLabel
       ? [{
         key: 'root-businesses',
@@ -146,28 +146,28 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
 
   // Reload business tree when featureId changes (Client menu auto-filters included).
   useEffect(() => {
-    if (!dcExplorerContainerProps.featureId) return
+    if (!treeExplorerContainerProps.featureId) return
     if (!smDataContext.isBusinessesLoaded) return
-    if (prevFeatureIdRef.current === dcExplorerContainerProps.featureId) return
-    prevFeatureIdRef.current = dcExplorerContainerProps.featureId
+    if (prevFeatureIdRef.current === treeExplorerContainerProps.featureId) return
+    prevFeatureIdRef.current = treeExplorerContainerProps.featureId
 
     const featureProps = buildFeatureTreeProps()
-    const autoFilter = FnGetClientExplorerAutoFilter(dcExplorerContainerProps.featureId)
+    const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId)
     setFeatureTreeProps(featureProps)
     setIsShowFilterForm(false)
     setIsFilterChange(false)
     setFilterFormData(autoFilter)
     filterFormDataRef.current = autoFilter
     setTreeContainerFlatDataProps({
-      uniqueName: `${dcExplorerContainerProps.uniqueName}-dce-flat`,
+      uniqueName: `${treeExplorerContainerProps.uniqueName}-dce-flat`,
       flatAPIData: null,
-      featureId: dcExplorerContainerProps.featureId,
+      featureId: treeExplorerContainerProps.featureId,
       featureTreeProps: featureProps,
     })
 
     // TODO: replace sampleBusinesses with API response when available
-    applyBusinessTreeFromFilter(autoFilter, featureProps, dcExplorerContainerProps.featureId)
-  }, [dcExplorerContainerProps.featureId, dcExplorerContainerProps.uniqueName, smDataContext.isBusinessesLoaded])
+    applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
+  }, [treeExplorerContainerProps.featureId, treeExplorerContainerProps.uniqueName, smDataContext.isBusinessesLoaded])
 
   const handleNodeExpand = async (expandedNodeKeys: Key[], info: IExpandedNodeInfo) => {
     if (!info?.expanded || !info.node || !treeContainerFlatDataProps || !featureTreeProps) return
@@ -224,7 +224,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
     setDefaultSelectedKeys(selectedKeys)
     setDefaultSelectedNodeInfo(info)
     smDataContext.setExplorerSelection(info.node, getAppliedFilterJson(filterFormDataRef.current))
-    dcExplorerContainerProps.handleNodeSelect?.(
+    treeExplorerContainerProps.handleNodeSelect?.(
       selectedKeys,
       info,
       expandedNodeKeys ?? defaultExpandedKeys,
@@ -238,14 +238,14 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
   ) => {
     if (!event) return
     if (actionCode === 'close') {
-      const autoFilter = FnGetClientExplorerAutoFilter(dcExplorerContainerProps.featureId)
+      const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId)
       setFilterFormData(autoFilter)
       filterFormDataRef.current = autoFilter
       isFilterChangeRef.current = false
       setIsFilterChange(false)
       setIsShowFilterForm(false)
-      if (featureTreeProps && dcExplorerContainerProps.featureId) {
-        applyBusinessTreeFromFilter(autoFilter, featureTreeProps, dcExplorerContainerProps.featureId)
+      if (featureTreeProps && treeExplorerContainerProps.featureId) {
+        applyBusinessTreeFromFilter(autoFilter, featureTreeProps, treeExplorerContainerProps.featureId)
       }
       return
     }
@@ -269,11 +269,11 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
   // Apply saved filter json (drop ANY) and refresh the explorer tree, or open the form.
   const handleFilterClick = () => {
     if (isShowFilterForm) {
-      if (isFilterChangeRef.current && featureTreeProps && dcExplorerContainerProps.featureId) {
+      if (isFilterChangeRef.current && featureTreeProps && treeExplorerContainerProps.featureId) {
         const appliedFilterJson = getAppliedFilterJson(filterFormDataRef.current)
         setFilterFormData(appliedFilterJson)
         filterFormDataRef.current = appliedFilterJson
-        applyBusinessTreeFromFilter(appliedFilterJson, featureTreeProps, dcExplorerContainerProps.featureId)
+        applyBusinessTreeFromFilter(appliedFilterJson, featureTreeProps, treeExplorerContainerProps.featureId)
       }
       // Clear dirty after apply/close — yellow only while filter form has pending edits
       isFilterChangeRef.current = false
@@ -307,13 +307,13 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
         <div className="nz-wh-100 nz-dce-search-tree-container">
           <div className="nz-dce-search-container">
             <SearchControl
-              uniqueName={`${dcExplorerContainerProps.uniqueName}-search`}
-              isShowFilterControl={!dcExplorerContainerProps.subTreeFeatureId}
+              uniqueName={`${treeExplorerContainerProps.uniqueName}-search`}
+              isShowFilterControl={!treeExplorerContainerProps.subTreeFeatureId}
               lensDirty={(searchText || '').length > 0}
               filterDirty={isFilterChange}
               searchInputValue={searchText || ''}
               hideSearchControl={false}
-              hideRightMouseMenu={!!dcExplorerContainerProps.subTreeFeatureId}
+              hideRightMouseMenu={!!treeExplorerContainerProps.subTreeFeatureId}
               searchValueChange={(value: string) => {
                 setSearchText(value)
                 setSearchHistory([])
@@ -334,7 +334,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
                 uniqueName={treeContainerFlatDataProps.uniqueName}
                 treeData={displayTreeData}
                 featureId={treeContainerFlatDataProps.featureId}
-                autoFocus={!dcExplorerContainerProps.subTreeFeatureId}
+                autoFocus={!treeExplorerContainerProps.subTreeFeatureId}
                 defaultExpandedKeys={defaultExpandedKeys}
                 defaultSelectedKeys={defaultSelectedKeys}
                 defaultCheckedKeys={[]}
@@ -352,7 +352,7 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
         </div>
       ) : (
         <FilterFormContainer
-          uniqueName={`${dcExplorerContainerProps.uniqueName}-filter-form`}
+          uniqueName={`${treeExplorerContainerProps.uniqueName}-filter-form`}
           allowHeader={true}
           isFilterChange={isFilterChange}
           controlValues={filterFormData}
@@ -365,4 +365,4 @@ const DcExplorerContainer = (dcExplorerContainerProps: IDcExplorerContainer) => 
   )
 }
 
-export { DcExplorerContainer }
+export { TreeExplorerContainer }

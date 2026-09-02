@@ -87,10 +87,7 @@ function finalizeNode(
     if (featureTreeProps && featureId) {
         node.title = TreeNodeTitle(
             node,
-            featureTreeProps,
-            featureId,
-            false,
-            false
+            featureTreeProps
         )
         if (featureTreeProps.allowIcon && node.NodeType === 'Mfg') {
             node.icon = TreeNodeIcon(node, featureTreeProps.instanceName ?? '')
