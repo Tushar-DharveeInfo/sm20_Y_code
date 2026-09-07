@@ -69,7 +69,7 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
             typeof filterFormContainerProps.controlValues === "object"
                 ? { ...(filterFormContainerProps.controlValues as Record<string, string | undefined>) }
                 : {};
-        const values = { ...smDataContext.filterJson, ...propsValues };
+        const values = { ...(smDataContext.selection.filterJson ?? {}), ...propsValues };
         const businesses = smDataContext.datasets.businesses.length
             ? smDataContext.datasets.businesses
             : FnGetSourceDataset("businesses");

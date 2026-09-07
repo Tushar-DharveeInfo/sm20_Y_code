@@ -8,7 +8,7 @@ import { SidebarEnum } from '../../constants/Feature'
 import { ITreeNode } from '../allinterface/tree/ITreeControl'
 import { IErrorData } from '../allinterface/IApiResponse'
 // import { DeviceModel } from './devicemodel/DeviceModel'
-import { ForensicLog } from '../forensiclog/ForensicLog'
+import { Log } from '../../features/appqa/log/Log'
 // import { DiagnosticLogContainer } from './diagnosticlogcontainer/DiagnosticLogContainer'
 import { FqaNotes } from './notes/FqaNotes'
 import { Key } from 'rc-tree/lib/interface'
@@ -239,12 +239,12 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
 
             case SidebarEnum.Log:
                 return (
-                    <ForensicLog
+                    <Log
                         featureId={sidebarProps.featureId}
-                        isSetting={true}
-                        loginType="node"
-                        selectedNode={selectedNode}
-                        uniqueName={`${Label}-forensic-log`}
+                        headerText='Log'
+                        selectedNode={selectedNode ?? sidebarProps.selectedNode}
+                        uniqueName={`${Label}-log`}
+                        handleShowUserMessage={sidebarProps.handleShowErrorDialog ? (msg) => sidebarProps.handleShowErrorDialog?.(msg, true) : undefined}
                     />
                 );
 

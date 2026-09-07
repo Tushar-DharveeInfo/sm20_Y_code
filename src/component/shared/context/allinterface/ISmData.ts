@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from "react";
 import type {
     CollectionName,
     IActivityDoc,
@@ -14,14 +15,14 @@ import type {
     ITicketNoteDoc,
     ITodoDoc,
 } from "../../allinterface/IDatasets";
-import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
+import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 
 /** Selected business-explorer node plus the applied filter json used as the scoped-dataset cache key. */
 interface IExplorerSelection {
     bid?: string;
     cid?: string;
-    filterJson: IDCFilterControlValues;
+    filterJson: IFilterControlValues;
 }
 
 type ISmDatasetCache = {
@@ -31,8 +32,8 @@ type ISmDatasetCache = {
 interface ISmData {
     datasets: ISmDatasetCache;
     selection: IExplorerSelection;
-    /** Applied business-explorer filter json (keys with ANY/empty omitted). */
-    filterJson: IDCFilterControlValues;
+    /** Applied filter json string, e.g. '[{"field":"status","op":"==","value":"Active"}]'. */
+    filterJson: string;
     selectedNode?: ITreeNode;
     isBusinessesLoaded: boolean;
     isScopedDatasetsLoaded: boolean;
@@ -42,13 +43,15 @@ interface ISmData {
      * Store the selected node and filter json. Reloads every non-business dataset
      * only when bid, cid, or filter json actually changed.
      */
-    setExplorerSelection: (node: ITreeNode | undefined, filterJson: IDCFilterControlValues) => void;
-    /** Store the applied filter json independently of node selection. */
-    setFilterJson: (filterJson: IDCFilterControlValues) => void;
+    setExplorerSelection: (node: ITreeNode | undefined, filterJson: IFilterControlValues) => void;
+    /** Convert filter key/values to json string and store when the value changes. */
+    setFilterJson: (filterJson: IFilterControlValues) => void;
     /** Always read/write through the session cache. */
     updateDataset: <K extends CollectionName>(name: K, records: ICollectionDocMap[K][]) => void;
     /** Contacts for tree expand, from the full source (not the scoped cache). */
-    getContactsForTree: (bid: string, filterJson: IDCFilterControlValues) => IContactDoc[];
+    getContactsForTree: (bid: string, filterJson: IFilterControlValues) => IContactDoc[];
+    /** Direct dataset cache state setter. */
+    setDatasets: Dispatch<SetStateAction<ISmDatasetCache>>;
 }
 
 export type {

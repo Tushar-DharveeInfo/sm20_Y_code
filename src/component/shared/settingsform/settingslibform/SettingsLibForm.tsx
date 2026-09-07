@@ -1,6 +1,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AddressForm, ChangedValueMap, FormElementsRenderer, IAddress, IFormData, IFormElements } from '@n20a/libform'
+import { ChangedValueMap, FormElementsRenderer, IFormData, IFormElements } from '@n20a/libform'
+import { AddressForm, IAddress } from '@n20a/libcountry'
 import { Help24x24, Save24x24, TestAPI24x24 } from '@n20a/libicon'
 
 import '@n20a/libform/style.css'

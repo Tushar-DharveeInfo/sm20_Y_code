@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { OpenSidebar24x24 } from '@n20a/libicon'
 import { Splitter, SplitterPanel, SplitterResizeEndEvent } from 'primereact/splitter'
 import { Key } from 'rc-tree/lib/interface'
-import { useSearchParams } from 'react-router-dom'
 import './ExplorerContainer.css'
 import { FeatureQARange, LibraryEnums, SettingsEnums } from '../../constants/Feature';
 // import { FnFindNearestNodeByType } from '../../shared/allcommon/FnFindNearestNodeByType'
@@ -194,7 +193,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     }, []);
 
     // Handles tree selection, session updates, and contextual layout/sidebar state.
-    const handleNodeSelect = async (_selectedKeys: Key[], info: ISelectedNodeInfo, _expandedKeys: Key[], newTreeData?: ITreeNode[], _isSiteByTenant?: "AllSites" | "TenantsBySite" | "SitesByTenant", isShowSidebar?: boolean) => {
+    const handleNodeSelect = async (_selectedKeys: Key[], info: ISelectedNodeInfo, _expandedKeys: Key[], newTreeData?: ITreeNode[], isShowSidebar?: boolean) => {
 
         if (!explorerContainerProps.subTreeFeatureId) {
             selectedNodeContext.setSelectedNodeExplorer(info.node);
@@ -448,13 +447,12 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                                 : selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer
                         }
                         featureId={explorerContainerProps.featureId}
-                        selectedNodeExplorer={explorerContainerProps.selectedNodeExplorer ? explorerContainerProps.selectedNodeExplorer.node : undefined}
                         subTreeFeatureId={explorerContainerProps.subTreeFeatureId}
                         headerText={""}
                         selectedFeatureQa={selectedKebabMenuExplorer ?? null}
                         showPopupSidebar={false}
                         selectedMenuFeature={explorerContainerProps.selectedFeatureData}
-                        treeData={treeData}
+                        treeData={treeData ?? undefined}
                         handleCloseSidebar={() => {
                             setIsSidebar('sidebarClose');
                             setIsShowSidebar(false);

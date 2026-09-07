@@ -12,6 +12,8 @@ import { ISession } from '../shared/context/allinterface/ISession'
 import { FnGetSessionVariableFromStorage } from '../shared/allcommon/basic/FnGetSessionVariableFromStorage'
 import { useMainAppContext } from '../shared/context/hooks/MainAppHooks'
 import { MainMenu } from '../shared/menu/mainmenu/MainMenu'
+import { useActivities } from '@n20a/libfsdb'
+import { FnLogLoginActivity } from './allcommon/FnLogLoginActivity'
 
 interface IAppContainer {
     uniqueName: string;//unique identifier for the control
@@ -38,6 +40,7 @@ const AppContainer = (appContainerProps: IAppContainer) => {
     const [selectedFeatureData, setSelectedFeatureData] = useState<IMenuItem | null>(null);
     const [selectedAppQAData, setSelectedAppQAData] = useState<IMenuItem | null>(null);
     const [isOpen, setIsOpen] = useState<boolean>(true);
+
     const navigate = useNavigate();
     const location = useLocation();
     const sessionContext = useSessionContext();
@@ -45,7 +48,21 @@ const AppContainer = (appContainerProps: IAppContainer) => {
     const selectedFeatureIdRef = useRef<string | undefined>(undefined);
 
     const isManualFeatureChangeRef = useRef(false);
+    const userInfo = mainAppContext.userInfoAndSubscription?.userInfo;
+    const bid = String(userInfo?.bid ?? "").trim();
+    const { createActivity } = useActivities(bid);
 
+
+    useEffect(() => {
+        if (!bid || !userInfo?.cid) {
+            return;
+        }
+        void FnLogLoginActivity({
+            createActivity,
+            userInfo,
+            bid,
+        });
+    }, [bid, createActivity, userInfo])
     const menuFeatureData: IMainMenu | null = useMemo(() => {
         if (!mainAppContext.featureRecords?.length) return null;
 
@@ -117,39 +134,45 @@ const AppContainer = (appContainerProps: IAppContainer) => {
         actionCode?: string,
         payload?: unknown
     ) => {
-        if (selectedAppQAData && actionCode && selectedAppQAData._Feature === actionCode) {
+        const selectedAppqaId = selectedAppQAData?._Feature != null
+            ? String(selectedAppQAData._Feature)
+            : "";
+        const nextAppqaId = actionCode != null ? String(actionCode) : "";
+
+        if (selectedAppqaId && nextAppqaId && selectedAppqaId === nextAppqaId) {
             setSelectedAppQAData(null);
-            const filteredSession = FnGetSessionVariableFromStorage("Feature", "FeatureID", sessionContext.SessionList);
-            if (filteredSession && filteredSession.length > 0) {
-                const featureFromSession = mainAppContext.featureRecords.find((item) => { return item._Feature === filteredSession[0].SessionValue });
-                if (featureFromSession) {
-                    const updatedPayload = { ...featureFromSession, IsAppqa: false };
-                    setSelectedFeatureData(featureFromSession)
-                    await callApiToUpdateSession(true, featureFromSession);
-                    navigate(`/feature/${featureFromSession._Feature}`, { state: updatedPayload });
-                    return;
-                }
+            const previousFeature = selectedFeatureData
+                ?? mainAppContext.featureRecords.find((item) => {
+                    const filteredSession = FnGetSessionVariableFromStorage("Feature", "FeatureID", sessionContext.SessionList);
+                    return filteredSession?.[0]?.SessionValue != null
+                        && String(item._Feature) === String(filteredSession[0].SessionValue);
+                });
+            if (previousFeature) {
+                const updatedPayload = { ...previousFeature, IsAppqa: false };
+                setSelectedFeatureData(previousFeature);
+                navigate(`/feature/${previousFeature._Feature}`, { state: updatedPayload });
+                await callApiToUpdateSession(true, previousFeature);
             }
+            return;
         }
         // Validate payload
         if (!isMenuItem(payload) || !payload._Feature) {
             return;
         }
 
-        setSelectedFeatureData(null);
+        // Keep the current side-menu feature selected. Clearing it retriggers DefaultQA
+        // and steals the first App QA click.
         setSelectedAppQAData(payload);
 
-        // Update help context
-        if (payload._Feature !== AppQA.Help) {
-
+        if (String(payload._Feature) !== AppQA.Help) {
             mainAppContext.setSelectedFeatureForHelp({
                 featureID: String(payload._Feature),
                 featureName: payload.Label
             });
         }
-        await callApiToUpdateSession(false, payload);
         const updatedPayload = { ...payload, IsAppqa: true };
-        navigate(`/feature/${actionCode}`, { state: updatedPayload });
+        navigate(`/feature/${nextAppqaId || payload._Feature}`, { state: updatedPayload });
+        await callApiToUpdateSession(false, payload);
     }
 
     const handleSelectForSubMenu = (value: any, actionCode?: string | undefined, payload?: any): void => {
@@ -166,7 +189,8 @@ const AppContainer = (appContainerProps: IAppContainer) => {
     useEffect(() => {
         if (location.state && isMenuItem(location.state)) {
             const featureId = location.state._Feature?.toString();
-            if (featureId === AppQA.Help
+            const isAppqa = Boolean((location.state as IMenuItem & { IsAppqa?: boolean }).IsAppqa)
+                || featureId === AppQA.Help
                 || featureId === AppQA.Log
                 || featureId === AppQA.Alerts
                 || featureId === AppQA.Notify
@@ -174,11 +198,13 @@ const AppContainer = (appContainerProps: IAppContainer) => {
                 || featureId === AppQA.Launch
                 || featureId === AppQA.Theme
                 || featureId === AppQA.Report
-                || featureId === AppQA.ToDo) {
+                || featureId === AppQA.ToDo;
+            if (isAppqa) {
                 setSelectedAppQAData(location.state)
             }
             else {
                 setSelectedFeatureData(location.state);
+                setSelectedAppQAData(null)
             }
         }
     }, [location?.state])

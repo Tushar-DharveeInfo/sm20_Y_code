@@ -1,53 +1,23 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getRuntimeConfig, signOut } from "@n20a/libauth";
+import { useActivities } from '@n20a/libfsdb';
 import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer.tsx';
-import { IAppqaSignout } from '../allinterface/IAppqaSignout.ts';
-import sampleOpenSessions from '../../../../smsampledata/appqa/SignoutSampleData.json';
-
-const closeSampleSession = async (_sessionId: string): Promise<void> => {
-  await Promise.resolve();
-};
-
-const SM_TAB_PREFIX = 'SM-';
-
-const getSmTabLabels = async (): Promise<string[]> => {
-  const currentTitle = document.title;
-  const initialLabels = currentTitle.startsWith(SM_TAB_PREFIX) ? [currentTitle] : [];
-  const labels = new Set<string>(initialLabels);
-
-  try {
-    const channel = new BroadcastChannel('sm-tab-control');
-    const requestId = `sm-tabs-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-
-    const listener = (event: MessageEvent) => {
-      if (event.data?.action !== 'response-sm-tab-label') return;
-      if (event.data?.requestId !== requestId) return;
-
-      const label = event.data?.label;
-      if (typeof label === 'string' && label.startsWith(SM_TAB_PREFIX)) {
-        labels.add(label);
-      }
-    };
-
-    channel.addEventListener('message', listener);
-    channel.postMessage({ action: 'request-sm-tab-label', requestId });
-
-    await new Promise((resolve) => setTimeout(resolve, 150));
-
-    channel.removeEventListener('message', listener);
-    channel.close();
-  } catch (error) {
-    console.warn('Failed to query SM- tab labels:', error);
-  }
-
-  return Array.from(labels);
-};
-
-function AppqaSignout(appqasignoutprops: IAppqaSignout) {
+import sampleOpenSessions from '../../../../smSampledata/appqa/SignoutSampleData.json';
+import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
+import { FnLogSignoutActivity } from '../../../appcontainer/allcommon/FnLogLoginActivity';
+interface ISignout {
+  uniqueName: string;//unique identifier for the control
+  handleCloseFailed?: (error: Error) => void; // Optional callback for handling close failures
+}
+function Signout(signoutprops: ISignout) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [openSessions, setOpenSessions] = useState<Record<string, any>[]>();
   const { AUTH_TYPE } = getRuntimeConfig();
+  const mainAppContext = useMainAppContext();
+  const userInfo = mainAppContext.userInfoAndSubscription?.userInfo;
+  const bid = String(userInfo?.bid ?? '').trim();
+  const { createActivity } = useActivities(bid);
 
   useEffect(() => {
     // API DISABLED: SESSION.GetOpenSession.
@@ -56,44 +26,43 @@ function AppqaSignout(appqasignoutprops: IAppqaSignout) {
     setIsOpen(sampleOpenSessions.length > 0);
   }, []);
 
-  const closeSession = (
-    sessionId: string
+  const closeSession = async (
+    _sessionId: string
   ): Promise<void> => {
     // API DISABLED: SESSION.CloseSession.
     // return axiosInterceptor({ url: SESSION.CloseSession, ... }, statusBarContext);
-    return closeSampleSession(sessionId);
+    await Promise.resolve();
   };
 
   const handleYesButtonClick = useCallback(async () => {
-    if (!openSessions?.length) {
-      return;
-    }
     try {
-      const promises: Promise<void>[] = [];
-      for (const session of openSessions) {
-        if (session.UserSessionID) {
-          promises.push(
-            closeSession(session.UserSessionID)
-          );
+      await FnLogSignoutActivity({
+        createActivity,
+        userInfo,
+        bid,
+      });
+
+      if (openSessions?.length) {
+        const promises: Promise<void>[] = [];
+        for (const session of openSessions) {
+          if (session.UserSessionID) {
+            promises.push(
+              closeSession(session.UserSessionID)
+            );
+          }
+        }
+
+        const results = await Promise.allSettled(promises);
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+          console.warn(`Failed to close ${failures.length} of ${results.length} sessions:`, failures);
         }
       }
 
-      // Use allSettled to ensure all sessions are attempted even if any one fails
-      const results = await Promise.allSettled(promises);
-
-      // Check for any failures and log them
-      const failures = results.filter(r => r.status === 'rejected');
-      if (failures.length > 0) {
-        console.warn(`Failed to close ${failures.length} of ${results.length} sessions:`, failures);
-      }
-
-      const smTabLabels = await getSmTabLabels();
-      console.log('Detected SM- tab labels:', smTabLabels);
-
-      // Sign out all browser tabs whose label begins with "SM-"
+      // Sign out all browser tabs whose label begins with "NZ-"
       try {
-        console.log('Broadcasting signout command to all SM- tabs');
-        const channel = new BroadcastChannel('sm-tab-control');
+        console.log('Broadcasting signout command to all NZ- tabs');
+        const channel = new BroadcastChannel('nz-tab-control');
 
         // Send the message multiple times with longer intervals to ensure delivery
         for (let i = 0; i < 10; i++) {
@@ -118,8 +87,8 @@ function AppqaSignout(appqasignoutprops: IAppqaSignout) {
 
       // Close or navigate current tab after giving broadcasts time to reach other tabs
       setTimeout(() => {
-        if (document.title.startsWith('SM-')) {
-          console.log('Current tab is SM- tab, attempting to close');
+        if (document.title.startsWith('NZ-')) {
+          console.log('Current tab is NZ- tab, attempting to close');
           window.close();
 
           // Fallback if this is the last tab and can't be closed
@@ -130,13 +99,13 @@ function AppqaSignout(appqasignoutprops: IAppqaSignout) {
             }
           }, 500);
         } else {
-          console.log('Current tab is not SM- tab, navigating to home');
+          console.log('Current tab is not NZ- tab, navigating to home');
           window.location.replace('/');
         }
       }, 700);
     } catch (error) {
       console.error(error);
-      appqasignoutprops.handleCloseFailed?.(
+      signoutprops.handleCloseFailed?.(
         error instanceof Error
           ? error
           : new Error("Failed to close sessions")
@@ -145,7 +114,10 @@ function AppqaSignout(appqasignoutprops: IAppqaSignout) {
   }, [
     openSessions,
     AUTH_TYPE,
-    appqasignoutprops
+    signoutprops,
+    createActivity,
+    userInfo,
+    bid,
   ]);
 
   const handleNoButtonClick = useCallback(() => {
@@ -155,15 +127,15 @@ function AppqaSignout(appqasignoutprops: IAppqaSignout) {
     } else {
       window.location.replace("/");
     }
-    appqasignoutprops.handleCloseFailed?.(new Error("User cancelled session close"));
-  }, [appqasignoutprops]);
+    signoutprops.handleCloseFailed?.(new Error("User cancelled session close"));
+  }, [signoutprops]);
 
   return (
     <>
       {
         isOpen &&
         <YesNoFormContainer
-          uniqueName={`${appqasignoutprops.uniqueName}-close-popup`}
+          uniqueName={`${signoutprops.uniqueName}-close-popup`}
           message={
             "Are you sure you want to close all open sessions? \n\n If you select 'Yes', all open Sessions will be closed and all browser tabs will be closed."
           }
@@ -176,6 +148,4 @@ function AppqaSignout(appqasignoutprops: IAppqaSignout) {
     </>
   );
 }
-
-export { getSmTabLabels };
-export default AppqaSignout;
+export default Signout;

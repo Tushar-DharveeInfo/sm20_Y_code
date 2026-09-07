@@ -174,6 +174,9 @@ export interface ITodoDoc {
     btype: string;
     status: string;
     whattodo: string;
+    duedate: string;
+    addedby: string;
+    filename?: string;
 }
 
 /** Top-level collection: prospect */

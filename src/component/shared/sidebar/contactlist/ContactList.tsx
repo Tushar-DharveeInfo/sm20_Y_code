@@ -10,6 +10,8 @@ import type { IContactDoc } from "../../allinterface/IDatasets";
 import { useSmDataContext } from "../../context/hooks/SmDataHooks";
 import "./ContactList.css";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
+import { useContacts } from "@n20a/libfsdb";
+import { FnMapToContactDocs } from "../../allcommon/dataset/FnMapToContactDoc";
 
 interface IContactList {
     uniqueName: string;
@@ -20,6 +22,7 @@ interface IContactList {
 }
 
 function isBusinessExplorerNode(node?: ITreeNode): boolean {
+    debugger
     const nodeType = node?.NodeType?.toLowerCase() ?? "";
     return nodeType === "business" || nodeType === "contact";
 }
@@ -125,12 +128,20 @@ const ContactList = (props: IContactList) => {
         smDataContext.selectedNode ?? (isBusinessExplorerNode(props.selectedNode) ? props.selectedNode : undefined)
     );
 
+    const { loading, error, getContacts, contacts } = useContacts(bid);
+
+    useEffect(() => {
+        if (bid) {
+            void getContacts();
+        }
+    }, [bid, getContacts]);
+
     const businessContacts = useMemo<IContactDoc[]>(() => {
-        if (!bid) {
+        if (!bid || !Array.isArray(contacts)) {
             return [];
         }
-        return smDataContext.getContactsForTree(bid, smDataContext.selection.filterJson);
-    }, [bid, smDataContext]);
+        return FnMapToContactDocs(contacts, bid);
+    }, [bid, contacts]);
 
     useEffect(() => {
         if (cid) {
@@ -202,7 +213,15 @@ const ContactList = (props: IContactList) => {
             )}
 
             <div className="nz-sidebar-contact-list-content">
-                {businessContacts.length === 0 ? (
+                {loading ? (
+                    <div className="nz-sidebar-contact-list-empty">
+                        Loading contacts...
+                    </div>
+                ) : error ? (
+                    <div className="nz-sidebar-contact-list-empty">
+                        {error}
+                    </div>
+                ) : businessContacts.length === 0 ? (
                     <div className="nz-sidebar-contact-list-empty">
                         {bid
                             ? "No contacts found for selected business"

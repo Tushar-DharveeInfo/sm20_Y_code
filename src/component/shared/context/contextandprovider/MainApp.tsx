@@ -1,5 +1,5 @@
 import { createContext, useEffect, useMemo, useState, useCallback } from "react";
-import { IAlertProfileItem, IApItem, IEmItem, IFeatureForHelp, IFeatureItem, IMainApp, IRefItem, IUserInfoAndSubscription, IUserProfileRecord } from "../allinterface/IMainApp";
+import { IAlertProfileItem, IApItem, IEmItem, IFeatureForHelp, IFeatureItem, IMainApp, IRefItem, IUserAuthSession, IUserInfoAndSubscription, IUserProfileRecord } from "../allinterface/IMainApp";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { IStatusBar } from "../allinterface/IStatusBar";
 import { AuthSession } from "@n20a/libauth";
@@ -26,7 +26,7 @@ function MainAppProvider({ children }: IAppContextWrapper) {
     const [allFeatureRecords, setAllFeatureRecords] = useState<IFeatureItem[]>([]);
     const [selectedFeatureForHelp, setSelectedFeatureForHelp] = useState<IFeatureForHelp>()
     const [userProfileRecord, setUserProfileRecord] = useState<IUserProfileRecord>()
-    const [authSession, setAuthSession] = useState<AuthSession>()
+    const [authSession, setAuthSession] = useState<IUserAuthSession>()
     const [userInfoAndSubscription, setUserInfoAndSubscription] = useState<IUserInfoAndSubscription>()
     const [businessSelectedNode, setBusinessSelectedNode] = useState<ITreeNode>()
 

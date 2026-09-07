@@ -1,5 +1,6 @@
 
-import { AddressForm, FormElementsRenderer, IAddress, IFormData, IFormElements } from '@n20a/libform'
+import { FormElementsRenderer, IFormData, IFormElements } from '@n20a/libform'
+import { AddressForm, IAddress } from '@n20a/libcountry'
 import '@n20a/libform/style.css'
 import './PropertyFormContainer.css'
 import { IPropertyColumn, IPropertyFormContainer } from '../../allinterface/sidebar/IPropertyFormContainer'

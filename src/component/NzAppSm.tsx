@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { ThemeProvider, DefaultTheme } from 'styled-components';
 import { ModuleRegistry as GridModuleRegistry, AllCommunityModule as GridAllCommunityModule } from 'ag-grid-community';
@@ -21,9 +21,13 @@ const { sampleSessionId, sampleSessionVariables } = authSampleData as {
     sampleSessionId: string;
     sampleSessionVariables: any[];
 };
-import type { IFeatureItem, IUserInfoAndSubscription } from './shared/context/allinterface/IMainApp';
+import type { IFeatureItem, IUserAuthSession, IUserInfoAndSubscription } from './shared/context/allinterface/IMainApp';
 import { FnGetAuthDisplayName } from './appcontainer/allcommon/FnGetLoggedInStatusMessage';
-import { AuthSession } from '@n20a/libauth';
+import { AuthSession, getFirebaseServices } from '@n20a/libauth';
+import { CloudStorageProvider, FirestoreProvider, ICloudStorageDeps } from '@n20a/libfsdb';
+import { IAxiosInterceptorDeps } from '@n20a/libaxios';
+import { useSmDataContext } from './shared/context/hooks/SmDataHooks';
+import { FnGetBidCid } from './appcontainer/allcommon/FnGetBidCid';
 
 GridModuleRegistry.registerModules([GridAllCommunityModule]);
 interface INzAppSm {
@@ -87,6 +91,11 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
 
     const sessionContext = useSessionContext();
     const mainAppContext = useMainAppContext();
+    const smDataContext = useSmDataContext();
+
+    useEffect(() => {
+        smDataContext.loadBusinessesOnce();
+    }, [smDataContext.loadBusinessesOnce]);
 
     const reportFatalError = useCallback(
         (message: string, err?: unknown) => {
@@ -182,15 +191,33 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
             mainAppContext.setFeatureRecords(featureRecords);
             mainAppContext.setAllFeatureRecords(featureRecords);
 
-            mainAppContext.setAuthSession(user);
 
-            const displayName = FnGetAuthDisplayName(user);
+            const bidCid = FnGetBidCid(user?.email);
+            const bid = bidCid?.bid;
+            const cid = bidCid?.cid;
+
+            const authSession: IUserAuthSession = {
+                id: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                email: user.email ?? null,
+                phoneNumber: user.phoneNumber ?? null,
+                authType: String(user.authType ?? ""),
+                tenantNickname: user.tenantNickname ?? null,
+                bid,
+                cid,
+            };
+            mainAppContext.setAuthSession(authSession);
+
+            const displayName = FnGetAuthDisplayName(authSession);
             const userInfoAndSubscription: IUserInfoAndSubscription = {
                 userInfo: {
                     displayName: displayName || "User",
                     username: user?.username ?? "",
                     email: user?.email as string,
                     tenantNickname: user?.tenantNickname as string,
+                    bid,
+                    cid,
                 },
                 subscription: sampleUserLicenses,
             };
@@ -198,6 +225,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
 
             sessionContext.setSessionList(sampleSessionVariables);
             setIsSessionCreated(true);
+
 
             try {
                 onSuccess();
@@ -243,12 +271,46 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
 }
 
 function NzAppSm(props: INzAppSm) {
+    const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
+
+    useEffect(() => {
+        const { auth } = getFirebaseServices();
+        // onAuthStateChanged fires once auth state is restored from persistence
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+            const token = user ? await user.getIdToken() : null;
+            setFirebaseToken(token);
+        });
+        return unsubscribe;
+    }, []);
+
+    const cfg = (window as Window & { APP_CONFIG?: Record<string, string> }).APP_CONFIG ?? {};
+
+    const firestoreDeps = useMemo<IAxiosInterceptorDeps>(() => ({
+        getBaseApiUrl: () => cfg.CLOUDRUN_URL || (import.meta.env.DEV ? 'http://localhost:8080' : ''),
+        getSessionId: () => (firebaseToken ? `Bearer ${firebaseToken}` : null),
+        sessionHeaderName: 'Authorization',
+        defaultTimeoutMs: 30000,
+    }), [firebaseToken]);
+
+    const cloudStorageDeps = useMemo<ICloudStorageDeps>(() => ({
+        getBaseApiUrl: () => cfg.CLOUDRUN_URL || (import.meta.env.DEV ? 'http://localhost:8080' : ''),
+        getValidationCode: () => cfg.VALIDATION_CODE ?? '',
+    }), []);
+
+    if (!firebaseToken) {
+        console.log('No Firebase token available');
+        return null;
+    }
     return (
-        <AppContextWrapper>
-            <Router>
-                <NzLoadContextAndVariables {...props} />
-            </Router>
-        </AppContextWrapper>
+        <FirestoreProvider deps={firestoreDeps}>
+            <CloudStorageProvider deps={cloudStorageDeps}>
+                <AppContextWrapper>
+                    <Router>
+                        <NzLoadContextAndVariables {...props} />
+                    </Router>
+                </AppContextWrapper>
+            </CloudStorageProvider>
+        </FirestoreProvider>
     );
 }
 

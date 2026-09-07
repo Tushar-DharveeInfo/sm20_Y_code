@@ -87,7 +87,7 @@ interface ITreeExplorerContainer {
     wrapWithRootLabel?: string;
     handleAIClick?: (event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>, actionCode?: string) => void;
     handleNodeCheck?: (checked: TNodeCheckState, info: CheckInfo<ITreeNode>) => void;
-    handleNodeSelect?: (selectedKeys: Key[], info: ISelectedNodeInfo, expandedKeys: Key[], newTreeData?: ITreeNode[], isSiteByTenant?: "AllSites" | "TenantsBySite" | "SitesByTenant", isShowSidebar?: boolean) => void;
+    handleNodeSelect?: (selectedKeys: Key[], info: ISelectedNodeInfo, expandedKeys: Key[], newTreeData?: ITreeNode[], isShowSidebar?: boolean) => void;
     handleKebabMenuSelect?: (selectedItem: IActionImageForSubMenu, selectedNodeInfo: ISelectedNodeInfo, currentTreeData?: ITreeNode[]) => void;//Handle kebabmenu select action if needed
     updateOriginalTreeDataset?: (updatedTreedata: ITreeNode[], expandedKeys: Key[], selectedKeys: Key[], userTreeData: ITreeNode[] | null) => void;
     clearCacheTreeData?: () => void;

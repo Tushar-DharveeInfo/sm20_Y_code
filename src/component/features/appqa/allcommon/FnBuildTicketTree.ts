@@ -1,10 +1,10 @@
-import { ITreeNode } from "../../../shared/allinterface/entity/ITreeNode"
 import { IFeatureTree } from "../../../shared/allinterface/tree/ITreeForHierarchicalDataContainer"
 import { TreeNodeIcon } from "../../../shared/tree/treenodeicon/TreeNodeIcon"
 import { TreeNodeTitle } from "../../../shared/tree/treenodetitle/TreeNodeTitle"
 import { FnFormatTicketDateOnly } from "../../../shared/allcommon/tree/FnFormatTicketDate"
 import type { ITicketDoc } from "../../../shared/allinterface/IDatasets"
 import { ITicketFilterValues } from "../../library/librarytickets/ticketexplorercontainer/TicketFilterForm"
+import { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl"
 
 function ticketStatus(ticket: ITicketDoc): string {
     return (ticket.status ?? "").trim()
@@ -184,6 +184,10 @@ export function buildTicketTree(
     const children = filter.byMfg
         ? buildByMfgTree(filtered, featureTreeProps, featureId, rootKey)
         : buildByDateTree(filtered, featureTreeProps, featureId, rootKey)
+
+    if (children.length === 0) {
+        return []
+    }
 
     const rootNode = createBaseNode({
         key: rootKey,

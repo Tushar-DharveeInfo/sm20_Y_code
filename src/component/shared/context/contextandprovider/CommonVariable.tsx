@@ -2,7 +2,7 @@
 import { createContext, useEffect, useMemo, useState } from "react";
 import { ICommonVariable, ISessionVars } from "../allinterface/ICommonVariable";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
-import { ITreeNode } from "../../allinterface/entity/ITreeNode";
+import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 
 let sessionVarsTreeNode: ISessionVars | null = null;
 let diagnosticLevelData: string | undefined;

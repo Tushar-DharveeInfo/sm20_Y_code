@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Key } from 'rc-tree/lib/interface'
 import './TreeExplorerContainer.css'
 import {
   filterBusinessRecords,
+  filterContactRecords,
   getAppliedFilterJson,
   hasActiveContactFilters,
   normalizeFilterFieldName,
 } from '../allcommon/searchfilter/FnFilterBusinessContactRecords.ts'
+import { FnMapToContactDocs } from '../allcommon/dataset/FnMapToContactDoc.ts'
 import { useSmDataContext } from '../context/hooks/SmDataHooks.ts'
 import {
   FnGetClientExplorerAutoFilter,
@@ -22,6 +25,7 @@ import { IFeatureTree, ITreeForFlatDataContainer } from '../allinterface/tree/IT
 import { FilterFormContainer } from '../searchfilter/filterformcontainer/FilterFormContainer.tsx'
 import { SearchControl } from '../searchfilter/searchcontrol/SearchControl.tsx'
 import { TreeControl } from '../tree/treecontrol/TreeControl.tsx'
+import { useContacts } from '@n20a/libfsdb'
 
 function buildFeatureTreeProps(): IFeatureTree {
   return {
@@ -42,6 +46,31 @@ function buildFeatureTreeProps(): IFeatureTree {
   }
 }
 
+function getBusinessNodeId(node: ITreeNode): string {
+  return String(node.NodeEntID ?? node.key ?? '')
+}
+
+function isBusinessNode(node?: ITreeNode): boolean {
+  return String(node?.NodeType ?? '').toLowerCase() === 'business'
+}
+
+function clearBusinessContactChildren(nodes: ITreeNode[]): ITreeNode[] {
+  return nodes.map((node) => {
+    if (isBusinessNode(node)) {
+      return { ...node, children: [], HasChildren: 1, isLeaf: false }
+    }
+    if (node.children?.length) {
+      return { ...node, children: clearBusinessContactChildren(node.children) }
+    }
+    return node
+  })
+}
+
+function accordionExpandedKeys(tree: ITreeNode[] | undefined, businessKey: Key): Key[] {
+  const rootKey = tree?.[0]?.NodeType === 'Root' ? tree[0].key : undefined
+  return rootKey ? [rootKey, businessKey] : [businessKey]
+}
+
 const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContainer) => {
   const smDataContext = useSmDataContext()
   const [featureTreeProps, setFeatureTreeProps] = useState<IFeatureTree | null>(null)
@@ -59,8 +88,19 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   const [filterFormData, setFilterFormData] = useState<IDCFilterControlValues>({})
   const filterFormDataRef = useRef<IDCFilterControlValues>({})
   const isFilterChangeRef = useRef(false)
+  const treeDataRef = useRef<ITreeNode[] | undefined>(undefined)
+  const originalTreeDataRef = useRef<ITreeNode[]>([])
+  const getContactsRef = useRef<ReturnType<typeof useContacts>['getContacts'] | null>(null)
+  const contactsRequestRef = useRef(0)
 
   const prevFeatureIdRef = useRef<string>(undefined)
+  const [expandedBusinessId, setExpandedBusinessId] = useState('')
+  const { getContacts } = useContacts(expandedBusinessId)
+  getContactsRef.current = getContacts
+  treeDataRef.current = treeData
+  originalTreeDataRef.current = originalTreeData
+
+
 
   useEffect(() => {
     filterFormDataRef.current = filterFormData
@@ -116,6 +156,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
     setTreeData(treeNodes)
     setOriginalTreeData(treeNodes)
+    contactsRequestRef.current += 1
+    setExpandedBusinessId('')
     setDefaultExpandedKeys(rootLabel && treeNodes[0] ? [treeNodes[0].key] : [])
     if (treeNodes.length > 0) {
       selectNode(treeNodes[0], rootLabel ? [treeNodes[0].key] : [], treeNodes)
@@ -169,55 +211,93 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
   }, [treeExplorerContainerProps.featureId, treeExplorerContainerProps.uniqueName, smDataContext.isBusinessesLoaded])
 
-  const handleNodeExpand = async (expandedNodeKeys: Key[], info: IExpandedNodeInfo) => {
-    if (!info?.expanded || !info.node || !treeContainerFlatDataProps || !featureTreeProps) return
-    if (info.node.NodeType !== 'Business') {
-      setDefaultExpandedKeys(expandedNodeKeys)
+  const applyContactsToBusiness = async (
+    businessId: string,
+    records: Record<string, unknown>[] | null
+  ) => {
+    if (!featureTreeProps || !treeContainerFlatDataProps) {
       return
     }
-
-    // Reuse cached children when already loaded.
-    if (info.node.children?.length) {
-      setDefaultExpandedKeys(expandedNodeKeys)
-      selectNode(info.node.children[0], expandedNodeKeys, treeData ?? [], 'select')
-      return
-    }
-
-    const contactsForBusiness = smDataContext.getContactsForTree(
-      String(info.node.NodeEntID ?? info.node.key),
-      filterFormData
+    const mappedContacts = FnMapToContactDocs(records, businessId)
+    smDataContext.setDatasets((prev) => ({
+      ...prev,
+      contacts: mappedContacts,
+    }))
+    const filteredContacts = filterContactRecords(
+      mappedContacts,
+      filterFormDataRef.current,
+      businessId
     )
     const contactNodes = FnMapContactsToTreeNodes(
-      contactsForBusiness,
+      filteredContacts,
       featureTreeProps,
       treeContainerFlatDataProps.featureId,
-      info.node.NodeEntID
+      businessId
     )
+    const clearedTree = clearBusinessContactChildren(treeDataRef.current ?? [])
+    const clearedOriginal = clearBusinessContactChildren(originalTreeDataRef.current)
     const updatedTreeData = await FnAddSubNode(
-      treeData ?? [],
-      info.node.key,
+      clearedTree,
+      businessId,
       contactNodes,
       featureTreeProps,
       treeContainerFlatDataProps.featureId,
       false,
-      info.node.stepNo
+      0
     )
     const updatedOriginalData = await FnAddSubNode(
-      originalTreeData,
-      info.node.key,
+      clearedOriginal,
+      businessId,
       contactNodes,
       featureTreeProps,
       treeContainerFlatDataProps.featureId,
       true,
-      info.node.stepNo
+      0
     )
+    const nextExpandedKeys = accordionExpandedKeys(updatedTreeData, businessId)
     setTreeData(updatedTreeData)
     setOriginalTreeData(updatedOriginalData)
-    setDefaultExpandedKeys(expandedNodeKeys)
-
+    setDefaultExpandedKeys(nextExpandedKeys)
     if (contactNodes.length > 0) {
-      selectNode(contactNodes[0], expandedNodeKeys, updatedTreeData, 'select')
+      selectNode(contactNodes[0], nextExpandedKeys, updatedTreeData, 'select')
     }
+  }
+
+  const handleNodeExpand = async (expandedNodeKeys: Key[], info: IExpandedNodeInfo) => {
+    if (!info?.node || !treeContainerFlatDataProps || !featureTreeProps) return
+
+    if (!isBusinessNode(info.node)) {
+      if (info.expanded) {
+        setDefaultExpandedKeys(expandedNodeKeys)
+      }
+      return
+    }
+
+    if (!info.expanded) {
+      contactsRequestRef.current += 1
+      setExpandedBusinessId('')
+      setDefaultExpandedKeys(expandedNodeKeys)
+      return
+    }
+
+    const businessId = getBusinessNodeId(info.node)
+    if (!businessId) {
+      return
+    }
+
+    const requestId = contactsRequestRef.current + 1
+    contactsRequestRef.current = requestId
+
+    flushSync(() => {
+      setDefaultExpandedKeys(expandedNodeKeys)
+      setExpandedBusinessId(businessId)
+    })
+
+    const records = await getContactsRef.current?.()
+    if (requestId !== contactsRequestRef.current) {
+      return
+    }
+    await applyContactsToBusiness(businessId, records ?? [])
   }
 
   const handleNodeSelect = (selectedKeys: Key[], info: ISelectedNodeInfo, expandedNodeKeys?: Key[]) => {
@@ -344,6 +424,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
                 allowInternalDrag={false}
                 allowMultiple={false}
                 className="nz-dce-tree-for-flat-data"
+                allowAPICallOnExpand={true}
                 handleNodeExpand={handleNodeExpand}
                 handleNodeSelect={handleNodeSelect}
               />

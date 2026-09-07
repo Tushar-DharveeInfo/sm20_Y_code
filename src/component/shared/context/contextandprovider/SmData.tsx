@@ -1,16 +1,30 @@
+
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useBusinesses } from "@n20a/libfsdb";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { IExplorerSelection, ISmData, ISmDatasetCache } from "../allinterface/ISmData";
 import type { CollectionName, ICollectionDocMap, IContactDoc } from "../../allinterface/IDatasets";
-import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
+import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import {
     emptyScopedDatasets,
-    sourceBusinesses,
     sourceContacts,
 } from "../../allcommon/FnLoadSampleDatasets";
 import { FnLoadScopedDatasets } from "../../allcommon/dataset/FnFilterScopedDataset";
+import { FnMapToBusinessDocs } from "../../allcommon/dataset/FnMapToBusinessDoc";
 import { filterContactRecords } from "../../allcommon/searchfilter/FnFilterBusinessContactRecords";
+
+const FILTER_OP = "==" as const;
+
+function toFilterJsonString(values: IFilterControlValues): string {
+    return JSON.stringify(
+        Object.entries(values ?? {}).map(([field, value]) => ({
+            field,
+            op: FILTER_OP,
+            value: String(value),
+        }))
+    );
+}
 
 const SmDataContext = createContext<ISmData | undefined>(undefined);
 
@@ -68,7 +82,7 @@ function createEmptyCache(): ISmDatasetCache {
 function SmDataProvider({ children }: IAppContextWrapper) {
     const [datasets, setDatasets] = useState<ISmDatasetCache>(createEmptyCache);
     const [selection, setSelection] = useState<IExplorerSelection>(emptySelection);
-    const [filterJson, setFilterJson] = useState<IDCFilterControlValues>({}); // applied explorer filter json
+    const [filterJson, setFilterJson] = useState<string>(toFilterJsonString({})); // applied explorer filter json
     console.log('filterJson SmDataProvider', filterJson)
     console.log('selection SmDataProvider', selection)
     const [selectedNode, setSelectedNode] = useState<ITreeNode>();
@@ -77,26 +91,32 @@ function SmDataProvider({ children }: IAppContextWrapper) {
     const businessesLoadedRef = useRef(false);
     const selectionKeyRef = useRef(selectionCacheKey(emptySelection()));
 
+    const { getBusinesses, businesses, loading, error } = useBusinesses();
+
     const loadBusinessesOnce = useCallback(() => {
         if (businessesLoadedRef.current) {
             return;
         }
         businessesLoadedRef.current = true;
-        setDatasets((prev) => ({
-            ...prev,
-            businesses: sourceBusinesses,
-        }));
-        setIsBusinessesLoaded(true);
-    }, []);
+        void getBusinesses();
+    }, [getBusinesses]);
 
     useEffect(() => {
-        loadBusinessesOnce();
-    }, [loadBusinessesOnce]);
+        if (loading || !businesses) {
+            return;
+        }
+        setDatasets((prev) => ({
+            ...prev,
+            businesses: FnMapToBusinessDocs(businesses),
+        }));
+        setIsBusinessesLoaded(true);
+    }, [businesses, loading, error]);
 
-    const setExplorerSelection = useCallback((node: ITreeNode | undefined, nextFilterJson: IDCFilterControlValues) => {
+    const setExplorerSelection = useCallback((node: ITreeNode | undefined, nextFilterJson: IFilterControlValues) => {
         const { bid, cid } = extractBidCid(node);
         const appliedFilterJson = nextFilterJson ?? {};
-        setFilterJson(appliedFilterJson);
+        const filterJsonString = toFilterJsonString(appliedFilterJson);
+        setFilterJson(filterJsonString);
         const nextSelection: IExplorerSelection = {
             bid,
             cid,
@@ -114,18 +134,26 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         setDatasets((prev) => ({
             businesses: prev.businesses,
             ...emptyScopedDatasets(),
+            contacts: prev.contacts,
         }));
         const scoped = FnLoadScopedDatasets(nextSelection);
-        setDatasets((prev) => ({
-            businesses: prev.businesses,
-            ...scoped,
-        }));
+        setDatasets((prev) => {
+            const hasRealContacts = nextSelection.bid
+                ? prev.contacts.some((c) => c.bid === nextSelection.bid)
+                : false;
+            return {
+                businesses: prev.businesses,
+                ...scoped,
+                contacts: hasRealContacts ? prev.contacts : scoped.contacts,
+            };
+        });
         setIsScopedDatasetsLoaded(true);
     }, []);
 
-    const setFilterJsonValue = useCallback((nextFilterJson: IDCFilterControlValues) => {
+    const setFilterJsonValue = useCallback((nextFilterJson: IFilterControlValues) => {
         const appliedFilterJson = nextFilterJson ?? {};
-        setFilterJson(appliedFilterJson);
+        const filterJsonString = toFilterJsonString(appliedFilterJson);
+        setFilterJson((prev) => (prev === filterJsonString ? prev : filterJsonString));
         setSelection((prev) => ({
             ...prev,
             filterJson: appliedFilterJson,
@@ -139,7 +167,7 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         }));
     }, []);
 
-    const getContactsForTree = useCallback((bid: string, filterJson: IDCFilterControlValues): IContactDoc[] => {
+    const getContactsForTree = useCallback((bid: string, filterJson: IFilterControlValues): IContactDoc[] => {
         return filterContactRecords(sourceContacts, filterJson, bid || undefined);
     }, []);
 
@@ -155,6 +183,7 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         setFilterJson: setFilterJsonValue,
         updateDataset,
         getContactsForTree,
+        setDatasets,
     }), [
         datasets,
         selection,
@@ -167,6 +196,7 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         setFilterJsonValue,
         updateDataset,
         getContactsForTree,
+        setDatasets,
     ]);
 
     return (

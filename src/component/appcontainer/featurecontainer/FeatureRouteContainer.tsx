@@ -41,13 +41,15 @@ const DynamicRouteComponent = () => {
     const [statusBarData, setStatusBarData] = useState<Record<string, number | string>>({});
     const mainAppContext = useMainAppContext();
 
+
     const loginStatusMessage = useMemo(
         () => FnGetLoggedInStatusMessage(
-            mainAppContext.userInfoAndSubscription,
-            mainAppContext.authSession
+            mainAppContext.authSession,
+            mainAppContext.userInfoAndSubscription?.subscription
         ),
-        [mainAppContext.userInfoAndSubscription, mainAppContext.authSession]
+        [mainAppContext.authSession, mainAppContext.userInfoAndSubscription]
     );
+
 
     const getTipByFeatureId = (featureId: string, featureName?: string): string | undefined => {
         const target = helpTipsContext.helpTipRecords.find(item => item.featureid.startsWith(`${featureId}_`));

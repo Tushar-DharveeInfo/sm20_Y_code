@@ -1,6 +1,6 @@
 
 import { IActionImageForSubMenu } from "../basic/IActionImageList";
-import { ITreeNode } from "../entity/ITreeNode";
+import { ITreeNode } from "../tree/ITreeControl";
 import { IMenuImage } from "./IMenuImage";
 
 interface IFeatureItem {

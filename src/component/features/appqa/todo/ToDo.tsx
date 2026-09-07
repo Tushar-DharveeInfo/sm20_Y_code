@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Notes } from "@n20a/libavnotes";
 import type { INote } from "@n20a/libavnotes";
 import "@n20a/libavnotes/style.css";
@@ -6,57 +6,124 @@ import { Delete24x24, Info24x24 } from "@n20a/libicon";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
 import { handleContainerKeyDown } from "../../../shared/allcommon/basic/FnHandleContainerKeyDown";
 import { IImage } from "../../../shared/allinterface/basic/IImage";
-import type { ITodoDoc } from "../../../shared/allinterface/IDatasets";
 import { ActionImage } from "../../../shared/basic/actionimage/ActionImage";
 import { Label } from "../../../shared/basic/label/Label";
 import { Image } from "../../../shared/basic/image/Image";
 import { YesNoFormContainer } from "../../../shared/basic/yesnoformcontainer/YesNoFormContainer";
-import todoSampleData from "../../../../smsampledata/datasets/todo.json";
+import { useMainAppContext } from "../../../shared/context/hooks/MainAppHooks";
 import "../../../shared/sidebar/notes/FqaNotes.css";
 import "./ToDo.css";
+import { useTodos } from "@n20a/libfsdb";
+import type { ITodoDoc } from "@n20a/libfsdb";
 
-interface IAppqaToDo {
+interface IToDo {
     uniqueName: string;
     featureId?: string;
 }
 
-const sampleTodos: ITodoDoc[] = Array.isArray(todoSampleData)
-    ? (todoSampleData as ITodoDoc[])
-    : [];
+interface ITodoItem extends ITodoDoc {
+    id?: string;
+}
 
-const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
-    const [todos, setTodos] = useState<ITodoDoc[]>(sampleTodos);
-    const [selectedItem, setSelectedItem] = useState<ITodoDoc | null>(null);
-    const [deleteItem, setDeleteItem] = useState<ITodoDoc | null>(null);
+function mapToTodoItem(record: Record<string, unknown>, index: number): ITodoItem {
+    const docId = String(record.id || record.todoid || record.docId || `todo_${index}`);
+    return {
+        id: docId,
+        bid: String(record.bid ?? ""),
+        cid: String(record.cid ?? ""),
+        btype: String(record.btype ?? ""),
+        status: String(record.status ?? "Open"),
+        whattodo: String(record.whattodo ?? record.title ?? record.message ?? ""),
+        duedate: String(record.duedate ?? ""),
+        addedby: String(record.addedby ?? ""),
+        filename: record.filename ? String(record.filename) : undefined,
+    };
+}
+
+const ToDo = (todoProps: IToDo) => {
+    const mainAppContext = useMainAppContext();
+    const userInfo = mainAppContext.userInfoAndSubscription?.userInfo;
+    const { loading, error, getTodos, todos, createTodo, updateTodo, deleteTodo } = useTodos();
+
+    const [todoItems, setTodoItems] = useState<ITodoItem[]>([]);
+    const [selectedItem, setSelectedItem] = useState<ITodoItem | null>(null);
+    const [deleteItem, setDeleteItem] = useState<ITodoItem | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [notesKey, setNotesKey] = useState(0);
 
-    const sendTodo = useCallback((message: INote) => {
+    useEffect(() => {
+        void getTodos();
+    }, [getTodos]);
+
+    useEffect(() => {
+        if (Array.isArray(todos)) {
+            const mapped = todos.map(mapToTodoItem);
+            setTodoItems(mapped);
+        } else if (todos === null) {
+            setTodoItems([]);
+        }
+    }, [todos]);
+
+    const sendTodo = useCallback(async (message: INote) => {
         const content = String(message.notecontent ?? "").trim();
         if (!content) {
             return;
         }
+
+        const userBid = String(userInfo?.bid ?? "").trim();
+        const userCid = String(userInfo?.cid ?? "").trim();
+        const userShortName = String(userInfo?.username ?? userInfo?.email ?? "User").trim();
+
         if (selectedItem) {
-            setTodos((items) =>
-                items.map((item) =>
-                    item === selectedItem ? { ...item, whattodo: content } : item
-                )
-            );
-            setSelectedItem((prev) => (prev ? { ...prev, whattodo: content } : null));
+            const todoId = selectedItem.id;
+            const updatedDoc: Record<string, unknown> = {
+                bid: selectedItem.bid || userBid,
+                cid: selectedItem.cid || userCid,
+                btype: selectedItem.btype || "Standard",
+                status: selectedItem.status || "Open",
+                whattodo: content,
+                duedate: selectedItem.duedate || "",
+                addedby: selectedItem.addedby || userShortName,
+            };
+            if (selectedItem.filename) {
+                updatedDoc.filename = selectedItem.filename;
+            }
+
+            try {
+                if (todoId) {
+                    await updateTodo(todoId, updatedDoc);
+                }
+                await getTodos();
+            } catch (err) {
+                console.error("Error updating todo:", err);
+            }
+
+            setSelectedItem(null);
+            setNotesKey((prev) => prev + 1);
             return;
         }
-        const nextTodo: ITodoDoc = {
-            bid: "",
-            cid: "",
-            btype: "",
+
+        const newTodoDoc: Record<string, unknown> = {
+            bid: userBid,
+            cid: userCid,
+            btype: "Standard",
             status: "Open",
             whattodo: content,
+            duedate: "",
+            addedby: userShortName,
         };
-        setTodos((items) => [nextTodo, ...items]);
-        setNotesKey((prev) => prev + 1);
-    }, [selectedItem]);
 
-    const handleSelectTodo = (item: ITodoDoc) => {
+        try {
+            await createTodo(newTodoDoc);
+            await getTodos();
+        } catch (err) {
+            console.error("Error creating todo:", err);
+        }
+
+        setNotesKey((prev) => prev + 1);
+    }, [selectedItem, userInfo, createTodo, updateTodo, getTodos]);
+
+    const handleSelectTodo = (item: ITodoItem) => {
         setSelectedItem((prev) => (prev === item ? null : item));
         setNotesKey((prev) => prev + 1);
     };
@@ -64,7 +131,7 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
     const noteDetails = useMemo<INote>(() => ({
         maxAudioRecordingTime: 0,
         maxVideoRecordingTime: 0,
-        noteId: selectedItem ? `${selectedItem.bid}-${selectedItem.cid}` : "todo-note",
+        noteId: selectedItem?.id ? selectedItem.id : "todo-note",
         noteTitle: selectedItem?.status ?? "",
         notecontent: selectedItem?.whattodo ?? "",
         notefile: undefined,
@@ -90,9 +157,30 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
         tooltip: "Click to Delete",
     };
 
-    const handleDelete = (item: ITodoDoc) => {
+    const handleDelete = (item: ITodoItem) => {
         setDeleteItem(item);
         setDeleteOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (deleteItem) {
+            if (selectedItem === deleteItem) {
+                setSelectedItem(null);
+                setNotesKey((prev) => prev + 1);
+            }
+
+            const todoId = deleteItem.id;
+            try {
+                if (todoId) {
+                    await deleteTodo(todoId);
+                }
+                await getTodos();
+            } catch (err) {
+                console.error("Error deleting todo:", err);
+            }
+        }
+        setDeleteOpen(false);
+        setDeleteItem(null);
     };
 
     return (
@@ -100,19 +188,34 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
             className="nz-node-list-Container nz-appqa-todo"
             tabIndex={1}
             onKeyDown={handleContainerKeyDown}
-            key={appqaToDoProps.uniqueName}
+            key={todoProps.uniqueName}
         >
             <div className="nz-notes-list-main-div">
                 <div className="nz-notes-list-with-msg-box">
                     <div className="nz-sub-header">
                         <Label
-                            uniqueName={`${appqaToDoProps.uniqueName}-header`}
-                            label={`ToDo${todos.length > 0 ? ` (${todos.length})` : ""}`}
+                            uniqueName={`${todoProps.uniqueName}-header`}
+                            label={`ToDo${todoItems.length > 0 ? ` (${todoItems.length})` : ""}`}
                         />
                     </div>
                     <div className="nz-notes-list-scroll">
-                        {todos.map((item, index) => {
-                            const todoKey = `${item.bid}-${item.cid}-${index}`;
+                        {loading && (
+                            <div className="nz-notes-loading" style={{ padding: "10px", textAlign: "center" }}>
+                                <Label uniqueName="todo-loading" label="Loading todos..." />
+                            </div>
+                        )}
+                        {error && (
+                            <div className="nz-notes-error" style={{ padding: "10px", color: "var(--danger, #ff4d4f)" }}>
+                                <Label uniqueName="todo-error" label={typeof error === "string" ? error : "Failed to load todos"} />
+                            </div>
+                        )}
+                        {!loading && !error && todoItems.length === 0 && (
+                            <div className="nz-notes-empty" style={{ padding: "10px", textAlign: "center", opacity: 0.7 }}>
+                                <Label uniqueName="todo-empty" label="No to-do items found" />
+                            </div>
+                        )}
+                        {todoItems.map((item, index) => {
+                            const todoKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
                             const message = item.whattodo ?? "";
                             const isSelected = selectedItem === item;
                             return (
@@ -130,7 +233,7 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
                                                 image={deleteImage}
                                                 w={"var(--node_height)"}
                                                 h={"var(--node_height)"}
-                                                uniqueName={`${appqaToDoProps.uniqueName}-delete-${index}`}
+                                                uniqueName={`${todoProps.uniqueName}-delete-${index}`}
                                                 actionCode={"delete"}
                                                 disabled={false}
                                                 handleMouse={() => handleDelete(item)}
@@ -138,13 +241,13 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
                                         </div>
                                         <div className="nz-note-date">
                                             <Label
-                                                uniqueName={`${appqaToDoProps.uniqueName}-status-${index}`}
+                                                uniqueName={`${todoProps.uniqueName}-status-${index}`}
                                                 label={item.status || ""}
                                             />
                                         </div>
                                         <div className="nz-note-user">
                                             <Label
-                                                uniqueName={`${appqaToDoProps.uniqueName}-type-${index}`}
+                                                uniqueName={`${todoProps.uniqueName}-type-${index}`}
                                                 label={[item.btype, item.bid, item.cid].filter(Boolean).join(" · ")}
                                             />
                                         </div>
@@ -152,7 +255,7 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
                                     <div className="nz-info-div">
                                         <div className="nz-info-image">
                                             <Image
-                                                uniqueName={`${appqaToDoProps.uniqueName}-info-${index}`}
+                                                uniqueName={`${todoProps.uniqueName}-info-${index}`}
                                                 source={
                                                     <Info24x24
                                                         size={FnGetCssVariable("--image-size-1")}
@@ -166,7 +269,7 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
                                         </div>
                                         <div className="nz-nodes-text">
                                             <Label
-                                                uniqueName={`${appqaToDoProps.uniqueName}-text-${index}`}
+                                                uniqueName={`${todoProps.uniqueName}-text-${index}`}
                                                 label={message}
                                             />
                                         </div>
@@ -177,7 +280,7 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
                     </div>
                     <div className="nz-notes-container">
                         <Notes
-                            key={`${notesKey}-${selectedItem?.bid ?? "new"}-${selectedItem?.cid ?? ""}`}
+                            key={`${notesKey}-${selectedItem?.id ?? "new"}`}
                             {...noteDetails}
                             allowAudio={false}
                             allowVideo={false}
@@ -190,20 +293,10 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
             </div>
             <YesNoFormContainer
                 isOpen={deleteOpen}
-                uniqueName={`${appqaToDoProps.uniqueName}-delete`}
+                uniqueName={`${todoProps.uniqueName}-delete`}
                 message="Are you sure you want to delete this to-do?"
                 showOkButton={false}
-                handleYesButtonClick={() => {
-                    if (deleteItem) {
-                        if (selectedItem === deleteItem) {
-                            setSelectedItem(null);
-                            setNotesKey((prev) => prev + 1);
-                        }
-                        setTodos((items) => items.filter((item) => item !== deleteItem));
-                    }
-                    setDeleteOpen(false);
-                    setDeleteItem(null);
-                }}
+                handleYesButtonClick={handleConfirmDelete}
                 handleNoButtonClick={() => {
                     setDeleteOpen(false);
                     setDeleteItem(null);
@@ -213,5 +306,5 @@ const AppqaToDo = (appqaToDoProps: IAppqaToDo) => {
     );
 };
 
-export { AppqaToDo };
-export default AppqaToDo;
+export { ToDo, ToDo as AppqaToDo };
+export default ToDo;

@@ -6,13 +6,13 @@ interface IFilterFormContainer {
     controls?: IControl[];
     headerText?: string;
     isFilterChange?: boolean;
-    controlValues?: IDCFilterControlValues | unknown;
+    controlValues?: IFilterControlValues | unknown;
     handleActionImageClick?: (event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>, actionCode?: string) => void;
     handleFilterFormChange?: (value: string, name: string, id?: string) => void;
 }
 
 // Key/value filter json saved on apply; ANY/empty keys are omitted.
-interface IDCFilterControlValues {
+interface IFilterControlValues {
     verified?: string;
     bname?: string;
     status?: string;
@@ -34,4 +34,6 @@ interface IDCFilterControlValues {
     [key: string]: string | undefined;
 }
 
-export type { IFilterFormContainer, IDCFilterControlValues };
+type IDCFilterControlValues = IFilterControlValues;
+
+export type { IFilterFormContainer, IFilterControlValues, IDCFilterControlValues };

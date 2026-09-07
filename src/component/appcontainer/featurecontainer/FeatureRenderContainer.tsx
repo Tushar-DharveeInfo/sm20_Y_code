@@ -56,16 +56,11 @@ const FeaturesWithOwnLayout: string[] = [
 
 function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderContainer) {
     const {
-        doNotRenderExplorerTree,
         featureContainerProps,
         handleShowUserMessage,
         selectedNode,
         treeData,
     } = featureRenderContainerProps;
-
-    if (doNotRenderExplorerTree) {
-        return null;
-    }
 
 
 
@@ -281,6 +276,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
+        case ServicesEnums.Service:
         case ServicesEnums.Services:
             return (
                 <ErrorBoundary>
@@ -290,6 +286,8 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
+                            selectedNode={selectedNode}
+                            treeData={treeData}
                         />
                     </Suspense>
                 </ErrorBoundary>

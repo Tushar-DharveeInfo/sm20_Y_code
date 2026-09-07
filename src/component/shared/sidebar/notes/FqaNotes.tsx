@@ -9,9 +9,8 @@ import { useMainAppContext } from '../../context/hooks/MainAppHooks'
 import './FqaNotes.css'
 import '@n20a/libavnotes/style.css'
 import { FilterKeywordControl } from '../../searchfilter/filterkeywordcontrol/FilterKeywordControl';
-import { FnConvertDateToUtcOrUtcToDate } from '../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate'
+import { FnConvertTimestampToDate, FnParseTimestampToISO } from '../../../appcontainer/allcommon/FnConvertTimestampToDate'
 import { FnGetSessionVariableFromStorage } from '../../allcommon/basic/FnGetSessionVariableFromStorage'
-import { FnHandleAPIResponse } from '../../allcommon/basic/FnHandleAPIResponse'
 import { FnConvertBase64Blob } from '../../allcommon/sidebar/FnConvertBase64Blob'
 import { ITreeNode } from '../../allinterface/tree/ITreeControl'
 import { YesNoFormContainer } from '../../basic/yesnoformcontainer/YesNoFormContainer'
@@ -27,6 +26,7 @@ import { Attach24x24, Delete24x24, Download24x24, Info24x24, Mic24x24, Video24x2
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { ISession } from '../../context/allinterface/ISession';
 import notesSampleData from '../../../../smsampledata/sidebar/NotesSampleData.json';
+import { useBusinessNotes } from '@n20a/libfsdb';
 
 interface IFqaNotes {
 	uniqueName: string; // A unique identifier for notes
@@ -35,20 +35,22 @@ interface IFqaNotes {
 }
 
 interface INoteItems {
-	EntityName: string;
-	LastUpdated: string; // ISO timestamp, could also be Date if you parse it
-	NodeType: string;
+	EntityName?: string | null;
+	LastUpdated?: string | null; // ISO timestamp, could also be Date if you parse it
+	NodeType?: string | null;
 	NotesMAX: string;
-	NotesType: string;
-	UserName: string;
+	NotesType?: string | null;
+	UserName?: string | null;
 	audio?: unknown;
 	file?: unknown;
 	fileObj?: any;
 	video?: unknown;
-	FileUID?: string;
+	FileUID?: string | null;
+	noteid?: string;
+	message?: string;
+	[key: string]: any;
 }
 const {
-	sampleNotesEntityRecordsResponse,
 	sampleNotesFileProfileResponse,
 } = notesSampleData;
 
@@ -77,6 +79,8 @@ const FqaNotes = (props: IFqaNotes) => {
 	const statusBarContext = useStatusBarContext();
 	const sessionContext = useSessionContext();
 	const mainAppContext = useMainAppContext();
+	const businessId = String(props.selectedNode?.bid ?? props.selectedNode?.NodeEntID ?? '');
+	const { loading, error, getNotes, notes, deleteNote, getNote, createNote, updateNote } = useBusinessNotes(businessId);
 
 	const isHideAVNotes = useMemo(() => {
 		const avNotesRecord = mainAppContext?.apRecords?.find(
@@ -107,33 +111,91 @@ const FqaNotes = (props: IFqaNotes) => {
 		tooltip: "Click to Delete"
 	}
 
+	const getNotesDetails = useCallback(async () => {
+		setSelectedItem(null);
+		if (businessId) {
+			await getNotes();
+		} else {
+			setNoteItems([]);
+			setOriginalNotesItems([]);
+		}
+	}, [businessId, getNotes]);
+
 	useEffect(() => {
-		if (props.selectedNode) {
-			getNotesDetails()
+		if (businessId) {
+			getNotesDetails();
+		} else {
+			setSelectedItem(null);
+			setNoteItems([]);
+			setOriginalNotesItems([]);
 		}
-	}, [props.selectedNode]);
+	}, [businessId, getNotesDetails]);
 
-
-	const getNotesDetails = () => {
-		setSelectedItem(null)
-		// SAMPLE DATA: EM.GetEntityRecords API commented out.
-		// axiosInterceptor({ ... }, statusBarContext);
-		const parsedData = FnHandleAPIResponse(sampleNotesEntityRecordsResponse, "Dataset");
-		if (typeof parsedData === "object" && Array.isArray(parsedData[`PG.Notes`])) {
-			const notes = parsedData[`PG.Notes`];
-			setNoteItems(notes)
-			setOriginalNotesItems(notes)
+	useEffect(() => {
+		if (Array.isArray(notes)) {
+			const mappedNotes: INoteItems[] = notes.filter(Boolean).map((item: any) => ({
+				...item,
+				noteid: String(item.noteid ?? item.FileUID ?? item.RecID ?? ''),
+				EntityName: item.EntityName ?? item.bid ?? '',
+				NodeType: item.NodeType ?? 'Business',
+				NotesMAX: String(item.NotesMAX ?? item.message ?? item.NotesMax ?? ''),
+				NotesType: item.NotesType ?? (item.filename ? 'image' : 'Message'),
+				UserName: item.UserName ?? item.noteby ?? item.createdby ?? '',
+				LastUpdated: FnParseTimestampToISO(item.LastUpdated ?? item.datecreated ?? item.monitorupdated),
+				FileUID: item.FileUID ?? item.noteid ?? '',
+			}));
+			setOriginalNotesItems(mappedNotes);
+			if (searchText) {
+				const filtered = mappedNotes.filter((element) =>
+					element.NotesMAX?.toLowerCase().includes(searchText.toLowerCase())
+				);
+				setNoteItems(filtered);
+			} else {
+				setNoteItems(mappedNotes);
+			}
+		} else if (notes === null) {
+			setNoteItems([]);
+			setOriginalNotesItems([]);
 		}
-	}
-	const apiCallForAdd = (payload: Record<string, any>) => {
-		// SAMPLE DATA: EM.AddUpdateTableRecord API commented out.
-		const note = {
-			...payload,
-			NotesMAX: payload.NotesMAX ?? payload.NotesMax ?? "",
-			LastUpdated: new Date().toISOString(),
-		} as INoteItems;
-		setOriginalNotesItems((items) => [note, ...items]);
-		setNoteItems((items) => [note, ...items]);
+	}, [notes, searchText]);
+
+	useEffect(() => {
+		statusBarContext?.setIsLoading?.(loading);
+	}, [loading, statusBarContext]);
+
+	useEffect(() => {
+		if (error) {
+			statusBarContext?.setFetchError?.([error]);
+		}
+	}, [error, statusBarContext]);
+
+	const apiCallForAdd = async (payload: Record<string, any>) => {
+		const noteId = String(payload.noteid ?? payload.NoteID ?? payload.RecID ?? `note_${Date.now()}`);
+		const message = String(payload.message ?? payload.NotesMAX ?? payload.NotesMax ?? "");
+		const noteby = String(payload.UserName ?? payload.noteby ?? "");
+		const cid = String(payload.cid ?? props.selectedNode?.cid ?? "");
+		const filename = String(payload.FileName ?? payload.filename ?? payload.fileObj?.fileName ?? "");
+		const nowIso = new Date().toISOString();
+
+		if (businessId && createNote) {
+			try {
+				const firestoreNotePayload: Record<string, any> = {
+					noteid: noteId,
+					bid: businessId,
+					cid: cid,
+					message: message,
+					filename: filename,
+					noteby: noteby,
+					monitor: false,
+					datecreated: nowIso,
+					monitorupdated: nowIso,
+				};
+				await createNote(firestoreNotePayload);
+				await getNotes();
+			} catch (err) {
+				console.error("Error creating note:", err);
+			}
+		}
 	}
 	const sendNotes = useCallback(async (message: INote) => {
 		try {
@@ -179,7 +241,7 @@ const FqaNotes = (props: IFqaNotes) => {
 					EntID: props.selectedNode.NodeEntID,
 					EntityName: props.selectedNode.NodeEntityname,
 				}
-				apiCallForAdd(payload)
+				await apiCallForAdd(payload)
 			} else {
 				function getExtensionFromMime(fileType: string, fileName: string): string {
 					if (!fileType) return "";
@@ -221,7 +283,7 @@ const FqaNotes = (props: IFqaNotes) => {
 
 				// SAMPLE DATA: FS.UploadFileStream API commented out.
 				// await axiosInterceptor({ ... }, statusBarContext);
-				apiCallForAdd({
+				await apiCallForAdd({
 					UserName: userName,
 					NotesType: fileType,
 					NotesMax: message.notecontent,
@@ -274,6 +336,7 @@ const FqaNotes = (props: IFqaNotes) => {
 		}
 		setNodeDetails()
 	}, [props.selectedNode, sendNotes, isHideAVNotes]);
+
 	const handleDownload = (base64Data: string, fileName: string) => {
 		try {
 			// Remove potential Base64 headers (e.g., "data:image/svg+xml;base64,")
@@ -403,6 +466,17 @@ const FqaNotes = (props: IFqaNotes) => {
 
 	const handleAIClick = async (item: any, iconName: string) => {
 		if (iconName !== "Download_24x24.svg") {
+			const noteId = String(item?.noteid ?? item?.FileUID ?? item?.RecID ?? "");
+			if (noteId && businessId && getNote) {
+				try {
+					const noteData = await getNote(noteId);
+					if (noteData) {
+						item = { ...item, ...noteData };
+					}
+				} catch (err) {
+					console.error("Error fetching note with getNote:", err);
+				}
+			}
 			const fileObj = await getFileTableData(item.EntID, item.EntityName)
 			const filterFile =
 				Array.isArray(fileObj)
@@ -504,26 +578,33 @@ const FqaNotes = (props: IFqaNotes) => {
 		}
 	}
 	const handleConfirmYesClick = async () => {
-		const deleteRecord = () => {
-			// SAMPLE DATA: EM.DeleteTableRecords API commented out.
+		const noteId = String(deleteItem?.noteid ?? deleteItem?.FileUID ?? deleteItem?.RecID ?? "");
+		const deleteRecord = async () => {
+			if (noteId && businessId && deleteNote) {
+				try {
+					await deleteNote(noteId);
+					await getNotes();
+				} catch (err) {
+					console.error("Error deleting note in Firestore:", err);
+				}
+			}
 			setNoteItems((items) => items.filter((item) => item !== deleteItem));
 			setOriginalNotesItems((items) => items.filter((item) => item !== deleteItem));
 		}
-		if (deleteItem.FileUID) {
+		if (deleteItem?.FileUID) {
 			const fileStreamData = await getFileTableData(deleteItem.EntID, deleteItem.EntityName);
 			const filterFile =
 				Array.isArray(fileStreamData)
 					? fileStreamData.find((file: any) => file.FileUID === deleteItem.FileUID)
 					: undefined;
 			if (filterFile) {
-				// SAMPLE DATA: FS.DeleteFileStream API commented out.
-				deleteRecord();
+				await deleteRecord();
 			}
 			else {
-				deleteRecord()
+				await deleteRecord()
 			}
 		} else {
-			deleteRecord()
+			await deleteRecord()
 		}
 
 		setDeleteOpen(false)
@@ -531,16 +612,53 @@ const FqaNotes = (props: IFqaNotes) => {
 	const handleUpdateData = async (message: INote) => {
 
 		let LoginUserName: ISession[] | null = FnGetSessionVariableFromStorage("RequestedBy", "LoginShortName", sessionContext.SessionList);
-		const userName = LoginUserName && LoginUserName?.length > 0 ? LoginUserName[0].SessionValue : "";
+		const userName = (LoginUserName && LoginUserName.length > 0 && LoginUserName[0].SessionValue) ? String(LoginUserName[0].SessionValue) : "";
+		const noteId = String(selectedItem?.noteid ?? selectedItem?.FileUID ?? selectedItem?.RecID ?? "");
+		const nowIso = new Date().toISOString();
+
 		const payload = {
 			UserName: userName,
-			NotesType: selectedItem.NotesType,
+			NotesType: selectedItem?.NotesType ?? "Message",
 			NotesMax: message.notecontent,
-			EntityName: selectedItem.EntityName,
-			EntID: selectedItem.EntID,
-			RecID: selectedItem.RecID
+			NotesMAX: message.notecontent,
+			message: message.notecontent,
+			EntityName: selectedItem?.EntityName ?? "",
+			EntID: selectedItem?.EntID,
+			RecID: selectedItem?.RecID,
+			noteid: noteId,
 		}
-		apiCallForAdd(payload)
+		if (noteId && businessId && updateNote) {
+			try {
+				const firestoreUpdatePayload: Record<string, any> = {
+					noteid: noteId,
+					bid: businessId,
+					cid: String(selectedItem?.cid ?? props.selectedNode?.cid ?? ""),
+					message: message.notecontent,
+					filename: String(selectedItem?.filename ?? selectedItem?.FileName ?? ""),
+					noteby: userName || String(selectedItem?.noteby ?? selectedItem?.UserName ?? ""),
+					monitor: Boolean(selectedItem?.monitor ?? false),
+					monitorupdated: nowIso,
+				};
+				await updateNote(noteId, firestoreUpdatePayload);
+				await getNotes();
+			} catch (err) {
+				console.error("Error updating note in Firestore:", err);
+			}
+		}
+		const updateItemInList = (item: INoteItems): INoteItems => {
+			if (item === selectedItem || (noteId && (item.noteid === noteId || item.FileUID === noteId))) {
+				return {
+					...item,
+					...payload,
+					NotesMAX: message.notecontent,
+					LastUpdated: nowIso,
+				};
+			}
+			return item;
+		};
+		setOriginalNotesItems((items) => items.map(updateItemInList));
+		setNoteItems((items) => items.map(updateItemInList));
+		setSelectedItem((prev: any) => prev ? { ...prev, ...payload, NotesMAX: message.notecontent, LastUpdated: nowIso } : null);
 	}
 	const handleDeleteNotes = (objectType: 'file' | 'audio' | 'video', objectData?: Blob | File) => {
 		void objectType;
@@ -571,6 +689,21 @@ const FqaNotes = (props: IFqaNotes) => {
 						</div>
 					)}
 					<div className={selectedItem ? 'nz-notes-only' : 'nz-notes-list-scroll'}>
+						{loading && (
+							<div className="nz-notes-loading" style={{ padding: '10px', textAlign: 'center' }}>
+								<Label uniqueName="notes-loading" label="Loading notes..." />
+							</div>
+						)}
+						{error && (
+							<div className="nz-notes-error" style={{ padding: '10px', color: 'var(--danger, #ff4d4f)' }}>
+								<Label uniqueName="notes-error" label={typeof error === 'string' ? error : 'Failed to load notes'} />
+							</div>
+						)}
+						{!loading && !error && notesItems.length === 0 && (
+							<div className="nz-notes-empty" style={{ padding: '10px', textAlign: 'center', opacity: 0.7 }}>
+								<Label uniqueName="notes-empty" label="No notes available" />
+							</div>
+						)}
 						{notesItems.map((item, index) => {
 
 							return (
@@ -582,7 +715,7 @@ const FqaNotes = (props: IFqaNotes) => {
 											disabled={false}
 											handleMouse={() => handleDelete(item)} />
 										<div className='nz-note-date'>
-											<Label uniqueName='date' label={`${FnConvertDateToUtcOrUtcToDate(item.LastUpdated, false, true)}`} />
+											<Label uniqueName='date' label={`${FnConvertTimestampToDate(item.LastUpdated, false, true)}`} />
 										</div>
 										<div className='nz-note-user'>
 											<Label uniqueName='user' label={`${item.UserName}`} />
@@ -613,7 +746,18 @@ const FqaNotes = (props: IFqaNotes) => {
 
 											{item.FileUID && item.NotesType?.toLowerCase() === "image" ? <div className='nz-downlaod-file-name'><Label uniqueName='notes' label={item.fileObj && item.fileObj?.fileName as string} /> </div> : ""}
 											{item.NotesMAX.length >= 64 ?
-												<div className='nz-notes-text-like-link' onClick={() => {
+												<div className='nz-notes-text-like-link' onClick={async () => {
+													const noteId = String(item?.noteid ?? item?.FileUID ?? item?.RecID ?? "");
+													if (noteId && businessId && getNote) {
+														try {
+															const singleNote = await getNote(noteId);
+															if (singleNote) {
+																item = { ...item, ...singleNote };
+															}
+														} catch (err) {
+															console.error("Error fetching note via getNote:", err);
+														}
+													}
 													setShowMessage(true)
 													setSelectedItem(item)
 												}}>

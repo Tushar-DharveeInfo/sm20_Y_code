@@ -2,7 +2,7 @@ import './SidebarContainer.css';
 import { Sidebar } from "../../shared/sidebar/Sidebar";
 import { handleContainerKeyDown } from '../../shared/allcommon/basic/FnHandleContainerKeyDown';
 import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu';
-import { ITreeNode } from '../../shared/allinterface/entity/ITreeNode';
+import { ITreeNode } from '../../shared/allinterface/tree/ITreeControl';
 
 interface ISidebarContainer {
   uniqueName: string; // unique identifier for the control
@@ -18,7 +18,7 @@ interface ISidebarContainer {
   showPopupSidebar?: boolean;
   selectedMenuFeature?: IMenuItem;
   selectedFeatureQa?: IMenuItem | null;
-  treeData?: ITreeNode[] | null; // tree data for the sidebar
+  treeData?: ITreeNode[]; // tree data for the sidebar
   hideSideBarCloseBtn?: boolean; // to hide sidebar close button
   isHideMaximizeButton?: boolean;
   handleReloadTree?: (featureId: string, entID?: string) => void;

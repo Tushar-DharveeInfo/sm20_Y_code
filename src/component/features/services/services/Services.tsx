@@ -16,6 +16,8 @@ interface IServicesProps {
 }
 
 const Services = (props: IServicesProps) => {
+    console.log('props :', props);
+    debugger
     const smDataContext = useSmDataContext();
     const selectedNode = props.selectedNode ?? smDataContext.selectedNode;
     const nodeType = String(selectedNode?.NodeType ?? "").toLowerCase();

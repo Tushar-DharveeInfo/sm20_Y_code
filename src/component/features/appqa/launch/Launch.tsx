@@ -2,12 +2,47 @@
 import { useEffect } from 'react';
 import authSampleData from '../../../../smsampledata/auth/AuthorizationSampleData.json';
 const { sampleSessionId } = authSampleData;
-import { getSmTabLabels } from '../signout/Signout';
+
 
 interface IAppqaLaunch {
   uniqueName: string;
   handleLaunchFailed?: (error: Error) => void;
 }
+const SM_TAB_PREFIX = 'SM-';
+
+const getSmTabLabels = async (): Promise<string[]> => {
+  const currentTitle = document.title;
+  const initialLabels = currentTitle.startsWith(SM_TAB_PREFIX) ? [currentTitle] : [];
+  const labels = new Set<string>(initialLabels);
+
+  try {
+    const channel = new BroadcastChannel('sm-tab-control');
+    const requestId = `sm-tabs-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+    const listener = (event: MessageEvent) => {
+      if (event.data?.action !== 'response-sm-tab-label') return;
+      if (event.data?.requestId !== requestId) return;
+
+      const label = event.data?.label;
+      if (typeof label === 'string' && label.startsWith(SM_TAB_PREFIX)) {
+        labels.add(label);
+      }
+    };
+
+    channel.addEventListener('message', listener);
+    channel.postMessage({ action: 'request-sm-tab-label', requestId });
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    channel.removeEventListener('message', listener);
+    channel.close();
+  } catch (error) {
+    console.warn('Failed to query SM- tab labels:', error);
+  }
+
+  return Array.from(labels);
+};
+
 
 /**
  * AppQA Launch — opens a new browser tab for another session using sample session id.

@@ -1,5 +1,5 @@
+import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 
-import { ITreeNode } from "../../allinterface/entity/ITreeNode"
 
 interface ISessionVars {
     diagnosticLevel: string;

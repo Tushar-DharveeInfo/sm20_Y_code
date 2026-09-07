@@ -15,9 +15,59 @@ import { SearchControl } from '../../../../shared/searchfilter/searchcontrol/Sea
 import { TreeControl } from '../../../../shared/tree/treecontrol/TreeControl'
 import { TicketDetailPane } from './TicketDetailPane'
 import { TicketFilterForm, type ITicketFilterValues } from './TicketFilterForm'
-import type { ITicketDoc } from '../../../../shared/allinterface/IDatasets'
 import { Label } from '../../../../shared/basic/label/Label';
-import { useSmDataContext } from '../../../../shared/context/hooks/SmDataHooks'
+import { useBusinessTickets } from '@n20a/libfsdb';
+
+export interface ITicketDoc {
+    bid: string;
+    cid: string;
+    monitorupdated: string;
+    monitor: boolean;
+    ticketid: string;
+    tickettype: string;
+    subscription: string;
+    mfg: string;
+    eqtype: string;
+    prodno: string;
+    moreinfo: string;
+    status: string;
+    daterequested: string;
+    datereleased: string;
+    lastupdated: string;
+}
+
+function formatTimestampOrDate(value: unknown): string {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value !== null && 'seconds' in value) {
+        const sec = (value as { seconds: number }).seconds;
+        return new Date(sec * 1000).toISOString();
+    }
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    return String(value);
+}
+
+function FnMapToTicketDoc(record: Record<string, unknown>, fallbackBid: string): ITicketDoc {
+    return {
+        bid: String(record.bid || fallbackBid || ''),
+        cid: String(record.cid || ''),
+        monitorupdated: formatTimestampOrDate(record.monitorupdated),
+        monitor: Boolean(record.monitor),
+        ticketid: String(record.ticketid || record.id || ''),
+        tickettype: String(record.tickettype || ''),
+        subscription: String(record.subscription || ''),
+        mfg: String(record.mfg || ''),
+        eqtype: String(record.eqtype || ''),
+        prodno: String(record.prodno || ''),
+        moreinfo: String(record.moreinfo || ''),
+        status: String(record.status || ''),
+        daterequested: formatTimestampOrDate(record.daterequested),
+        datereleased: formatTimestampOrDate(record.datereleased),
+        lastupdated: formatTimestampOrDate(record.lastupdated),
+    };
+}
 
 interface IFeatureTree {
     hideKebabMenu?: boolean;// if true kebab menu on node will not show
@@ -89,8 +139,6 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
         showDetailPane = true,
         hideHeader = false,
     } = ticketExplorerContainerProps
-    const smDataContext = useSmDataContext()
-    const tickets = smDataContext.datasets.tickets
     const featureTreeProps = useMemo(() => buildFeatureTreeProps(), [])
     const [treeData, setTreeData] = useState<ITreeNode[]>([])
     const [defaultExpandedKeys, setDefaultExpandedKeys] = useState<Key[]>([])
@@ -104,6 +152,45 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
     const [isFilterChange, setIsFilterChange] = useState(false)
     const [appliedFilter, setAppliedFilter] = useState<ITicketFilterValues>(DEFAULT_FILTER)
     const [draftFilter, setDraftFilter] = useState<ITicketFilterValues>(DEFAULT_FILTER)
+
+    const bid = String(
+        businessScope?.bid ??
+        ''
+    ).trim()
+
+    const cid = String(
+        businessScope?.cid ??
+        ''
+    ).trim()
+
+    const effectiveScope = useMemo<ILibraryBusinessScope>(() => {
+        const effectiveBid = businessScope?.bid || bid || null
+        const effectiveCid = businessScope?.cid || cid || null
+        const effectiveNodeType = effectiveCid
+            ? 'Contact'
+            : (businessScope?.nodeType || (effectiveBid ? 'Business' : 'Root'))
+        return {
+            ...businessScope,
+            bid: effectiveBid,
+            cid: effectiveCid,
+            nodeType: effectiveNodeType,
+        }
+    }, [businessScope, bid, cid])
+
+    const { tickets: rawTickets, getTickets, loading, error } = useBusinessTickets(bid)
+
+    useEffect(() => {
+        if (bid) {
+            void getTickets()
+        }
+    }, [bid, getTickets])
+
+    const tickets = useMemo<ITicketDoc[]>(() => {
+        if (!bid || !Array.isArray(rawTickets)) {
+            return []
+        }
+        return rawTickets.map((r) => FnMapToTicketDoc(r, bid))
+    }, [bid, rawTickets])
 
     useEffect(() => {
         ticketExplorerContainerProps.handleTicketSelect?.(selectedTicket)
@@ -129,13 +216,25 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
     }
 
     const setTicketTree = (filter: ITicketFilterValues) => {
+        if (!bid) {
+            setTreeData([])
+            setDefaultExpandedKeys([])
+            setDefaultSelectedKeys([])
+            setDefaultSelectedNodeInfo(null)
+            setSelectedTicket(null)
+            ticketExplorerContainerProps.handleTicketNodeSelect?.(null)
+            ticketExplorerContainerProps.handleTicketSelect?.(null)
+            ticketExplorerContainerProps.handleTicketTreeData?.([])
+            return
+        }
+
         const nodes = buildTicketTree(
             tickets,
             filter,
             featureTreeProps,
             ticketExplorerContainerProps.featureId ?? 'ticket-explorer',
             libraryMode,
-            businessScope
+            effectiveScope
         )
         setTreeData(nodes)
         ticketExplorerContainerProps.handleTicketTreeData?.(nodes)
@@ -155,9 +254,21 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
     }
 
     useEffect(() => {
+        if (!bid) {
+            setTreeData([])
+            setDefaultExpandedKeys([])
+            setDefaultSelectedKeys([])
+            setDefaultSelectedNodeInfo(null)
+            setSelectedTicket(null)
+            ticketExplorerContainerProps.handleTicketNodeSelect?.(null)
+            ticketExplorerContainerProps.handleTicketSelect?.(null)
+            ticketExplorerContainerProps.handleTicketTreeData?.([])
+            return
+        }
         setTicketTree(appliedFilter)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [libraryMode, businessScope, tickets])
+    }, [libraryMode, businessScope, bid, cid, tickets, effectiveScope])
+
 
     const handleFilterClick = () => {
         if (isShowFilterForm) {
@@ -253,7 +364,11 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
 
     const treePane = (
         <div className="nz-dc-explorer-container">
-            {!isShowFilterForm ? (
+            {!bid ? (
+                <div className="nz-ticket-explorer-empty">
+                    Select a business to view tickets
+                </div>
+            ) : !isShowFilterForm ? (
                 <div className="nz-wh-100 nz-dce-search-tree-container">
                     <div className="nz-dce-search-container">
                         <SearchControl
@@ -277,7 +392,15 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
                         />
                     </div>
                     <div className="nz-dce-tree-container">
-                        {treeData.length > 0 ? (
+                        {loading ? (
+                            <div className="nz-ticket-explorer-empty">
+                                Loading tickets...
+                            </div>
+                        ) : error ? (
+                            <div className="nz-ticket-explorer-empty" style={{ color: 'var(--danger, #ff4d4f)' }}>
+                                {error}
+                            </div>
+                        ) : treeData.length > 0 && Boolean(findFirstTicketLeaf(treeData)) ? (
                             <TreeControl
                                 uniqueName={`${ticketExplorerContainerProps.uniqueName}-tree`}
                                 treeData={treeData}
@@ -297,7 +420,11 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
                                 handleNodeExpand={handleNodeExpand}
                                 handleNodeSelect={handleNodeSelect}
                             />
-                        ) : null}
+                        ) : (
+                            <div className="nz-ticket-explorer-empty">
+                                No data found
+                            </div>
+                        )}
                     </div>
                 </div>
             ) : (
@@ -359,3 +486,4 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
 
 export default TicketExplorerContainer
 export type { ITicketExplorerContainer, ILibraryBusinessScope, ILibraryTicketMode }
+
