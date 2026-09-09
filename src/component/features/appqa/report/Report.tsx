@@ -219,6 +219,11 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
         orderFormJson,
         proformaInvoiceJson,
         quoteFormJson,
+        getReportProfile,
+        getReportLayout,
+        getOrderForm,
+        getProformaInvoice,
+        getQuoteForm,
     } = useResourceContext();
     const commonVariableContext = useCommonVariableContext();
     const [reportData, setReportData] = useState<IReportProfileItem[]>([]);
@@ -265,29 +270,17 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
 
         if (!templateJson || typeof templateJson !== "object" || Object.keys(templateJson).length === 0) {
             try {
-                const candidates = [
-                    templateFileName,
-                    templateKey,
-                    "reportlayout.json",
-                    "ReportLayout.json",
-                ].filter(Boolean) as string[];
-
-                for (const candidate of candidates) {
-                    try {
-                        let res = await fetch(`/privatereporttemplates/${candidate}`);
-                        if (!res.ok) {
-                            res = await fetch(`/privatereporttemplates/${candidate.toLowerCase()}`);
-                        }
-                        if (res.ok) {
-                            templateJson = await res.json();
-                            break;
-                        }
-                    } catch {
-                        // ignore and try next candidate
-                    }
+                if (templateKey === "orderform.json") {
+                    templateJson = await getOrderForm();
+                } else if (templateKey === "proformainvoice.json" || templateKey === "invoice.json") {
+                    templateJson = await getProformaInvoice();
+                } else if (templateKey === "quoteform.json" || templateKey === "quote.json") {
+                    templateJson = await getQuoteForm();
+                } else {
+                    templateJson = await getReportLayout();
                 }
             } catch (err) {
-                console.warn("Failed to fetch template JSON:", err);
+                console.warn("Failed to load template JSON via ResourceContext:", err);
             }
         }
 
@@ -301,6 +294,15 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
             setReportData([]);
         };
     }, []);
+
+    useEffect(() => {
+        if (!reportProfileJson) {
+            void getReportProfile();
+        }
+        if (!reportLayoutJson) {
+            void getReportLayout();
+        }
+    }, [reportProfileJson, reportLayoutJson, getReportProfile, getReportLayout]);
 
     useEffect(() => {
         let isMounted = true;
@@ -321,15 +323,9 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
 
             if (!profilesSource) {
                 try {
-                    let res = await fetch("/privatereporttemplates/reportprofile.json");
-                    if (!res.ok) {
-                        res = await fetch("/privatereporttemplates/ReportProfile.json");
-                    }
-                    if (res.ok) {
-                        profilesSource = await res.json();
-                    }
+                    profilesSource = await getReportProfile();
                 } catch (fetchError) {
-                    console.warn("Direct fetch of reportprofile.json failed:", fetchError);
+                    console.warn("Loading reportprofile.json failed:", fetchError);
                 }
             }
 
@@ -375,7 +371,7 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
         return () => {
             isMounted = false;
         };
-    }, [appqaReportProps.featureId, appqaReportProps.handleShowUserMessage, reportProfileJson]);
+    }, [appqaReportProps.featureId, appqaReportProps.handleShowUserMessage, reportProfileJson, getReportProfile]);
 
     function evaluateFormulaSafe(
         formula: string,

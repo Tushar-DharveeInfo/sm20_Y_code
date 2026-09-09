@@ -227,7 +227,12 @@ const buildChartConfig = (chartProfile: TChartProfileRow): TChartRecord => {
 };
 
 function DashboardChart(ChartsProps: IDashboardChart) {
-    const { chartApiJson, chartProfileJson } = useResourceContext();
+    const {
+        chartApiJson,
+        chartProfileJson,
+        getChartApi,
+        getChartProfile,
+    } = useResourceContext();
     const [visibleCharts, setVisibleCharts] = useState<JSX.Element[]>([]);
     const [chartRecords, setChartRecords] = useState<TChartRecord[]>();
     const [numberOfColumnsChart] = useState<number>(ChartsProps.displayPerRow ?? 2);
@@ -347,6 +352,16 @@ function DashboardChart(ChartsProps: IDashboardChart) {
             moveFocusTo(focusableElements.length - 1);
         }
     }, []);
+
+    useEffect(() => {
+        if (!chartApiJson) {
+            debugger
+            void getChartApi();
+        }
+        if (!chartProfileJson) {
+            void getChartProfile();
+        }
+    }, [chartApiJson, chartProfileJson, getChartApi, getChartProfile]);
 
     useEffect(() => {
         if (!chartApiJson || !chartProfileJson) {

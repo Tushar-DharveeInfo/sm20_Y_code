@@ -1,7 +1,5 @@
 
 import { useEffect } from 'react';
-import authSampleData from '../../../../smsampledata/auth/AuthorizationSampleData.json';
-const { sampleSessionId } = authSampleData;
 
 
 interface IAppqaLaunch {
@@ -54,7 +52,7 @@ const AppqaLaunch = (_props: IAppqaLaunch) => {
     const launchNewTab = async () => {
       const sessionVar =
         window.sessionStorage.getItem('session_id')
-        || sampleSessionId;
+        || "sampleSessionId";
 
       if (!sessionVar?.length) {
         console.warn('AppqaLaunch: no sample session id available to launch.');

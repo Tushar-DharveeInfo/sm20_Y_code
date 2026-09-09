@@ -9,25 +9,15 @@ import { useMainAppContext } from './shared/context/hooks/MainAppHooks';
 import { AppContextWrapper } from './shared/context/AppContextWrapper';
 import { NodeHeight, SubMenuHeight } from './appcontainer/alldefaultprops/DefaultPropsAppContainer';
 import { GlobalStyles } from './features/appqa/theme/GlobalStyles';
-import { IDeploymentEnv, IDeploymentEnvResponse } from './shared/allinterface/IApiResponse';
+import { IDeploymentEnv } from './shared/allinterface/IApiResponse';
 import { AppContainer } from './appcontainer/AppContainer';
 import { FnSetSessionStorageItem } from './appcontainer/allcommon/FnSetSessionStorageItem';
-import deploymentEnvSampleData from '../smsampledata/auth/DeploymentEnvSampleData.json';
-import authSampleData from '../smsampledata/auth/AuthorizationSampleData.json';
-import sampleUserLicenses from '../smsampledata/features/MySubscriptionsSampleData.json';
-
-const { sampleDeploymentEnvResponse } = deploymentEnvSampleData;
-const { sampleSessionId, sampleSessionVariables } = authSampleData as {
-    sampleSessionId: string;
-    sampleSessionVariables: any[];
-};
 import type { IFeatureItem, IUserAuthSession, IUserInfoAndSubscription } from './shared/context/allinterface/IMainApp';
 import { FnGetAuthDisplayName } from './appcontainer/allcommon/FnGetLoggedInStatusMessage';
 import { AuthSession, getFirebaseServices } from '@n20a/libauth';
-import { CloudStorageProvider, FirestoreProvider, ICloudStorageDeps } from '@n20a/libfsdb';
+import { FirebaseStorageProvider, FirestoreProvider, IFirebaseStorageDeps } from '@n20a/libfsdb';
 import { IAxiosInterceptorDeps } from '@n20a/libaxios';
 import { useSmDataContext } from './shared/context/hooks/SmDataHooks';
-import { FnGetBidCid } from './appcontainer/allcommon/FnGetBidCid';
 
 GridModuleRegistry.registerModules([GridAllCommunityModule]);
 interface INzAppSm {
@@ -35,16 +25,6 @@ interface INzAppSm {
     user: AuthSession;
     onSuccess: () => void;
     onError: (error: string) => void;
-}
-
-function isDeploymentEnvResponse(response: unknown): response is IDeploymentEnvResponse {
-    return (
-        typeof response === "object"
-        && response !== null
-        && "valid" in response
-        && "env" in response
-        && Array.isArray((response as { env: unknown }).env)
-    );
 }
 
 const fnFormatFeature = (record: Record<string, any>) => {
@@ -88,11 +68,19 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
     const [selectedTheme, setSelectedTheme] = useState<DefaultTheme>(themes.data.light);
     const [isSessionCreated, setIsSessionCreated] = useState(false);
     const [isDeploymentVarsLoaded, setIsDeploymentVarsLoaded] = useState(false);
+    const [tabLabel] = useState(() => new URLSearchParams(window.location.search).get("tablabel"));
 
     const sessionContext = useSessionContext();
     const mainAppContext = useMainAppContext();
     const smDataContext = useSmDataContext();
 
+
+    // Set document.title from tablabel param so BroadcastChannel tab-counting works.
+    useEffect(() => {
+        if (tabLabel?.startsWith('SM-')) {
+            document.title = tabLabel;
+        }
+    }, [tabLabel]);
     useEffect(() => {
         smDataContext.loadBusinessesOnce();
     }, [smDataContext.loadBusinessesOnce]);
@@ -108,36 +96,40 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
     useEffect(() => {
         const loadDeploymentVars = async () => {
             try {
-                const appConfig: IDeploymentEnv[] = Object.entries(window.APP_CONFIG ?? {}).map(
+                let configObj: Record<string, unknown> =
+                    (window as Window & { APP_CONFIG?: Record<string, unknown>; appSettings?: Record<string, unknown> }).APP_CONFIG
+                    ?? (window as Window & { appSettings?: Record<string, unknown> }).appSettings
+                    ?? {};
+
+                if (Object.keys(configObj).length === 0) {
+                    try {
+                        const resp = await fetch('/config.js');
+                        if (resp.ok) {
+                            const scriptContent = await resp.text();
+                            const fn = new Function('window', scriptContent);
+                            fn(window);
+                            configObj =
+                                (window as Window & { APP_CONFIG?: Record<string, unknown>; appSettings?: Record<string, unknown> }).APP_CONFIG
+                                ?? (window as Window & { appSettings?: Record<string, unknown> }).appSettings
+                                ?? {};
+                        }
+                    } catch (fetchErr) {
+                        console.warn("Failed to fetch /config.js:", fetchErr);
+                    }
+                }
+
+                const appConfig: IDeploymentEnv[] = Object.entries(configObj).map(
                     ([key, value]) => ({
                         key,
                         value: String(value)
                     })
                 );
 
-                // SAMPLE DATA: expapi /deployment/env not called
-                const apiResponse = sampleDeploymentEnvResponse;
-
-                if (!isDeploymentEnvResponse(apiResponse)) {
-                    throw new Error("Invalid environment response.");
+                if (appConfig.length === 0) {
+                    throw new Error("Environment configuration not found in config.js.");
                 }
 
-                const { valid, env } = apiResponse;
-                if (!valid) {
-                    throw new Error("Invalid environment response.");
-                }
-                if (env.length === 0) {
-                    throw new Error("Environment configuration not found.");
-                }
-
-                const mergedEnv = [
-                    ...env,
-                    ...appConfig.filter(
-                        appItem => !env.some(apiItem => apiItem.key === appItem.key)
-                    )
-                ];
-
-                mainAppContext.setDeploymentVars(mergedEnv);
+                mainAppContext.setDeploymentVars(appConfig);
                 setIsDeploymentVarsLoaded(true);
             } catch (error) {
                 reportFatalError(
@@ -159,7 +151,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
         const isMountedRef = { current: true };
 
         const initializeData = async () => {
-            if (!sampleSessionVariables.length || !sampleSessionId) return;
+
             if (!isMountedRef.current) return;
 
             let featureRecords: IFeatureItem[] = [];
@@ -192,7 +184,10 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
             mainAppContext.setAllFeatureRecords(featureRecords);
 
 
-            const bidCid = FnGetBidCid(user?.email);
+            const bidCid = {
+                bid: "bid_109",
+                cid: "cid_bid_109_1"
+            };
             const bid = bidCid?.bid;
             const cid = bidCid?.cid;
 
@@ -219,11 +214,11 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
                     bid,
                     cid,
                 },
-                subscription: sampleUserLicenses,
+                subscription: [],
             };
             mainAppContext.setUserInfoAndSubscription(userInfoAndSubscription);
 
-            sessionContext.setSessionList(sampleSessionVariables);
+            sessionContext.setSessionList([]);
             setIsSessionCreated(true);
 
 
@@ -292,9 +287,8 @@ function NzAppSm(props: INzAppSm) {
         defaultTimeoutMs: 30000,
     }), [firebaseToken]);
 
-    const cloudStorageDeps = useMemo<ICloudStorageDeps>(() => ({
-        getBaseApiUrl: () => cfg.CLOUDRUN_URL || (import.meta.env.DEV ? 'http://localhost:8080' : ''),
-        getValidationCode: () => cfg.VALIDATION_CODE ?? '',
+    const firebaseStorageDeps = useMemo<IFirebaseStorageDeps>(() => ({
+        getFirebaseApp: () => getFirebaseServices().app,
     }), []);
 
     if (!firebaseToken) {
@@ -303,13 +297,13 @@ function NzAppSm(props: INzAppSm) {
     }
     return (
         <FirestoreProvider deps={firestoreDeps}>
-            <CloudStorageProvider deps={cloudStorageDeps}>
+            <FirebaseStorageProvider deps={firebaseStorageDeps}>
                 <AppContextWrapper>
                     <Router>
                         <NzLoadContextAndVariables {...props} />
                     </Router>
                 </AppContextWrapper>
-            </CloudStorageProvider>
+            </FirebaseStorageProvider>
         </FirestoreProvider>
     );
 }

@@ -50,6 +50,7 @@ interface IPropertyTab {
     selectedRadio?: string;
     views?: IView[];
     selectedTabName?: string;
+    hideDeviceView?: boolean;
 }
 
 /* Returns true when property data uses pre-formatted DescriptionObj sections. */

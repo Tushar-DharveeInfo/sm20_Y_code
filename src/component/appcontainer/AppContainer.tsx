@@ -12,8 +12,6 @@ import { ISession } from '../shared/context/allinterface/ISession'
 import { FnGetSessionVariableFromStorage } from '../shared/allcommon/basic/FnGetSessionVariableFromStorage'
 import { useMainAppContext } from '../shared/context/hooks/MainAppHooks'
 import { MainMenu } from '../shared/menu/mainmenu/MainMenu'
-import { useActivities } from '@n20a/libfsdb'
-import { FnLogLoginActivity } from './allcommon/FnLogLoginActivity'
 
 interface IAppContainer {
     uniqueName: string;//unique identifier for the control
@@ -47,22 +45,11 @@ const AppContainer = (appContainerProps: IAppContainer) => {
     const mainAppContext = useMainAppContext();
     const selectedFeatureIdRef = useRef<string | undefined>(undefined);
 
+    // One-time guard: fire the login activity log only once per mount,
+    // once authSession is available (bid + cid are present inside createActivityLog).
+    const loginLoggedRef = useRef(false);
+
     const isManualFeatureChangeRef = useRef(false);
-    const userInfo = mainAppContext.userInfoAndSubscription?.userInfo;
-    const bid = String(userInfo?.bid ?? "").trim();
-    const { createActivity } = useActivities(bid);
-
-
-    useEffect(() => {
-        if (!bid || !userInfo?.cid) {
-            return;
-        }
-        void FnLogLoginActivity({
-            createActivity,
-            userInfo,
-            bid,
-        });
-    }, [bid, createActivity, userInfo])
     const menuFeatureData: IMainMenu | null = useMemo(() => {
         if (!mainAppContext.featureRecords?.length) return null;
 
@@ -296,6 +283,18 @@ const AppContainer = (appContainerProps: IAppContainer) => {
             rafIds.forEach(id => cancelAnimationFrame(id));
         };
     }, [mainAppContext.featureRecords.length, mainAppContext.refTableRecords.length, sessionContext.SessionList.length, appContainerProps.isNewSession, searchParams])
+
+    // Fire the login activity log once per session as soon as authSession is ready.
+    useEffect(() => {
+        if (loginLoggedRef.current) return;
+        const authSession = mainAppContext.authSession;
+        if (!authSession?.bid || !authSession?.cid) return;
+
+        loginLoggedRef.current = true;
+        const message = `${authSession.cid} of ${authSession.bid} logged in successfully.`;
+        void mainAppContext.createActivityLog(message);
+    }, [mainAppContext.authSession, mainAppContext.createActivityLog])
+
 
     /*
     renders titlebar with appqa items

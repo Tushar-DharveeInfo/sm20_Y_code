@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 import { AgGridReact } from 'ag-grid-react'
 import type { ICellRendererParams } from 'ag-grid-community'
 import { useActivities } from '@n20a/libfsdb'
@@ -35,6 +37,42 @@ function formatActivityDate(value: unknown): string {
     return String(value);
 }
 
+function parseActivityDate(value: unknown, row?: Record<string, unknown>): number {
+    if (value != null && value !== '') {
+        if (typeof value === 'number') {
+            return value;
+        }
+        if (value instanceof Date) {
+            return value.getTime();
+        }
+        if (typeof value === 'object') {
+            if ('toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
+                return (value as { toDate: () => Date }).toDate().getTime();
+            }
+            if ('seconds' in value && typeof (value as { seconds: number }).seconds === 'number') {
+                return (value as { seconds: number }).seconds * 1000;
+            }
+        }
+        if (typeof value === 'string') {
+            const parsed = Date.parse(value);
+            if (!isNaN(parsed)) {
+                return parsed;
+            }
+        }
+    }
+    // Fallback: extract timestamp if activityid ends with numeric timestamp (e.g. activity_cid_1788857795000)
+    if (row && typeof row.activityid === 'string') {
+        const match = row.activityid.match(/_(\d{10,13})$/);
+        if (match) {
+            const ts = Number(match[1]);
+            if (!isNaN(ts)) {
+                return ts;
+            }
+        }
+    }
+    return 0;
+}
+
 const Log = (logProps: ILog) => {
     const headerTitle = logProps.headerText ?? "Log";
     const mainAppContext = useMainAppContext();
@@ -51,21 +89,10 @@ const Log = (logProps: ILog) => {
         ?? ''
     ).trim();
 
-    // Priority 2: Check selectedNode directly for cid
-    const nodeCid = String(
-        logProps.selectedNode?.cid
-        ?? (nodeType === 'contact'
-            ? logProps.selectedNode?.NodeEntID ?? logProps.selectedNode?.key
-            : '')
-        ?? ''
-    ).trim();
-
     const userBid = String(userInfo?.bid ?? '').trim();
-    const userCid = String(userInfo?.cid ?? '').trim();
 
-    // If found in selectedNode, do not use bid and cid from userInfo
+    // If found in selectedNode, do not use bid from userInfo
     const bid = nodeBid || userBid;
-    const cid = nodeBid ? nodeCid : (nodeCid || userCid);
     const { activities, loading, error, getActivities } = useActivities(bid);
     const gridRef = useRef<AgGridReact>(null);
 
@@ -73,11 +100,8 @@ const Log = (logProps: ILog) => {
         if (!bid) {
             return;
         }
-        const filters = cid
-            ? [{ field: 'cid', op: '==' as const, value: cid }]
-            : undefined;
-        void getActivities(filters);
-    }, [bid, cid, getActivities]);
+        void getActivities();
+    }, [bid, getActivities]);
 
     const columnDefs = useMemo<IBasicGridColDef[]>(() => [
         {
@@ -85,6 +109,13 @@ const Log = (logProps: ILog) => {
             field: 'datecreated',
             width: 180,
             resizable: true,
+            sortable: logProps.allowSort ?? true,
+            sort: 'desc',
+            comparator: (valueA: unknown, valueB: unknown, nodeA, nodeB) => {
+                const timeA = parseActivityDate(valueA, nodeA?.data as Record<string, unknown> | undefined);
+                const timeB = parseActivityDate(valueB, nodeB?.data as Record<string, unknown> | undefined);
+                return timeA - timeB;
+            },
             cellRenderer: (params: ICellRendererParams) => (
                 <span>{formatActivityDate(params.value)}</span>
             ),
@@ -95,28 +126,60 @@ const Log = (logProps: ILog) => {
             flex: 1,
             minWidth: 220,
             resizable: true,
+            sortable: logProps.allowSort ?? true,
         },
-        {
-            headerName: 'Activity ID',
-            field: 'activityid',
-            width: 200,
-            resizable: true,
-        },
-        {
-            headerName: 'Bid',
-            field: 'bid',
-            width: 120,
-            resizable: true,
-        },
-        {
-            headerName: 'Cid',
-            field: 'cid',
-            width: 160,
-            resizable: false,
-        },
-    ], []);
+    ], [logProps.allowSort]);
 
-    const rowData = activities ?? [];
+    const rowData = useMemo(() => {
+        if (!activities?.length) return [];
+        return [...activities].sort((a, b) => {
+            const timeA = parseActivityDate(a?.datecreated, a as Record<string, unknown>);
+            const timeB = parseActivityDate(b?.datecreated, b as Record<string, unknown>);
+            return timeB - timeA; // Descending: newest record on top
+        });
+    }, [activities]);
+    const handleDownloadExcel = useCallback(() => {
+        const api = gridRef.current?.api;
+        const rows: (string | number)[][] = [
+            ['Date Created', 'Message']
+        ];
+
+        if (api) {
+            api.forEachNodeAfterFilterAndSort((node) => {
+                if (node.group) return;
+                const dateVal = formatActivityDate(node.data?.datecreated);
+                const msgVal = node.data?.message != null ? String(node.data.message) : '';
+                rows.push([dateVal, msgVal]);
+            });
+        } else if (rowData.length > 0) {
+            rowData.forEach((row) => {
+                const dateVal = formatActivityDate(row.datecreated);
+                const msgVal = row.message != null ? String(row.message) : '';
+                rows.push([dateVal, msgVal]);
+            });
+        }
+
+        if (rows.length <= 1) {
+            return;
+        }
+
+        try {
+            const workbook = XLSX.utils.book_new();
+            const worksheet = XLSX.utils.aoa_to_sheet(rows);
+            worksheet['!cols'] = [{ wch: 25 }, { wch: 80 }];
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Log');
+
+            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            });
+            saveAs(blob, 'log.xlsx');
+        } catch (error) {
+            console.error('Log: failed to export Excel', error);
+            logProps.handleShowUserMessage?.('Unable to export log. Please try again.');
+        }
+    }, [rowData, logProps]);
+
     const showGrid = !loading && !error && rowData.length > 0;
 
     return (
@@ -144,6 +207,8 @@ const Log = (logProps: ILog) => {
                             featureId={logProps.featureId}
                             allowColumnResize={true}
                             isExportOnCopy={true}
+                            handleDownloadData={handleDownloadExcel}
+                            exportFileName='log'
                             rowData={rowData}
                             isReadOnly={true}
                             allowColumnFilter={true}

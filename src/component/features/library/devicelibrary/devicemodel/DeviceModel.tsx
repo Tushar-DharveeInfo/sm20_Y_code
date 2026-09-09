@@ -150,10 +150,16 @@ const getMfgNameFromFormValue = (
 	(typeof formValue !== 'string' ? formValue.mfg : undefined) ?? selectedOption?.mfg ?? '';
 
 const DeviceModel = (props: IDeviceModel) => {
-	const BASE_URL_DEVICE_MODEL = FnGetEnvVariableByKey(envVarEnums.BASE_URL_LIB);
-	const [isDeviceURLAvailable, setIsDeviceURLAvailable] = useState<boolean>(true);
+	const BASE_URL_DEVICE_MODEL = useMemo(() => {
+		const resolved = FnGetEnvVariableByKey(envVarEnums.BASE_URL_LIB);
+		if (resolved?.trim()) return resolved.trim();
+		const cfg = (window as Window & { APP_CONFIG?: Record<string, any>; appSettings?: Record<string, any> }).APP_CONFIG
+			?? (window as Window & { appSettings?: Record<string, any> }).appSettings;
+		return cfg?.CLOUDRUN_URL ?? cfg?.CLOUDRUN_API_URL ?? null;
+	}, []);
+	const isDeviceURLAvailable = Boolean(BASE_URL_DEVICE_MODEL);
 	const [isDeviceUrlValidated, setIsDeviceUrlValidated] = useState<boolean>(true);
-	const [leftSideSelectedTab, setLeftSideSelectedTab] = useState<string>('')
+	const [leftSideSelectedTab, setLeftSideSelectedTab] = useState<string>(deviceModelTabs.Result)
 	const [rightSideSelectedTab, setRightSideSelectedTab] = useState<string>('Search library')
 	const [leftSideTabsObj, setLeftSideTabsObj] = useState<IActionLabelTabs>(leftSideTabs)
 	const [wildsearchData, setWildsearchData] = useState<IDeviceWildSearchItem[] | null>(null)
@@ -677,7 +683,7 @@ const DeviceModel = (props: IDeviceModel) => {
 				}
 
 				const apiData = await formatDataForFlatTree(filterData)
-				const hierarchyData = await FnConvertFlatDataToHierarchyData({ "deviceModel": apiData }, "DeviceModel", disableSort)
+				const hierarchyData = await FnConvertFlatDataToHierarchyData({ "deviceModel": apiData }, null, disableSort)
 				if (hierarchyData) {
 					const updatedTreeData = FnUpdateNodeWithTitleAndIcon(hierarchyData, treeProps.featureTreeProps, props.featureId)
 
@@ -718,9 +724,11 @@ const DeviceModel = (props: IDeviceModel) => {
 			}
 
 			setLeftSideTabsObj(leftSideTabs)
+			setLeftSideSelectedTab(deviceModelTabs.Result)
 		} catch (error) {
 			console.error('DeviceModel: makeResultTree failed', error)
 			setLeftSideTabsObj(leftSideTabs)
+			setLeftSideSelectedTab(deviceModelTabs.Result)
 		}
 	}
 	/* Runs keyword or filtered search and populates the Result tab tree. */
