@@ -14,11 +14,11 @@ import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
 import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks';
 import '../../../shared/sidebar/notes/FqaNotes.css';
 import './ToDo.css';
-import { useTodos, useFileUpload, useFileDownload, useFileDelete } from '@n20a/libfsdb';
+import { useTodos, useFileDownload, useFileDelete } from '@n20a/libfsdb';
 import type { ITodoDoc } from '@n20a/libfsdb';
+import { useUploadRemoteFile } from '../../../shared/allcommon/UploadRemoteFileHooks';
 
 const CLOUD_BUCKET = 'n20-bucket-01';
-const DEFAULT_BASE_FOLDER = 'sm';
 
 interface IToDo {
 	uniqueName: string;
@@ -64,7 +64,7 @@ function getCleanFileName(rawName: string): string {
 
 /**
  * Builds the Firebase Cloud Storage path for tickets attachments.
- * Format: ${bucketName}/${baseFolder}/sm/smfiles/tickets/${filename}
+ * Format: ${bucketName}/${baseFolder}/smfiles/tickets/${filename}
  */
 function buildStoragePathForTickets(filename: string): string {
 	if (!filename) return '';
@@ -73,7 +73,7 @@ function buildStoragePathForTickets(filename: string): string {
 	const c = cfg();
 	const baseFolder = c.BASE_FOLDER ?? 'sm';
 	const bucketName = c.BUCKET_NAME ?? c.FIREBASE_BUCKET ?? CLOUD_BUCKET ?? 'n20-bucket-01';
-	return `${bucketName}/${baseFolder}/sm/smfiles/tickets/${filename}`;
+	return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
 }
 
 /**
@@ -119,9 +119,9 @@ const ToDo = (todoProps: IToDo) => {
 	const statusBarContext = useStatusBarContext();
 	const userInfo = mainAppContext.userInfoAndSubscription?.userInfo;
 	const { loading, error, getTodos, todos, createTodo, updateTodo, deleteTodo } = useTodos();
-	const { uploadSingleFile, uploading } = useFileUpload();
-	const { downloadSingleFile } = useFileDownload();
-	const { deleteFiles } = useFileDelete();
+	const { upload: uploadRemoteFile, uploading: remoteUploading, progress: uploadProgress, error: remoteUploadError } = useUploadRemoteFile();
+	const { downloadSingleFile, downloading } = useFileDownload();
+	const { deleteFiles, deleting } = useFileDelete();
 
 	const [todoItems, setTodoItems] = useState<ITodoItem[]>([]);
 	const [selectedItem, setSelectedItem] = useState<ITodoItem | null>(null);
@@ -171,8 +171,9 @@ const ToDo = (todoProps: IToDo) => {
 
 	// Sync loading state with status bar
 	useEffect(() => {
-		statusBarContext?.setIsLoading?.(loading || uploading || fileUploading);
-	}, [loading, uploading, fileUploading, statusBarContext]);
+		const isBusy = Boolean(loading || remoteUploading || fileUploading || downloading || deleting);
+		statusBarContext?.setIsLoading?.(isBusy);
+	}, [loading, remoteUploading, fileUploading, downloading, deleting, statusBarContext]);
 
 	useEffect(() => {
 		if (error) {
@@ -192,9 +193,14 @@ const ToDo = (todoProps: IToDo) => {
 		const cleanName = getCleanFileName(rawFileName);
 
 		statusBarContext?.setIsLoading?.(true);
+		statusBarContext?.setLoadingLabel?.('Downloading attachment...');
 		try {
 			const res = await downloadSingleFile(storagePath);
-			const downloadUrl = res.blobUrl;
+			if (!res?.success) {
+				console.error('ToDo: downloadSingleFile failed', res?.error, res?.message);
+				return;
+			}
+			const downloadUrl = res?.blobUrl;
 			if (downloadUrl) {
 				const link = document.createElement('a');
 				link.href = downloadUrl;
@@ -209,6 +215,7 @@ const ToDo = (todoProps: IToDo) => {
 			console.error('ToDo: handleDownloadFile error', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
+			statusBarContext?.setLoadingLabel?.('');
 		}
 	};
 
@@ -285,9 +292,14 @@ const ToDo = (todoProps: IToDo) => {
 		const storagePath = buildStoragePathForTickets(rawFileName);
 
 		statusBarContext?.setIsLoading?.(true);
+		statusBarContext?.setLoadingLabel?.('Loading attachment...');
 		try {
 			const res = await downloadSingleFile(storagePath);
-			const downloadUrl = res.blobUrl;
+			if (!res?.success) {
+				console.error('ToDo: downloadSingleFile failed', res?.error, res?.message);
+				return;
+			}
+			const downloadUrl = res?.blobUrl;
 			if (downloadUrl) {
 				const response = await fetch(downloadUrl);
 				const fileBlob = await response.blob();
@@ -312,6 +324,7 @@ const ToDo = (todoProps: IToDo) => {
 			console.error('ToDo: error downloading file for edit', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
+			statusBarContext?.setLoadingLabel?.('');
 		}
 	}, [selectedItem, resetEditor, downloadSingleFile, statusBarContext]);
 
@@ -348,9 +361,10 @@ const ToDo = (todoProps: IToDo) => {
 			return;
 		}
 
-		const userBid = String(userInfo?.bid ?? '').trim();
-		const userCid = String(userInfo?.cid ?? '').trim();
-		const userShortName = String(userInfo?.username ?? userInfo?.email ?? 'User').trim();
+		const authSession = mainAppContext.authSession;
+		const userBid = String(userInfo?.bid ?? authSession?.bid ?? '').trim();
+		const userCid = String(userInfo?.cid ?? authSession?.cid ?? '').trim();
+		const userShortName = String(userInfo?.username ?? userInfo?.email ?? authSession?.displayName ?? authSession?.username ?? 'User').trim();
 		const now = new Date().toISOString();
 
 		// ── Upload attached file if present ──
@@ -371,18 +385,31 @@ const ToDo = (todoProps: IToDo) => {
 				uploadedFileName = existingFileName;
 			} else {
 				uploadedFileName = generateUniqueFileName(userBid, userCid, rawFileName);
-				const filepath = buildStoragePathForTickets(uploadedFileName);
+
+				const cfg = () => (window as Window & { APP_CONFIG?: Record<string, string> }).APP_CONFIG ?? {};
+				const c = cfg();
+				const baseFolder = c.BASE_FOLDER ?? 'sm';
+				const bucketName = c.BUCKET_NAME ?? c.FIREBASE_BUCKET ?? CLOUD_BUCKET ?? 'n20-bucket-01';
 
 				setFileUploading(true);
+				statusBarContext?.setIsLoading?.(true);
+				statusBarContext?.setLoadingLabel?.('Uploading attachment...');
 				try {
-					const uploadResult = await uploadSingleFile(attachedData, filepath);
+					const uploadResult = await uploadRemoteFile({
+						source: attachedData,
+						bucket: bucketName,
+						baseFolder: baseFolder,
+						fileName: `smfiles/tickets/${uploadedFileName}`,
+					});
 					if (!uploadResult?.success) {
-						console.error('ToDo: uploadSingleFile failed', uploadResult?.error);
+						console.error('ToDo: uploadRemoteFile failed', uploadResult?.error, uploadResult?.message);
 					}
 				} catch (err) {
-					console.error('ToDo: uploadSingleFile error', err);
+					console.error('ToDo: uploadRemoteFile error', err);
 				} finally {
 					setFileUploading(false);
+					statusBarContext?.setIsLoading?.(false);
+					statusBarContext?.setLoadingLabel?.('');
 				}
 			}
 		}
@@ -390,6 +417,23 @@ const ToDo = (todoProps: IToDo) => {
 		if (selectedItem) {
 			const todoId = selectedItem.id;
 			const finalFileName = uploadedFileName || '';
+			const previousFileName = String(selectedItem.filename || '').trim();
+
+			// If previous file attachment was replaced or removed, delete it from Cloud Storage
+			if (previousFileName && previousFileName !== finalFileName && !previousFileName.startsWith('sample-file-')) {
+				try {
+					statusBarContext?.setIsLoading?.(true);
+					statusBarContext?.setLoadingLabel?.('Deleting previous attachment...');
+					const oldStoragePath = buildStoragePathForTickets(previousFileName);
+					await deleteFiles([oldStoragePath]);
+				} catch (err) {
+					console.warn('ToDo: error deleting previous attachment', err);
+				} finally {
+					statusBarContext?.setIsLoading?.(false);
+					statusBarContext?.setLoadingLabel?.('');
+				}
+			}
+
 			const updatedDoc: Record<string, unknown> = {
 				bid: selectedItem.bid || userBid,
 				cid: selectedItem.cid || userCid,
@@ -463,7 +507,7 @@ const ToDo = (todoProps: IToDo) => {
 		} catch (err) {
 			console.error('Error creating todo:', err);
 		}
-	}, [selectedItem, userInfo, createTodo, updateTodo, getTodos, uploadSingleFile, resetEditor]);
+	}, [selectedItem, userInfo, createTodo, updateTodo, getTodos, uploadRemoteFile, resetEditor]);
 
 	const deleteImage: IImage = {
 		uniqueName: 'todo-delete-icon',
@@ -492,27 +536,34 @@ const ToDo = (todoProps: IToDo) => {
 			}
 
 			const rawFileName = String(deleteItem.filename || '').trim();
-			// Delete file from Cloud Storage FIRST if it exists
-			if (rawFileName && !rawFileName.startsWith('sample-file-')) {
-				try {
-					const storagePath = buildStoragePathForTickets(rawFileName);
-					await deleteFiles([storagePath]);
-				} catch (err) {
-					console.error('ToDo: error deleting file from cloud storage', err);
-				}
-			}
-
-			// Optimistic deletion
-			setTodoItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== deleteItem.id));
-
-			const todoId = deleteItem.id;
+			statusBarContext?.setIsLoading?.(true);
+			statusBarContext?.setLoadingLabel?.('Deleting todo...');
 			try {
+				// Delete file from Cloud Storage FIRST if it exists
+				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
+					try {
+						statusBarContext?.setLoadingLabel?.('Deleting attachment...');
+						const storagePath = buildStoragePathForTickets(rawFileName);
+						await deleteFiles([storagePath]);
+					} catch (err) {
+						console.error('ToDo: error deleting file from cloud storage', err);
+					}
+				}
+
+				// Optimistic deletion
+				setTodoItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== deleteItem.id));
+
+				const todoId = deleteItem.id;
 				if (todoId) {
+					statusBarContext?.setLoadingLabel?.('Deleting todo...');
 					await deleteTodo(todoId);
 				}
 				await getTodos();
 			} catch (err) {
 				console.error('Error deleting todo:', err);
+			} finally {
+				statusBarContext?.setIsLoading?.(false);
+				statusBarContext?.setLoadingLabel?.('');
 			}
 		}
 		setDeleteOpen(false);

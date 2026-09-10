@@ -16,13 +16,13 @@ import { YesNoFormContainer } from '../../basic/yesnoformcontainer/YesNoFormCont
 import { ActionImage } from '../../basic/actionimage/ActionImage';
 import { Label } from '../../basic/label/Label';
 import { Image } from '../../basic/image/Image';
-import { Attach24x24, Delete24x24, Info24x24, Mic24x24, Video24x24 } from '@n20a/libicon';
+import { Attach24x24, Close24x24, Delete24x24, Info24x24, Mic24x24, Video24x24 } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { ISession } from '../../context/allinterface/ISession';
-import { useBusinessNotes, useFileUpload, useFileDownload, useFileDelete } from '@n20a/libfsdb';
+import { useBusinessNotes, useFileDownload, useFileDelete } from '@n20a/libfsdb';
+import { useUploadRemoteFile } from '../../allcommon/UploadRemoteFileHooks';
 
 const CLOUD_BUCKET = 'n20-bucket-01';
-const DEFAULT_BASE_FOLDER = 'sm';
 
 interface IFqaNotes {
 	uniqueName: string; // A unique identifier for notes
@@ -107,7 +107,7 @@ function getCleanFileName(rawName: string): string {
 
 /**
  * Builds the Firebase Cloud Storage path for tickets attachments.
- * Format: ${bucketName}/${baseFolder}/sm/smfiles/tickets/${filename}
+ * Format: ${bucketName}/${baseFolder}/smfiles/tickets/${filename}
  */
 function buildStoragePathForTickets(filename: string): string {
 	if (!filename) return '';
@@ -116,7 +116,7 @@ function buildStoragePathForTickets(filename: string): string {
 	const c = cfg();
 	const baseFolder = c.BASE_FOLDER ?? 'sm';
 	const bucketName = c.BUCKET_NAME ?? c.FIREBASE_BUCKET ?? CLOUD_BUCKET ?? 'n20-bucket-01';
-	return `${bucketName}/${baseFolder}/${DEFAULT_BASE_FOLDER}/smfiles/tickets/${filename}`;
+	return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
 }
 
 /**
@@ -209,9 +209,9 @@ const FqaNotes = (props: IFqaNotes) => {
 	const cid = String(props.selectedNode?.cid ?? authSession?.cid ?? '').trim();
 
 	const { loading, error, getNotes, notes, deleteNote, createNote, updateNote } = useBusinessNotes(businessId);
-	const { uploadSingleFile, uploading } = useFileUpload();
-	const { downloadSingleFile } = useFileDownload();
-	const { deleteFiles } = useFileDelete();
+	const { upload: uploadRemoteFile, uploading: remoteUploading, progress: uploadProgress, error: remoteUploadError } = useUploadRemoteFile();
+	const { downloadSingleFile, downloading } = useFileDownload();
+	const { deleteFiles, deleting } = useFileDelete();
 
 	const isHideAVNotes = useMemo(() => {
 		const avNotesRecord = mainAppContext?.apRecords?.find(
@@ -264,9 +264,13 @@ const FqaNotes = (props: IFqaNotes) => {
 		const storagePath = buildStoragePathForTickets(rawFileName);
 
 		statusBarContext?.setIsLoading?.(true);
+		statusBarContext?.setLoadingLabel?.('Downloading file...');
 		try {
 			const res = await downloadSingleFile(storagePath);
-			debugger
+			if (!res?.success) {
+				console.error('FqaNotes: downloadSingleFile failed', res?.error, res?.message);
+				return;
+			}
 			const downloadUrl = res?.blobUrl;
 			if (downloadUrl) {
 				const cleanName = getCleanFileName(rawFileName);
@@ -283,6 +287,7 @@ const FqaNotes = (props: IFqaNotes) => {
 			console.error('FqaNotes: handleDownloadFile error', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
+			statusBarContext?.setLoadingLabel?.('');
 		}
 	}, [downloadSingleFile, statusBarContext]);
 
@@ -331,8 +336,13 @@ const FqaNotes = (props: IFqaNotes) => {
 		const storagePath = buildStoragePathForTickets(rawFileName);
 
 		statusBarContext?.setIsLoading?.(true);
+		statusBarContext?.setLoadingLabel?.('Loading attachment...');
 		try {
 			const res = await downloadSingleFile(storagePath);
+			if (!res?.success) {
+				console.error('FqaNotes: downloadSingleFile failed', res?.error, res?.message);
+				return;
+			}
 			const downloadUrl = res?.blobUrl;
 			if (downloadUrl) {
 				const response = await fetch(downloadUrl);
@@ -369,6 +379,7 @@ const FqaNotes = (props: IFqaNotes) => {
 			console.error('FqaNotes: failed to fetch attached file for note editor', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
+			statusBarContext?.setLoadingLabel?.('');
 		}
 	}, [downloadSingleFile, statusBarContext]);
 
@@ -497,8 +508,9 @@ const FqaNotes = (props: IFqaNotes) => {
 
 	// Sync loading state with status bar
 	useEffect(() => {
-		statusBarContext?.setIsLoading?.(loading || uploading || fileUploading);
-	}, [loading, uploading, fileUploading, statusBarContext]);
+		const isBusy = Boolean(loading || remoteUploading || fileUploading || downloading || deleting);
+		statusBarContext?.setIsLoading?.(isBusy);
+	}, [loading, remoteUploading, fileUploading, downloading, deleting, statusBarContext]);
 
 	useEffect(() => {
 		if (error) {
@@ -550,18 +562,30 @@ const FqaNotes = (props: IFqaNotes) => {
 				const defaultExt = message.notevideo ? 'mp4' : message.noteaudio ? 'webm' : 'png';
 				uploadedFileName = generateUniqueFileName(businessId, cid, rawFileName, defaultExt);
 
-				const filepath = buildStoragePathForTickets(uploadedFileName);
+				const cfg = () => (window as Window & { APP_CONFIG?: Record<string, string> }).APP_CONFIG ?? {};
+				const c = cfg();
+				const baseFolder = c.BASE_FOLDER ?? 'sm';
+				const bucketName = c.BUCKET_NAME ?? c.FIREBASE_BUCKET ?? CLOUD_BUCKET ?? 'n20-bucket-01';
 
 				setFileUploading(true);
+				statusBarContext?.setIsLoading?.(true);
+				statusBarContext?.setLoadingLabel?.('Uploading file...');
 				try {
-					const uploadResult = await uploadSingleFile(attachedData, filepath);
+					const uploadResult = await uploadRemoteFile({
+						source: attachedData,
+						bucket: bucketName,
+						baseFolder: baseFolder,
+						fileName: `smfiles/tickets/${uploadedFileName}`,
+					});
 					if (!uploadResult?.success) {
-						console.error('FqaNotes: uploadSingleFile failed', uploadResult?.error);
+						console.error('FqaNotes: uploadRemoteFile failed', uploadResult?.error, uploadResult?.message);
 					}
 				} catch (err) {
-					console.error('FqaNotes: uploadSingleFile error', err);
+					console.error('FqaNotes: uploadRemoteFile error', err);
 				} finally {
 					setFileUploading(false);
+					statusBarContext?.setIsLoading?.(false);
+					statusBarContext?.setLoadingLabel?.('');
 				}
 			}
 		}
@@ -572,6 +596,22 @@ const FqaNotes = (props: IFqaNotes) => {
 				editingItem.id ?? editingItem.noteid ?? editingItem._noteid ?? editingItem.FileUID ?? ''
 			);
 			const finalFileName = uploadedFileName || '';
+			const previousFileName = String(editingItem.filename || editingItem.FileUID || '').trim();
+
+			// If previous file attachment was replaced or removed, delete it from Cloud Storage
+			if (previousFileName && previousFileName !== finalFileName && !previousFileName.startsWith('sample-file-')) {
+				try {
+					statusBarContext?.setIsLoading?.(true);
+					statusBarContext?.setLoadingLabel?.('Deleting previous file...');
+					const oldStoragePath = buildStoragePathForTickets(previousFileName);
+					await deleteFiles([oldStoragePath]);
+				} catch (err) {
+					console.warn('FqaNotes: error deleting previous attachment', err);
+				} finally {
+					statusBarContext?.setIsLoading?.(false);
+					statusBarContext?.setLoadingLabel?.('');
+				}
+			}
 
 			let updatedNotesType = editingItem.NotesType || 'Message';
 			if (message.notevideo) updatedNotesType = 'Video';
@@ -665,7 +705,7 @@ const FqaNotes = (props: IFqaNotes) => {
 				console.error('FqaNotes: createNote failed', result?.error);
 			}
 		}
-	}, [editingItem, resetEditor, updateNote, businessId, cid, sessionContext.SessionList, authSession, props.selectedNode, createNote, uploadSingleFile, mainAppContext]);
+	}, [editingItem, resetEditor, updateNote, businessId, cid, sessionContext.SessionList, authSession, props.selectedNode, createNote, uploadRemoteFile, mainAppContext]);
 
 	// Search filter
 	const searchValueChange = (value: string): void => {
@@ -712,10 +752,12 @@ const FqaNotes = (props: IFqaNotes) => {
 			setOriginalNotesItems((prev) => prev.filter((i) => i !== itemToDelete));
 
 			statusBarContext?.setIsLoading?.(true);
+			statusBarContext?.setLoadingLabel?.('Deleting note...');
 			try {
 				// 1. If file exists, delete the file FIRST from Cloud Storage
 				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
 					try {
+						statusBarContext?.setLoadingLabel?.('Deleting file...');
 						const storagePath = buildStoragePathForTickets(rawFileName);
 						await deleteFiles([storagePath]);
 					} catch (storageErr) {
@@ -725,6 +767,7 @@ const FqaNotes = (props: IFqaNotes) => {
 
 				// 2. Then delete the note document from Firestore
 				if (noteid && businessId && deleteNote) {
+					statusBarContext?.setLoadingLabel?.('Deleting note...');
 					const result = await deleteNote(noteid);
 					if (result && result.success !== false) {
 						await mainAppContext?.createActivityLog?.(`${cid} of ${businessId} deleted note ${noteid} successfully.`);
@@ -736,6 +779,7 @@ const FqaNotes = (props: IFqaNotes) => {
 				console.error('FqaNotes: delete operation failed', err);
 			} finally {
 				statusBarContext?.setIsLoading?.(false);
+				statusBarContext?.setLoadingLabel?.('');
 			}
 		}
 	};
@@ -859,12 +903,39 @@ const FqaNotes = (props: IFqaNotes) => {
 		tooltip: 'Click to Delete',
 	};
 
+	const clearImage: IImage = {
+		uniqueName: 'clear-icon',
+		source: (
+			<Close24x24
+				size={FnGetCssVariable('--image-size-2')}
+				fill="none"
+				strokeWidth={1}
+			/>
+		),
+		w: 'var(--image-size-2)',
+		type: 'svg',
+		tooltip: 'Click to Clear',
+	};
 	return (
 		<div className="nz-node-list-Container" key={props.uniqueName}>
 			<div className="nz-notes-list-main-div">
 				<div className="nz-notes-list-with-msg-box">
 					<div className="nz-sub-header">
 						<Label uniqueName="Notes-header" label="Notes" />
+						{editingItem && (
+							<ActionImage
+								image={clearImage}
+								w="var(--node_height)"
+								h="var(--node_height)"
+								uniqueName={`deleteicon`}
+								actionCode="delete"
+								disabled={false}
+								handleMouse={(e) => {
+									resetEditor();
+								}}
+							/>
+
+						)}
 					</div>
 					{!props.hideSearchControl && searchControlProps && (
 						<div className="nz-notes-search">
@@ -946,26 +1017,7 @@ const FqaNotes = (props: IFqaNotes) => {
 						})}
 					</div>
 					<div className="nz-notes-container">
-						{editingItem && (
-							<button
-								type="button"
-								onClick={resetEditor}
-								style={{
-									background: 'none',
-									border: 'none',
-									color: 'var(--theme-text-color, #666)',
-									cursor: 'pointer',
-									fontSize: '12px',
-									textDecoration: 'underline',
-									padding: 0,
-									position: 'absolute',
-									marginRight: 12,
-									right: 0,
-								}}
-							>
-								Cancel
-							</button>
-						)}
+
 						{noteDetails && (
 							<Notes
 								{...noteDetails}
