@@ -305,40 +305,23 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
     }, [reportProfileJson, reportLayoutJson, getReportProfile, getReportLayout]);
 
     useEffect(() => {
-        let isMounted = true;
+        if (!appqaReportProps.featureId) {
+            setIsLoadingReports(false);
+            setIsDataProcessed(true);
+            setReportData([]);
+            return;
+        }
 
-        const loadReports = async () => {
-            if (!appqaReportProps.featureId) {
-                if (isMounted) {
-                    setIsLoadingReports(false);
-                    setIsDataProcessed(true);
-                    setReportData([]);
-                }
-                return;
-            }
+        if (!reportProfileJson) {
+            setIsLoadingReports(true);
+            return;
+        }
 
+        const loadReports = () => {
             setIsLoadingReports(true);
 
-            let profilesSource = reportProfileJson;
-
-            if (!profilesSource) {
-                try {
-                    profilesSource = await getReportProfile();
-                } catch (fetchError) {
-                    console.warn("Loading reportprofile.json failed:", fetchError);
-                }
-            }
-
-            if (!profilesSource) {
-                if (isMounted) {
-                    setIsLoadingReports(false);
-                    setIsDataProcessed(true);
-                }
-                return;
-            }
-
             try {
-                const loadedProfiles = unwrapReportProfiles(profilesSource);
+                const loadedProfiles = unwrapReportProfiles(reportProfileJson);
                 const reportProfiles = loadedProfiles.map((item) =>
                     mapToReportProfileItem(item as Record<string, unknown>)
                 );
@@ -346,32 +329,22 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
                 const finalReports = filteredReport.length > 0 ? filteredReport : reportProfiles;
 
                 const sortedData = sortReportsAZ(dedupeReports(finalReports));
-                if (isMounted) {
-                    setReportData(sortedData);
-                    setIsDataProcessed(true);
-                }
+                setReportData(sortedData);
+                setIsDataProcessed(true);
             } catch (error) {
                 console.error("Error loading report profiles:", error);
-                if (isMounted) {
-                    setReportData([]);
-                    setIsDataProcessed(true);
-                    appqaReportProps.handleShowUserMessage?.(
-                        "Failed to load report profiles."
-                    );
-                }
+                setReportData([]);
+                setIsDataProcessed(true);
+                appqaReportProps.handleShowUserMessage?.(
+                    "Failed to load report profiles."
+                );
             } finally {
-                if (isMounted) {
-                    setIsLoadingReports(false);
-                }
+                setIsLoadingReports(false);
             }
         };
 
-        void loadReports();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [appqaReportProps.featureId, appqaReportProps.handleShowUserMessage, reportProfileJson, getReportProfile]);
+        loadReports();
+    }, [appqaReportProps.featureId, appqaReportProps.handleShowUserMessage, reportProfileJson]);
 
     function evaluateFormulaSafe(
         formula: string,

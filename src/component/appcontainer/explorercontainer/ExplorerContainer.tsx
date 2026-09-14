@@ -219,8 +219,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             || info.event === "found-select"
             || info.event === "auto-select-expand";
         if (!isAutoSelection && (hasSidebarQa || isShowSidebar)) {
-            setIsShowSidebar(true);
-            setIsSidebar('sidebarOpen');
+            setIsShowSidebar(false);
+            setIsSidebar('sidebarClose');
         }
         if (info.event === "select" || info.nativeEvent) {
             setManuallyNodeSelected(true);

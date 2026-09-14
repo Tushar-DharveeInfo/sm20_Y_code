@@ -18,8 +18,6 @@ import { useTodos, useFileDownload, useFileDelete } from '@n20a/libfsdb';
 import type { ITodoDoc } from '@n20a/libfsdb';
 import { useUploadRemoteFile } from '../../../shared/allcommon/UploadRemoteFileHooks';
 
-const CLOUD_BUCKET = 'n20-bucket-01';
-
 interface IToDo {
 	uniqueName: string;
 	featureId?: string;
@@ -62,19 +60,6 @@ function getCleanFileName(rawName: string): string {
 	return match ? match[1] : base;
 }
 
-/**
- * Builds the Firebase Cloud Storage path for tickets attachments.
- * Format: ${bucketName}/${baseFolder}/smfiles/tickets/${filename}
- */
-function buildStoragePathForTickets(filename: string): string {
-	if (!filename) return '';
-	if (filename.includes('/')) return filename;
-	const cfg = () => (window as Window & { APP_CONFIG?: Record<string, string> }).APP_CONFIG ?? {};
-	const c = cfg();
-	const baseFolder = c.BASE_FOLDER ?? 'sm';
-	const bucketName = c.BUCKET_NAME ?? c.FIREBASE_BUCKET ?? CLOUD_BUCKET ?? 'n20-bucket-01';
-	return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
-}
 
 /**
  * Extracts a numeric timestamp from date fields for ascending sorting.
@@ -118,6 +103,24 @@ const ToDo = (todoProps: IToDo) => {
 	const mainAppContext = useMainAppContext();
 	const statusBarContext = useStatusBarContext();
 	const userInfo = mainAppContext.userInfoAndSubscription?.userInfo;
+	const authSession = mainAppContext.authSession;
+	const userBid = String(authSession?.bid ?? userInfo?.bid ?? '').trim();
+	const userCid = String(authSession?.cid ?? userInfo?.cid ?? '').trim();
+	const noteby = authSession?.displayName ?? authSession?.username ?? userInfo?.username ?? userInfo?.email ?? 'User';
+	const bucketName = authSession?.bucketName ?? 'n20-bucket-01';
+	const baseFolder = authSession?.baseFolder ?? 'sm';
+
+	const createActivityLogRef = useRef(mainAppContext.createActivityLog);
+	useEffect(() => {
+		createActivityLogRef.current = mainAppContext.createActivityLog;
+	}, [mainAppContext.createActivityLog]);
+
+	const getStoragePath = useCallback((filename: string): string => {
+		if (!filename) return '';
+		if (filename.includes('/')) return filename;
+		return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
+	}, [bucketName, baseFolder]);
+
 	const { loading, error, getTodos, todos, createTodo, updateTodo, deleteTodo } = useTodos();
 	const { upload: uploadRemoteFile, uploading: remoteUploading, progress: uploadProgress, error: remoteUploadError } = useUploadRemoteFile();
 	const { downloadSingleFile, downloading } = useFileDownload();
@@ -182,14 +185,14 @@ const ToDo = (todoProps: IToDo) => {
 	}, [error, statusBarContext]);
 
 	// Download file from Cloud Storage to browser
-	const handleDownloadFile = async (item: ITodoItem, event?: React.MouseEvent) => {
+	const handleDownloadFile = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
 		event?.stopPropagation?.();
 		const rawFileName = String(item.filename || '').trim();
 		if (!rawFileName || rawFileName.startsWith('sample-file-')) {
 			return;
 		}
 
-		const storagePath = buildStoragePathForTickets(rawFileName);
+		const storagePath = getStoragePath(rawFileName);
 		const cleanName = getCleanFileName(rawFileName);
 
 		statusBarContext?.setIsLoading?.(true);
@@ -217,7 +220,7 @@ const ToDo = (todoProps: IToDo) => {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
-	};
+	}, [downloadSingleFile, getStoragePath, statusBarContext]);
 
 	// Reset the editor to empty state
 	const resetEditor = useCallback(() => {
@@ -289,7 +292,7 @@ const ToDo = (todoProps: IToDo) => {
 		});
 		setNotesKey((prev) => prev + 1);
 
-		const storagePath = buildStoragePathForTickets(rawFileName);
+		const storagePath = getStoragePath(rawFileName);
 
 		statusBarContext?.setIsLoading?.(true);
 		statusBarContext?.setLoadingLabel?.('Loading attachment...');
@@ -326,7 +329,7 @@ const ToDo = (todoProps: IToDo) => {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
-	}, [selectedItem, resetEditor, downloadSingleFile, statusBarContext]);
+	}, [selectedItem, resetEditor, downloadSingleFile, getStoragePath, statusBarContext]);
 
 	// Remove file attachment inside Notes control
 	const handleDeleteAttachment = useCallback(
@@ -386,11 +389,6 @@ const ToDo = (todoProps: IToDo) => {
 			} else {
 				uploadedFileName = generateUniqueFileName(userBid, userCid, rawFileName);
 
-				const cfg = () => (window as Window & { APP_CONFIG?: Record<string, string> }).APP_CONFIG ?? {};
-				const c = cfg();
-				const baseFolder = c.BASE_FOLDER ?? 'sm';
-				const bucketName = c.BUCKET_NAME ?? c.FIREBASE_BUCKET ?? CLOUD_BUCKET ?? 'n20-bucket-01';
-
 				setFileUploading(true);
 				statusBarContext?.setIsLoading?.(true);
 				statusBarContext?.setLoadingLabel?.('Uploading attachment...');
@@ -424,7 +422,7 @@ const ToDo = (todoProps: IToDo) => {
 				try {
 					statusBarContext?.setIsLoading?.(true);
 					statusBarContext?.setLoadingLabel?.('Deleting previous attachment...');
-					const oldStoragePath = buildStoragePathForTickets(previousFileName);
+					const oldStoragePath = getStoragePath(previousFileName);
 					await deleteFiles([oldStoragePath]);
 				} catch (err) {
 					console.warn('ToDo: error deleting previous attachment', err);
@@ -462,7 +460,16 @@ const ToDo = (todoProps: IToDo) => {
 
 			try {
 				if (todoId) {
-					await updateTodo(todoId, updatedDoc);
+					const result = await updateTodo(todoId, updatedDoc);
+					if (result && result.success !== false) {
+						try {
+							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} updated todo ${todoId} successfully.`);
+						} catch (logErr) {
+							console.error('ToDo: createActivityLog failed', logErr);
+						}
+					} else {
+						console.error('ToDo: updateTodo failed', result?.error);
+					}
 				}
 				await getTodos();
 			} catch (err) {
@@ -502,12 +509,22 @@ const ToDo = (todoProps: IToDo) => {
 		resetEditor();
 
 		try {
-			await createTodo(newTodoDoc);
+			const result = await createTodo(newTodoDoc);
+			if (result && result.success !== false) {
+				const createdId = result.id || newDocId;
+				try {
+					await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} created todo ${createdId} successfully.`);
+				} catch (logErr) {
+					console.error('ToDo: createActivityLog failed', logErr);
+				}
+			} else {
+				console.error('ToDo: createTodo failed', result?.error);
+			}
 			await getTodos();
 		} catch (err) {
 			console.error('Error creating todo:', err);
 		}
-	}, [selectedItem, userInfo, createTodo, updateTodo, getTodos, uploadRemoteFile, resetEditor]);
+	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, createTodo, updateTodo, getTodos, uploadRemoteFile, resetEditor, bucketName, baseFolder, getStoragePath, deleteFiles, statusBarContext]);
 
 	const deleteImage: IImage = {
 		uniqueName: 'todo-delete-icon',
@@ -543,7 +560,7 @@ const ToDo = (todoProps: IToDo) => {
 				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
 					try {
 						statusBarContext?.setLoadingLabel?.('Deleting attachment...');
-						const storagePath = buildStoragePathForTickets(rawFileName);
+						const storagePath = getStoragePath(rawFileName);
 						await deleteFiles([storagePath]);
 					} catch (err) {
 						console.error('ToDo: error deleting file from cloud storage', err);
@@ -556,7 +573,16 @@ const ToDo = (todoProps: IToDo) => {
 				const todoId = deleteItem.id;
 				if (todoId) {
 					statusBarContext?.setLoadingLabel?.('Deleting todo...');
-					await deleteTodo(todoId);
+					const result = await deleteTodo(todoId);
+					if (result && result.success !== false) {
+						try {
+							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} deleted todo ${todoId} successfully.`);
+						} catch (logErr) {
+							console.error('ToDo: createActivityLog failed', logErr);
+						}
+					} else {
+						console.error('ToDo: deleteTodo failed', result?.error);
+					}
 				}
 				await getTodos();
 			} catch (err) {

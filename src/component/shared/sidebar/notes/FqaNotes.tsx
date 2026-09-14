@@ -22,7 +22,6 @@ import { ISession } from '../../context/allinterface/ISession';
 import { useBusinessNotes, useFileDownload, useFileDelete } from '@n20a/libfsdb';
 import { useUploadRemoteFile } from '../../allcommon/UploadRemoteFileHooks';
 
-const CLOUD_BUCKET = 'n20-bucket-01';
 
 interface IFqaNotes {
 	uniqueName: string; // A unique identifier for notes
@@ -105,19 +104,7 @@ function getCleanFileName(rawName: string): string {
 	return match ? match[1] : base;
 }
 
-/**
- * Builds the Firebase Cloud Storage path for tickets attachments.
- * Format: ${bucketName}/${baseFolder}/smfiles/tickets/${filename}
- */
-function buildStoragePathForTickets(filename: string): string {
-	if (!filename) return '';
-	if (filename.includes('/')) return filename;
-	const cfg = () => (window as Window & { APP_CONFIG?: Record<string, string> }).APP_CONFIG ?? {};
-	const c = cfg();
-	const baseFolder = c.BASE_FOLDER ?? 'sm';
-	const bucketName = c.BUCKET_NAME ?? c.FIREBASE_BUCKET ?? CLOUD_BUCKET ?? 'n20-bucket-01';
-	return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
-}
+
 
 /**
  * Detects whether a note item contains audio, video, generic file, or plain message.
@@ -207,6 +194,19 @@ const FqaNotes = (props: IFqaNotes) => {
 	const authSession = mainAppContext?.authSession;
 	const businessId = String(props.selectedNode?.bid ?? authSession?.bid ?? props.selectedNode?.NodeEntID ?? '').trim();
 	const cid = String(props.selectedNode?.cid ?? authSession?.cid ?? '').trim();
+	const bucketName = authSession?.bucketName ?? 'n20-bucket-01';
+	const baseFolder = authSession?.baseFolder ?? 'sm';
+
+	const createActivityLogRef = useRef(mainAppContext.createActivityLog);
+	useEffect(() => {
+		createActivityLogRef.current = mainAppContext.createActivityLog;
+	}, [mainAppContext.createActivityLog]);
+
+	const getStoragePath = useCallback((filename: string): string => {
+		if (!filename) return '';
+		if (filename.includes('/')) return filename;
+		return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
+	}, [bucketName, baseFolder]);
 
 	const { loading, error, getNotes, notes, deleteNote, createNote, updateNote } = useBusinessNotes(businessId);
 	const { upload: uploadRemoteFile, uploading: remoteUploading, progress: uploadProgress, error: remoteUploadError } = useUploadRemoteFile();
@@ -261,7 +261,7 @@ const FqaNotes = (props: IFqaNotes) => {
 		const rawFileName = String(item.filename || item.FileUID || '').trim();
 		if (!rawFileName || rawFileName.startsWith('sample-file-')) return;
 
-		const storagePath = buildStoragePathForTickets(rawFileName);
+		const storagePath = getStoragePath(rawFileName);
 
 		statusBarContext?.setIsLoading?.(true);
 		statusBarContext?.setLoadingLabel?.('Downloading file...');
@@ -289,7 +289,7 @@ const FqaNotes = (props: IFqaNotes) => {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
-	}, [downloadSingleFile, statusBarContext]);
+	}, [downloadSingleFile, getStoragePath, statusBarContext]);
 
 	// Select a note card to view & edit in the bottom Notes control
 	const handleSelectCardToEdit = useCallback(async (item: INoteItems) => {
@@ -333,7 +333,7 @@ const FqaNotes = (props: IFqaNotes) => {
 		});
 		setRefreshToken((v) => v + 1);
 
-		const storagePath = buildStoragePathForTickets(rawFileName);
+		const storagePath = getStoragePath(rawFileName);
 
 		statusBarContext?.setIsLoading?.(true);
 		statusBarContext?.setLoadingLabel?.('Loading attachment...');
@@ -381,7 +381,7 @@ const FqaNotes = (props: IFqaNotes) => {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
-	}, [downloadSingleFile, statusBarContext]);
+	}, [downloadSingleFile, getStoragePath, statusBarContext]);
 
 	// Remove file/audio/video attachment inside Notes control
 	const handleDeleteAttachment = useCallback(
@@ -562,11 +562,6 @@ const FqaNotes = (props: IFqaNotes) => {
 				const defaultExt = message.notevideo ? 'mp4' : message.noteaudio ? 'webm' : 'png';
 				uploadedFileName = generateUniqueFileName(businessId, cid, rawFileName, defaultExt);
 
-				const cfg = () => (window as Window & { APP_CONFIG?: Record<string, string> }).APP_CONFIG ?? {};
-				const c = cfg();
-				const baseFolder = c.BASE_FOLDER ?? 'sm';
-				const bucketName = c.BUCKET_NAME ?? c.FIREBASE_BUCKET ?? CLOUD_BUCKET ?? 'n20-bucket-01';
-
 				setFileUploading(true);
 				statusBarContext?.setIsLoading?.(true);
 				statusBarContext?.setLoadingLabel?.('Uploading file...');
@@ -603,7 +598,7 @@ const FqaNotes = (props: IFqaNotes) => {
 				try {
 					statusBarContext?.setIsLoading?.(true);
 					statusBarContext?.setLoadingLabel?.('Deleting previous file...');
-					const oldStoragePath = buildStoragePathForTickets(previousFileName);
+					const oldStoragePath = getStoragePath(previousFileName);
 					await deleteFiles([oldStoragePath]);
 				} catch (err) {
 					console.warn('FqaNotes: error deleting previous attachment', err);
@@ -651,7 +646,11 @@ const FqaNotes = (props: IFqaNotes) => {
 				};
 				const result = await updateNote(noteIdToUpdate, updatePayload);
 				if (result && result.success !== false) {
-					await mainAppContext?.createActivityLog?.(`${cid} of ${businessId} updated note ${noteIdToUpdate} successfully.`);
+					try {
+						await createActivityLogRef.current?.(`${cid || userName} of ${businessId} updated note ${noteIdToUpdate} successfully.`);
+					} catch (logErr) {
+						console.error('FqaNotes: createActivityLog failed', logErr);
+					}
 				} else {
 					console.error('FqaNotes: updateNote failed', result?.error);
 				}
@@ -700,12 +699,17 @@ const FqaNotes = (props: IFqaNotes) => {
 		if (businessId && createNote) {
 			const result = await createNote(notePayload as unknown as Record<string, unknown>);
 			if (result && result.success !== false) {
-				await mainAppContext?.createActivityLog?.(`${cid} of ${businessId} created note ${noteid} successfully.`);
+				const createdId = result.id || noteid;
+				try {
+					await createActivityLogRef.current?.(`${cid || userName} of ${businessId} created note ${createdId} successfully.`);
+				} catch (logErr) {
+					console.error('FqaNotes: createActivityLog failed', logErr);
+				}
 			} else {
 				console.error('FqaNotes: createNote failed', result?.error);
 			}
 		}
-	}, [editingItem, resetEditor, updateNote, businessId, cid, sessionContext.SessionList, authSession, props.selectedNode, createNote, uploadRemoteFile, mainAppContext]);
+	}, [editingItem, resetEditor, updateNote, businessId, cid, sessionContext.SessionList, authSession, props.selectedNode, createNote, uploadRemoteFile, bucketName, baseFolder, getStoragePath, deleteFiles, statusBarContext, mainAppContext]);
 
 	// Search filter
 	const searchValueChange = (value: string): void => {
@@ -758,7 +762,7 @@ const FqaNotes = (props: IFqaNotes) => {
 				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
 					try {
 						statusBarContext?.setLoadingLabel?.('Deleting file...');
-						const storagePath = buildStoragePathForTickets(rawFileName);
+						const storagePath = getStoragePath(rawFileName);
 						await deleteFiles([storagePath]);
 					} catch (storageErr) {
 						console.warn('FqaNotes: Cloud storage file deletion failed or file already removed', storageErr);
@@ -770,7 +774,11 @@ const FqaNotes = (props: IFqaNotes) => {
 					statusBarContext?.setLoadingLabel?.('Deleting note...');
 					const result = await deleteNote(noteid);
 					if (result && result.success !== false) {
-						await mainAppContext?.createActivityLog?.(`${cid} of ${businessId} deleted note ${noteid} successfully.`);
+						try {
+							await createActivityLogRef.current?.(`${cid} of ${businessId} deleted note ${noteid} successfully.`);
+						} catch (logErr) {
+							console.error('FqaNotes: createActivityLog failed', logErr);
+						}
 					} else {
 						console.error('FqaNotes: deleteNote failed', result?.error);
 					}

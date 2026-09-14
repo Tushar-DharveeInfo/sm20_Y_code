@@ -157,6 +157,8 @@ interface IUserAuthSession {
     phoneNumber: string | null;
     authType: string;
     tenantNickname: string | null;
+    bucketName: string;
+    baseFolder: string;
     bid?: string,
     cid?: string,
 }

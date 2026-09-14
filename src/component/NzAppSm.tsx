@@ -151,7 +151,10 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
         const isMountedRef = { current: true };
 
         const initializeData = async () => {
-
+            if (!mainAppContext.deploymentVars.length) {
+                reportFatalError("Deployment variables are not loaded.");
+                return;
+            }
             if (!isMountedRef.current) return;
 
             let featureRecords: IFeatureItem[] = [];
@@ -183,14 +186,14 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
             mainAppContext.setFeatureRecords(featureRecords);
             mainAppContext.setAllFeatureRecords(featureRecords);
 
-
+            let bid = user.email?.split('@')[1]?.trim().toLowerCase().split('.')[0] ?? "";
+            let cid = user.email ?? user.id;
             const bidCid = {
-                bid: "bid_109",
-                cid: "cid_bid_109_1"
+                bid: "bid_108",
+                cid: "cid_bid_108_1"
             };
-            const bid = bidCid?.bid;
-            const cid = bidCid?.cid;
-
+            bid = bidCid?.bid;
+            cid = bidCid?.cid;
             const authSession: IUserAuthSession = {
                 id: user.id,
                 username: user.username,
@@ -199,6 +202,8 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
                 phoneNumber: user.phoneNumber ?? null,
                 authType: String(user.authType ?? ""),
                 tenantNickname: user.tenantNickname ?? null,
+                bucketName: mainAppContext.deploymentVars[0]?.BUCKET_NAME ?? mainAppContext.deploymentVars[0]?.FIREBASE_BUCKET ?? 'n20-bucket-01',
+                baseFolder: mainAppContext.deploymentVars[0]?.BASE_FOLDER ?? 'sm',
                 bid,
                 cid,
             };
@@ -238,7 +243,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
         return () => {
             isMountedRef.current = false;
         };
-    }, [isDeploymentVarsLoaded]);
+    }, [isDeploymentVarsLoaded, mainAppContext.deploymentVars]);
 
     const handleThemeChange = useCallback((theme: unknown) => {
         if (typeof theme !== 'object' || theme === null || !('name' in theme)) {
