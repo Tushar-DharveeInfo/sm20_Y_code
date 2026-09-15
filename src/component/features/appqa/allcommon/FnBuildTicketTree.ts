@@ -53,17 +53,27 @@ function createBaseNode(params: {
     ticket?: ITicketDoc
     description?: string
 }): ITreeNode {
+    let resolvedName = (params.name ?? '').trim()
+    if (!resolvedName) {
+        if (params.nodeType === 'Mfg') {
+            resolvedName = 'Support Ticket'
+        } else if (params.ticket) {
+            resolvedName = params.ticket.prodno?.trim() || params.ticket.ticketid?.trim() || params.ticket.tickettype?.trim() || 'Support Ticket'
+        }
+    }
+    const resolvedDesc = (params.description ?? '').trim() || resolvedName
+
     const node: ITreeNode = {
         key: params.key,
         NodeEntID: params.key,
         EntID: params.key,
-        NodeEntityname: params.nodeType === 'Mfg' ? params.name : params.nodeType,
+        NodeEntityname: params.nodeType === 'Mfg' ? resolvedName : params.nodeType,
         NodeType: params.nodeType,
-        Name: params.name,
-        Description: params.description ?? params.name,
+        Name: resolvedName,
+        Description: resolvedDesc,
         NodeState: params.ticket ? toLeafNodeStatus(ticketStatus(params.ticket)) : null,
         IsAuthorized: false,
-        title: params.name,
+        title: resolvedName,
         icon: null,
         children: [],
         treetype: params.nodeType,
@@ -210,7 +220,8 @@ function buildByMfgTree(
 ): ITreeNode[] {
     const byMfg = new Map<string, ITicketDoc[]>()
     tickets.forEach((ticket) => {
-        const mfg = ticket.mfg ?? ""
+        const rawMfg = (ticket.mfg ?? '').trim()
+        const mfg = rawMfg || 'Support Ticket'
         const list = byMfg.get(mfg) ?? []
         list.push(ticket)
         byMfg.set(mfg, list)
@@ -220,7 +231,11 @@ function buildByMfgTree(
 
     return mfgNames.map((mfg) => {
         const mfgTickets = byMfg.get(mfg) ?? []
-        mfgTickets.sort((a, b) => (a.prodno ?? "").localeCompare(b.prodno ?? ""))
+        mfgTickets.sort((a, b) => {
+            const aName = a.prodno?.trim() || a.ticketid?.trim() || ''
+            const bName = b.prodno?.trim() || b.ticketid?.trim() || ''
+            return aName.localeCompare(bName)
+        })
 
         const mfgNode = createBaseNode({
             key: `mfg##${mfg}`,
@@ -231,21 +246,22 @@ function buildByMfgTree(
             description: mfg,
         })
 
-        mfgNode.children = mfgTickets.map((ticket) =>
-            finalizeNode(
+        mfgNode.children = mfgTickets.map((ticket) => {
+            const prodName = ticket.prodno?.trim() || ticket.ticketid?.trim() || ticket.tickettype?.trim() || 'Support Ticket'
+            return finalizeNode(
                 createBaseNode({
-                    key: `prod##${mfg}##${ticket.prodno}##${ticket.ticketid}`,
-                    name: ticket.prodno,
+                    key: `prod##${mfg}##${prodName}##${ticket.ticketid}`,
+                    name: prodName,
                     nodeType: 'ProdNo',
                     parentEntID: mfgNode.key,
                     isLeaf: true,
                     ticket,
-                    description: `${ticket.ticketid} · ${ticketStatus(ticket)}`,
+                    description: `${ticket.ticketid || prodName} · ${ticketStatus(ticket)}`,
                 }),
                 featureTreeProps,
                 featureId
             )
-        )
+        })
 
         return finalizeNode(mfgNode, featureTreeProps, featureId)
     })
@@ -284,7 +300,8 @@ function buildByDateTree(
         const dateLabel = group.label
         const byMfg = new Map<string, ITicketDoc[]>()
         group.tickets.forEach((ticket) => {
-            const mfg = ticket.mfg ?? ""
+            const rawMfg = (ticket.mfg ?? '').trim()
+            const mfg = rawMfg || 'Support Ticket'
             const list = byMfg.get(mfg) ?? []
             list.push(ticket)
             byMfg.set(mfg, list)
@@ -301,9 +318,11 @@ function buildByDateTree(
 
         const mfgNames = [...byMfg.keys()].sort((a, b) => a.localeCompare(b))
         dateNode.children = mfgNames.map((mfg) => {
-            const mfgTickets = (byMfg.get(mfg) ?? []).sort((a, b) =>
-                (a.prodno ?? "").localeCompare(b.prodno ?? "")
-            )
+            const mfgTickets = (byMfg.get(mfg) ?? []).sort((a, b) => {
+                const aName = a.prodno?.trim() || a.ticketid?.trim() || ''
+                const bName = b.prodno?.trim() || b.ticketid?.trim() || ''
+                return aName.localeCompare(bName)
+            })
             const mfgNode = createBaseNode({
                 key: `date##${sortKey}##mfg##${mfg}`,
                 name: mfg,
@@ -312,21 +331,22 @@ function buildByDateTree(
                 isLeaf: false,
                 description: mfg,
             })
-            mfgNode.children = mfgTickets.map((ticket) =>
-                finalizeNode(
+            mfgNode.children = mfgTickets.map((ticket) => {
+                const prodName = ticket.prodno?.trim() || ticket.ticketid?.trim() || ticket.tickettype?.trim() || 'Support Ticket'
+                return finalizeNode(
                     createBaseNode({
-                        key: `prod##${sortKey}##${mfg}##${ticket.prodno}##${ticket.ticketid}`,
-                        name: ticket.prodno,
+                        key: `prod##${sortKey}##${mfg}##${prodName}##${ticket.ticketid}`,
+                        name: prodName,
                         nodeType: 'ProdNo',
                         parentEntID: mfgNode.key,
                         isLeaf: true,
                         ticket,
-                        description: `${ticket.ticketid} · ${ticketStatus(ticket)}`,
+                        description: `${ticket.ticketid || prodName} · ${ticketStatus(ticket)}`,
                     }),
                     featureTreeProps,
                     featureId
                 )
-            )
+            })
             return finalizeNode(mfgNode, featureTreeProps, featureId)
         })
 

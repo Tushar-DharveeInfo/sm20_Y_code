@@ -81,6 +81,7 @@ interface ITreeExplorerContainer {
     allowDelete?: boolean; // Enables the ability to delete items (optional)
     treeDataFor?: string;// used to handle conditions for drag and drop event
     selectedNodeExplorer?: ISelectedNodeInfo;// selected node of main explorer tree
+    allowCheckbox?: boolean; // Enables checkboxes on checkable nodes (e.g. contacts)
     defaultCheckedKeys?: Key[];//default checked node
     defaultSelectedKeys?: Key[];//default checked node
     /*When set, wraps business nodes under a single root (e.g. "Businesses"). */

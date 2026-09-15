@@ -217,14 +217,14 @@ const DeviceModel = (props: IDeviceModel) => {
 		allowInternalDrag: isLocalLibRadio(selectedRadio) ? allowDrag : true,
 		openAllNodes: false,
 		allowCheckStrictly: false,
-		onAddToDownloadCart: (node: ITreeNode) => {
-			const { mfg, prodno, EQID } = getProductDownloadCartPayload(node)
-			if (props.addToDownloadCart) {
-				props.addToDownloadCart(mfg, prodno, EQID)
-			} else {
-				alert(`mfg: ${mfg}\nprodno: ${prodno}\nEQID: ${EQID}`)
-			}
-		},
+		// onAddToDownloadCart: (node: ITreeNode) => {
+		// 	const { mfg, prodno, EQID } = getProductDownloadCartPayload(node)
+		// 	if (props.addToDownloadCart) {
+		// 		props.addToDownloadCart(mfg, prodno, EQID)
+		// 	} else {
+		// 		alert(`mfg: ${mfg}\nprodno: ${prodno}\nEQID: ${EQID}`)
+		// 	}
+		// },
 	};
 
 	// useEffect(() => {

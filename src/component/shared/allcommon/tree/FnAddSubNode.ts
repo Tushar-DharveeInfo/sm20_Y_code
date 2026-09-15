@@ -28,7 +28,7 @@ const FnAddSubNode = async (
                 if (treeDataPorps && featureId) {
 
                     node.title = TreeNodeTitle(node, treeDataPorps);
-                    node.checkable = FnCheckAllowCheckbox(node, featureId);
+                    node.checkable = treeDataPorps.allowCheckbox ? FnCheckAllowCheckbox(node, featureId) : false;
 
                     if (treeDataPorps.allowIcon) {
                         node.icon = TreeNodeIcon(node, treeDataPorps.instanceName ?? "");

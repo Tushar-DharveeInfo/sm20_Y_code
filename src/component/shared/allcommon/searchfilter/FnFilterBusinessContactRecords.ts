@@ -248,6 +248,12 @@ function matchesBusinessFilters(
             if (normalizeStateKey(recordVal) !== normalizeStateKey(filterVal)) return false;
             continue;
         }
+        if (key === "btype") {
+            if (String(recordVal ?? "").trim().toLowerCase() !== String(filterVal).trim().toLowerCase()) {
+                return false;
+            }
+            continue;
+        }
         if (key === "tag") {
             const tags = String(recordVal ?? "")
                 .split(",")

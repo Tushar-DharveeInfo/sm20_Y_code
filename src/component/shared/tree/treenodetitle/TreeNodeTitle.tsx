@@ -10,7 +10,15 @@ import { Image } from '../../basic/image/Image';
 const TreeNodeTitle = (treeNode: ITreeNode, treeDataProps: IFeatureTree) => {
     const clonedNode = { ...treeNode, title: "", icon: null, children: [] };
     const nodeTooltip = `${treeNode.Description ?? ""}${treeNode.WOID ? ` (${treeNode.WOID})` : ""}`
-    const titleContent = `${treeNode.Name}` || "";
+    let titleContent = `${treeNode.Name ?? ""}`.trim();
+    if (!titleContent) {
+        if (treeNode.NodeType === 'Mfg' || treeNode.treetype === 'Mfg') {
+            titleContent = 'Support Ticket';
+        } else if (treeNode.ticketRecord) {
+            const ticket = treeNode.ticketRecord as Record<string, unknown>;
+            titleContent = String(ticket.prodno || ticket.ticketid || ticket.tickettype || 'Support Ticket').trim();
+        }
+    }
 
     const renderNodeName = () => {
         return (

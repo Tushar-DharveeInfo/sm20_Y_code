@@ -42,7 +42,7 @@ const FnMapContactsToTreeNodes = (
             stepNo: 1,
             HasChildren: 0,
             isLeaf: true,
-            checkable: false,
+            checkable: true,
             bid: contact.bid,
             cid: contact.cid,
             contacttype: contact.contacttype,

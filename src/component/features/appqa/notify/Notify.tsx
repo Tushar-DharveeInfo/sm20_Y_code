@@ -1,234 +1,77 @@
 import { useEffect, useState } from "react";
+import type { Key } from "rc-tree/lib/interface";
+import type { CheckInfo } from "rc-tree/lib/Tree";
 import { handleContainerKeyDown } from "../../../shared/allcommon/basic/FnHandleContainerKeyDown";
 import { Splitter, SplitterPanel } from "primereact/splitter";
 import { INote, Notes } from "@n20a/libavnotes";
 import "@n20a/libavnotes/style.css";
-import { Check, User24x24 } from "@n20a/libicon";
 import "./Notify.css";
-import { IListItem } from "../../../shared/allinterface/basic/ICheckedListPanel";
 import { YesNoFormContainer } from "../../../shared/basic/yesnoformcontainer/YesNoFormContainer";
 import { Label } from "../../../shared/basic/label/Label";
 import { FnConvertBase64Blob } from "../../../shared/allcommon/sidebar/FnConvertBase64Blob";
 import { FnGenerateUID } from "../../../shared/allcommon/settingsform/FnGenerateUID";
 import { ComboBoxControl, IOptionItem } from "@n20a/libform";
-import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
-import { CardLayout } from "../../../shared/cardlayout/CardLayout";
-import { ICardLayoutField } from "../../../shared/cardlayout/CardLayout";
-import { Image } from "../../../shared/basic/image/Image";
-import { FnIsTruthyFlag } from "../../../shared/allcommon/FnIsTruthyFlag";
-import { FnGetAddressDisplay, FnGetDisplayValue } from "../allcommon/FnGetAddressDisplay";
+import { TreeExplorerContainer } from "../../../shared/treeexplorercontainer/TreeExplorerContainer";
+import type { TNodeCheckState } from "../../../shared/treeexplorercontainer/ITreeExplorerContainer";
+import type { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
 import notifySampleData from "../../../../smsampledata/appqa/NotifySampleData.json";
 
 const {
     sampleNotifyAlertProfiles,
     sampleNotifyRecordingLimits,
     sampleNotifySeverityOptions,
-    sampleNotifyUsersRaw,
 } = notifySampleData as {
     sampleNotifyAlertProfiles: any[];
     sampleNotifyRecordingLimits: { maxAudioRecordingTimeSec: number; maxVideoRecordingTimeSec: number };
     sampleNotifySeverityOptions: IOptionItem[];
-    sampleNotifyUsersRaw: IListItem[];
 };
 interface IAppqaNotify {
     uniqueName: string;
     headerText: string;
     handleShowUserMessage?: (messageText: string) => void;
 }
-const parseJsonValue = (value: unknown): unknown => {
-    if (typeof value !== "string") {
-        return value;
-    }
-    try {
-        return JSON.parse(value);
-    } catch {
-        return value;
-    }
-};
-
-const isUserListRecord = (value: unknown): value is IListItem => {
-    if (!value || typeof value !== "object") {
-        return false;
-    }
-    const record = value as Record<string, unknown>;
-    return Boolean(
-        record.EntID
-        || record._User
-        || record.LoginUser
-        || record.ContactName
-        || record.Email
-    );
-};
-
-const findUsersArray = (value: unknown): IListItem[] => {
-    try {
-        const parsedValue = parseJsonValue(value);
-
-        if (Array.isArray(parsedValue)) {
-            if (parsedValue.some((item) => item && typeof item === "object" && "UserName" in item)) {
-                return (parsedValue as IListItem[])
-                    .filter((user) => user.Enabled === true)
-                    .sort((a, b) =>
-                        (String(a.UserName ?? "").trim()).localeCompare(
-                            String(b.UserName ?? "").trim(),
-                            undefined,
-                            { sensitivity: "base" }
-                        )
-                    );
-            }
-
-            for (const item of parsedValue) {
-                const childArray = findUsersArray(item);
-                if (childArray.length) {
-                    return childArray;
-                }
-            }
-        }
-
-        if (parsedValue && typeof parsedValue === "object") {
-            const objectValue = parsedValue as Record<string, unknown>;
-
-            for (const key of Object.keys(objectValue)) {
-                const childArray = findUsersArray(objectValue[key]);
-                if (childArray.length) {
-                    return childArray;
-                }
-            }
-        }
-    } catch (error) {
-        console.error("Error while finding users array:", error);
-    }
-
-    return [];
-};
-
-const makeUserName = (userName: string, role?: string) => {
-    if (role?.length) {
-        return `${userName} (${role})`;
-    }
-    return userName;
-};
-
-/*Builds CardLayout name/value rows from a user list item. */
-const buildUserCardFields = (
-    item: IListItem,
-    userName: string,
-    basicRole: string,
-    description: string,
-    contactName: string,
-    email: string,
-    emailOptin: string,
-    phone: string,
-    address: string,
-    _IsAuthorized: string,
-    phoneType: string
-): ICardLayoutField[] => {
-    const fields: ICardLayoutField[] = [
-        {
-            Name: "Username",
-            Value: makeUserName(userName, basicRole) || "—",
-            Header: 1,
-        },
-    ];
-    if (item.Enabled) {
-        fields.push({
-            Name: "",
-            Value: "",
-            Header: 2,
-            ValueContent: (
-                <Image
-                    uniqueName={"Enabled"}
-                    source={<Check />}
-                    tooltip="Enabled"
-                    w={"var(--image-size-1)"}
-                />
-            ),
-        });
-    }
-    if (description) {
-        fields.push({ Name: "Description", Value: description });
-    }
-    if (email) {
-        fields.push({
-            Name: "Email",
-            Value: email,
-            Group: "email-row",
-            Row: "inline",
-        });
-        fields.push({
-            Name: "OptIn",
-            Value: FnIsTruthyFlag(emailOptin) ? "✓" : "X",
-            Group: "email-row",
-            Row: "inline",
-        });
-    }
-    if (contactName || phone) {
-        if (contactName) {
-            fields.push({
-                Name: "Contact",
-                Value: contactName,
-                Group: "contact-row",
-                Row: "inline",
-            });
-        }
-        if (phone) {
-            fields.push({
-                Name: "Phone",
-                Value: `${phone} (${phoneType})`,
-                Group: "contact-row",
-                Row: "inline",
-            });
-        }
-    }
-    if (address) {
-        fields.push({ Name: "Address", Value: address, Row: "inline" });
-    }
-
-    return fields;
-};
-
-const mapUsersFromSample = (userData: IListItem[]): IListItem[] =>
-    userData.map((element) => ({
-        ...element,
-        label: String(
-            element.Shortname
-            ?? element.LoginUser
-            ?? element.label
-            ?? ""
-        ),
-        id: String(element.EntID ?? element.id ?? ""),
-        checked: false,
-        selected: false,
-    }));
 
 const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
-    const [userList, setUserList] = useState<IListItem[]>([]);
-    const [checkedUserList, setCheckedUserList] = useState<IListItem[]>();
+    const [checkedContactKeys, setCheckedContactKeys] = useState<Key[]>([]);
+    const [checkedContacts, setCheckedContacts] = useState<ITreeNode[]>([]);
     const [severity, setSeverity] = useState<string>("Critical");
     const [alertProfiles, setAlertProfiles] = useState<any[]>();
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
     const [confirmMessage, setConfirmMessage] = useState<string>();
     const [noteDetails, setNoteDetails] = useState<INote>();
     const [optionData, setOptionData] = useState<IOptionItem[]>();
-    const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(true);
     const [refreshToken, setRefreshToken] = useState(0);
     const [maxRecordingTime, setMaxRecordingTime] = useState<{
         maxAudioRecordingTime: number;
         maxVideoRecordingTime: number;
     }>();
 
-    const syncCheckedUsers = (users: IListItem[]) => {
-        setCheckedUserList(users.filter((item) => item.checked));
-    };
+    const handleContactNodeCheck = (
+        checked: TNodeCheckState,
+        info: CheckInfo<ITreeNode>
+    ) => {
+        const keys = Array.isArray(checked) ? checked : (checked?.checked ?? []);
+        setCheckedContactKeys(keys);
 
-    const handleUserCheckedChange = (checked: boolean, userId: string) => {
-        setUserList((current) => {
-            const updated = current.map((user) =>
-                user.id === userId ? { ...user, checked } : user
+        if (info?.checkedNodes) {
+            const contacts = info.checkedNodes.filter(
+                (n) => String(n.NodeType ?? '').toLowerCase() === 'contact'
             );
-            syncCheckedUsers(updated);
-            return updated;
-        });
+            setCheckedContacts(contacts);
+        } else if (info?.node) {
+            setCheckedContacts((prev) => {
+                const isChecked = info.checked;
+                const nodeKey = String(info.node.key);
+                if (isChecked) {
+                    if (!prev.some((n) => String(n.key) === nodeKey)) {
+                        return [...prev, info.node];
+                    }
+                    return prev;
+                } else {
+                    return prev.filter((n) => String(n.key) !== nodeKey);
+                }
+            });
+        }
     };
 
     useEffect(() => {
@@ -265,31 +108,6 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
         setOptionData(sampleNotifySeverityOptions);
     }, []);
 
-    useEffect(() => {
-        // SAMPLE DATA: AUTH.GetUsers API commented out.
-        // axiosInterceptor({ url: AUTH.GetUsers, ... }, statusBarContext);
-        setIsLoadingUsers(true);
-        try {
-            const userData = findUsersArray(sampleNotifyUsersRaw);
-            if (userData.length > 0) {
-                const users = mapUsersFromSample(userData);
-                setUserList(users);
-                setCheckedUserList([]);
-            } else {
-                setUserList([]);
-                setCheckedUserList([]);
-                appqaMessageProps.handleShowUserMessage?.("User list not found.");
-            }
-        } catch {
-            setUserList([]);
-            setCheckedUserList([]);
-            appqaMessageProps.handleShowUserMessage?.("Failed to load users.");
-        } finally {
-            setIsLoadingUsers(false);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only static load
-    }, []);
-
     const handleValueChange = (newValue: string, _name: string) => {
         setSeverity(newValue);
     };
@@ -307,7 +125,7 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
         void fileUID;
         void fileType;
 
-        if (!checkedUserList?.length) {
+        if (!checkedContactKeys?.length && !checkedContacts?.length) {
             appqaMessageProps.handleShowUserMessage?.(
                 "Something went wrong in create message from template."
             );
@@ -328,8 +146,9 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                 form.id = "userList";
                 doc.body.appendChild(form);
             }
-            checkedUserList.forEach((user, index) => {
-                const extraHTML = `<input type="hidden" name="user${index + 1}" value="${user.label}" />`;
+            checkedContacts.forEach((contact, index) => {
+                const contactName = String(contact.cname ?? contact.Name ?? `Contact ${index + 1}`);
+                const extraHTML = `<input type="hidden" name="user${index + 1}" value="${contactName}" />`;
                 form!.insertAdjacentHTML("beforeend", extraHTML);
             });
 
@@ -355,10 +174,10 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
     };
 
     const handleSendMessage = async (message: INote) => {
-        if (!checkedUserList?.length) {
+        if (!checkedContactKeys?.length && !checkedContacts?.length) {
             setNoteDetails(message);
             appqaMessageProps.handleShowUserMessage?.(
-                "Please! Select users to send message"
+                "Please! Select contacts to send message"
             );
             setRefreshToken((prev) => prev + 1);
             return;
@@ -485,15 +304,8 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
 
     const handleOkButtonClick = () => {
         setIsConfirmOpen(false);
-        const users = userList.map((element) => ({
-            ...element,
-            label: String(element._User ?? element.label ?? ""),
-            id: String(element.EntID ?? element.id ?? ""),
-            checked: false,
-            selected: false,
-        }));
-        setUserList(users);
-        setCheckedUserList([]);
+        setCheckedContactKeys([]);
+        setCheckedContacts([]);
         setNoteDetails({
             maxAudioRecordingTime:
                 maxRecordingTime?.maxAudioRecordingTime ?? 1000,
@@ -533,7 +345,7 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             <Splitter tabIndex={-1} className="nz-w-100 nz-h-100">
                 <SplitterPanel
                     tabIndex={-1}
-                    size={75}
+                    size={70}
                     minSize={10}
                     className="nz-d-flex-column nz-align-center nz-appqa-notify-left-pane nz-pane-1"
                 >
@@ -567,121 +379,18 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                 </SplitterPanel>
                 <SplitterPanel
                     tabIndex={-1}
-                    size={25}
+                    size={30}
                     minSize={20}
-                    className={`nz-d-flex-column nz-justify-center nz-appqa-notify-right-pane nz-pane-2`}
+                    className="nz-d-flex-column nz-appqa-notify-right-pane nz-pane-2"
                 >
-                    <div className="nz-message-user-card-list">
-                        <div className="nz-sub-header">
-                            <Label
-                                uniqueName={`${appqaMessageProps.uniqueName}-user-header`}
-                                label="Select users to receive message"
-                                fontWeight="bold"
-                            />
-                        </div>
-                        <div className="nz-message-user-card-scroll">
-                            {isLoadingUsers ? (
-                                <div className="nz-message-user-card-status">
-                                    Loading…
-                                </div>
-                            ) : userList.length ? (
-                                userList.map((item, index) => {
-                                    const userRecord = item as Record<
-                                        string,
-                                        unknown
-                                    >;
-                                    const userName = FnGetDisplayValue(
-                                        userRecord,
-                                        ["UserName", "label"]
-                                    );
-                                    const IsAuthorized = item?.IsAuthorized
-                                        ? "true"
-                                        : "false";
-                                    const basicRole = FnGetDisplayValue(
-                                        userRecord,
-                                        ["Role", "RoleName"]
-                                    );
-                                    const description = FnGetDisplayValue(
-                                        userRecord,
-                                        ["Desc250", "Description"]
-                                    );
-                                    const contactName = FnGetDisplayValue(
-                                        userRecord,
-                                        ["FullName", "ContactName"]
-                                    );
-                                    const email = FnGetDisplayValue(
-                                        userRecord,
-                                        ["Email"]
-                                    );
-                                    const emailOptin = FnGetDisplayValue(
-                                        userRecord,
-                                        ["EmailOptin"]
-                                    );
-                                    const phone = FnGetDisplayValue(
-                                        userRecord,
-                                        ["Phone", "Mobile"]
-                                    );
-                                    const address =
-                                        FnGetAddressDisplay(userRecord);
-                                    const phonetype = FnGetDisplayValue(
-                                        userRecord,
-                                        ["PhoneType"]
-                                    );
-                                    const cardFields = buildUserCardFields(
-                                        item,
-                                        userName,
-                                        basicRole,
-                                        description,
-                                        contactName,
-                                        email,
-                                        emailOptin,
-                                        phone,
-                                        address,
-                                        IsAuthorized,
-                                        phonetype
-                                    );
-                                    return (
-                                        <CardLayout
-                                            key={`${appqaMessageProps.uniqueName}-user-${item.id}`}
-                                            uniqueName={`${appqaMessageProps.uniqueName}-user-card-${index}`}
-                                            className="nz-message-user-card-main"
-                                            data={item}
-                                            fields={cardFields}
-                                            showCheckboxInHeader
-                                            checkboxName={`${appqaMessageProps.uniqueName}-user-check-${item.id}`}
-                                            checkboxValue={!!item.checked}
-                                            onCheckboxChange={(checked) =>
-                                                handleUserCheckedChange(
-                                                    checked,
-                                                    item.id
-                                                )
-                                            }
-                                            hideRightMouseMenu
-                                            ContentImage={{
-                                                uniqueName: `${appqaMessageProps.uniqueName}-user-image-${index}`,
-                                                source: (
-                                                    <User24x24
-                                                        size={FnGetCssVariable(
-                                                            "--image-size-2"
-                                                        )}
-                                                        fill="none"
-                                                        strokeWidth={1}
-                                                    />
-                                                ),
-                                                w: "var(--image-size-2)",
-                                                tooltip: "User",
-                                                type: "svg",
-                                            }}
-                                        />
-                                    );
-                                })
-                            ) : (
-                                <div className="nz-message-user-card-status">
-                                    No Data Found
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    <TreeExplorerContainer
+                        uniqueName={`${appqaMessageProps.uniqueName}-bs-tree`}
+                        featureId={appqaMessageProps.uniqueName || "notify"}
+                        wrapWithRootLabel="Businesses"
+                        allowCheckbox={true}
+                        defaultCheckedKeys={checkedContactKeys}
+                        handleNodeCheck={handleContactNodeCheck}
+                    />
                 </SplitterPanel>
             </Splitter>
             <YesNoFormContainer

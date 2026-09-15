@@ -27,10 +27,10 @@ import { SearchControl } from '../searchfilter/searchcontrol/SearchControl.tsx'
 import { TreeControl } from '../tree/treecontrol/TreeControl.tsx'
 import { useContacts } from '@n20a/libfsdb'
 
-function buildFeatureTreeProps(): IFeatureTree {
+function buildFeatureTreeProps(allowCheckbox = false): IFeatureTree {
   return {
     hideKebabMenu: true,
-    allowCheckbox: false,
+    allowCheckbox,
     allowIcon: false,
     hideCopyIcon: true,
     reuseFromCache: false,
@@ -190,10 +190,11 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   useEffect(() => {
     if (!treeExplorerContainerProps.featureId) return
     if (!smDataContext.isBusinessesLoaded) return
-    if (prevFeatureIdRef.current === treeExplorerContainerProps.featureId) return
-    prevFeatureIdRef.current = treeExplorerContainerProps.featureId
+    const configKey = `${treeExplorerContainerProps.featureId}-${!!treeExplorerContainerProps.allowCheckbox}`
+    if (prevFeatureIdRef.current === configKey) return
+    prevFeatureIdRef.current = configKey
 
-    const featureProps = buildFeatureTreeProps()
+    const featureProps = buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox)
     const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId)
     setFeatureTreeProps(featureProps)
     setIsShowFilterForm(false)
@@ -209,7 +210,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
     // TODO: replace sampleBusinesses with API response when available
     applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
-  }, [treeExplorerContainerProps.featureId, treeExplorerContainerProps.uniqueName, smDataContext.isBusinessesLoaded])
+  }, [treeExplorerContainerProps.featureId, treeExplorerContainerProps.uniqueName, treeExplorerContainerProps.allowCheckbox, smDataContext.isBusinessesLoaded])
 
   const applyContactsToBusiness = async (
     businessId: string,
@@ -417,9 +418,10 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
                 autoFocus={!treeExplorerContainerProps.subTreeFeatureId}
                 defaultExpandedKeys={defaultExpandedKeys}
                 defaultSelectedKeys={defaultSelectedKeys}
-                defaultCheckedKeys={[]}
+                defaultCheckedKeys={treeExplorerContainerProps.defaultCheckedKeys ?? []}
                 defaultSelectedNodeInfo={defaultSelectedNodeInfo || undefined}
-                allowCheckbox={false}
+                allowCheckbox={treeExplorerContainerProps.allowCheckbox ?? false}
+                allowCheckStrictly={false}
                 allowIcon={false}
                 allowInternalDrag={false}
                 allowMultiple={false}
@@ -427,6 +429,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
                 allowAPICallOnExpand={true}
                 handleNodeExpand={handleNodeExpand}
                 handleNodeSelect={handleNodeSelect}
+                handleNodeCheck={treeExplorerContainerProps.handleNodeCheck}
               />
             ) : null}
           </div>
