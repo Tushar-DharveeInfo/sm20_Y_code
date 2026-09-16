@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Label } from '../../../shared/basic/label/Label';
 import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
-import { sampleBusinesses } from '../../../shared/allcommon/FnBusinessesSampleData';
 import '../../../shared/settingsform/settingslibform/SettingsLibForm.css';
 import { SettingsEnums } from '../../../constants/Feature';
 import { ConfirmSaasInstance } from './ConfirmSaasInstance';
@@ -24,8 +23,9 @@ const SaasInstance: React.FC<ISaasInstance> = (props) => {
         if (!tenantshortname) {
             return undefined;
         }
-        return sampleBusinesses.find((business) => business.bid === tenantshortname)?.bname ?? tenantshortname;
-    }, [tenantshortname]);
+        const businesses = smDataContext.datasets?.businesses ?? [];
+        return businesses.find((business) => business.bid === tenantshortname)?.bname ?? tenantshortname;
+    }, [tenantshortname, smDataContext.datasets?.businesses]);
 
     return (
         <div key={`${uniqueName}-${featureId}`} className="nz-form-controls-container nz-d-flex-column nz-wh-100">

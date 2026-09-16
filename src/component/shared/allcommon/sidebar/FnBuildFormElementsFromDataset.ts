@@ -1,10 +1,20 @@
 import { IElementProfile, IFormElements, ControlType, IOptionItem, IDisplayControlValuesResult, ChangedValueMap } from "@n20a/libform";
-import { DisplayControlEnums, Measurement } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
+import { DisplayControlEnums } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
 import { IDataset, ITableFormMeta } from "../../allinterface/sidebar/IPropertyFormContainer";
 import { IRefData } from "../../allinterface/basic/IRefData";
 import { FnGetRefList } from "../basic/FnGetRefList";
 import { IStatusBar } from "../../context/allinterface/IStatusBar";
-import { IRefItem } from "../../context/allinterface/IMainApp";
+interface IRefItem {
+    GroupName: string;
+    SubGroupName: string;
+    Name: string;
+    RefValue: string;
+    SortOrder: number;
+    IsNZ: boolean;
+    EntID: string;
+    RecID: string;
+    LastUpdated: string;
+}
 import { DELIMITER } from "../../alldefaultprops/basic/DefaultPropsChekedListBoxControl";
 import { FnConvertDateToUtcOrUtcToDate } from "../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate";
 import { hideGridData } from "../../alldefaultprops/tablegrid/DefaultPropsBasicGrid";
@@ -41,7 +51,7 @@ const FnGetDisplayControlForForm = (controlName: string): ControlType => {
 const handleInputMask = async (
     inputMask: string,
     controlName: string,
-    statusBarContext: IStatusBar,
+    _statusBarContext: IStatusBar,
     controlProps?: IControlProperties,
     refTableRecords?: IRefItem[]
 ): Promise<string[] | Record<string, any>[] | null> => {
@@ -186,7 +196,7 @@ const FnBuildFormElementsFromDataset = (
     statusBarContext: IStatusBar,
 
     refTableRecords?: IRefItem[],
-    measurementUnit?: string,
+    _measurementUnit?: string,
     diagnosticLevel?: string,
     isDisabled?: boolean,
     pgTableName?: string, //if passed pg table will show first
@@ -251,7 +261,12 @@ const FnBuildFormElementsFromDataset = (
                         }
                     }
 
-                    let isReadOnlyControl = col.DisplayControl === DisplayControlEnums.TextControl || col.Disabled || col.PName.toLowerCase() === "isnz"
+                    let isReadOnlyControl =
+                        col.DisplayControl === DisplayControlEnums.TextControl ||
+                        col.Disabled ||
+                        col.disabled ||
+                        col.PName.toLowerCase() === "isnz" ||
+                        (col.disabled !== false && col.Disabled !== false && (col.PName.toLowerCase() === "bid" || col.PName.toLowerCase() === "cid"));
                     if (col.PName.toLowerCase() === "secured" && userBasicRole?.toLowerCase() !== "admin") {
                         isReadOnlyControl = true;
                     }
@@ -264,7 +279,7 @@ const FnBuildFormElementsFromDataset = (
                     if (fieldName.includes("lastupdated") && value && !isFormattedDate(value)) {
                         value = FnConvertDateToUtcOrUtcToDate(value, false, true)
                     }
-                    else if (fieldName !== "dateformat" && (fieldName.startsWith("date") || fieldName.endsWith("date")) && value) {
+                    else if (fieldName !== "dateformat" && (fieldName.startsWith("date") || fieldName.endsWith("date") || fieldName.endsWith("updated") || fieldName.includes("date")) && value) {
 
                         value = FnConvertDateToUtcOrUtcToDate(value, false, false)// getDateOnly(value)
                     }
@@ -290,7 +305,7 @@ const FnBuildFormElementsFromDataset = (
                         value = FnExtractTimeFromDateTime(value || null)
                     }
                     else if (displayControl === "date") {
-                        value = FnConvertDateToUtcOrUtcToDate(value, false, true)
+                        value = FnConvertDateToUtcOrUtcToDate(value, false, false)
                     }
 
                     else if (col?.PName?.toLowerCase() === "entityname" && !value) {

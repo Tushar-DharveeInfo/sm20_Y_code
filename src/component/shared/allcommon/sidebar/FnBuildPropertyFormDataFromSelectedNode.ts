@@ -1,5 +1,6 @@
-﻿import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
+import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { FnIsRootBusinessNode } from "../tree/FnIsRootBusinessNode";
+import { DisplayControlEnums } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
 
 type IDataset = Record<string, Record<string, unknown>[]>;
 
@@ -50,19 +51,28 @@ const buildEditTextPropertyFormFromRecord = (
     const tableLabel = options?.tableLabel || entityName;
     const keys = Object.keys(record).filter((k) => k.toLowerCase() !== "cid");
 
-    const properties = keys.map((key, index) => ({
-        TableName: tableName,
-        PName: key,
-        Description: key,
-        MaxLength: null,
-        SortOrder: index + 1,
-        RequiredToAddRecord: false,
-        RequiredToUpdateRecord: false,
-        DisplayControl: "EditTextControl",
-        InputMask: "",
-        PropertyLabel: toPropertyLabel(key),
-        NullNotAllowed: false,
-    }));
+    const properties = keys.map((key, index) => {
+        const lowerKey = key.toLowerCase();
+        const isDateField =
+            lowerKey.startsWith("date") ||
+            lowerKey.endsWith("date") ||
+            lowerKey.endsWith("updated") ||
+            lowerKey.includes("date");
+
+        return {
+            TableName: tableName,
+            PName: key,
+            Description: key,
+            MaxLength: null,
+            SortOrder: index + 1,
+            RequiredToAddRecord: false,
+            RequiredToUpdateRecord: false,
+            DisplayControl: isDateField ? DisplayControlEnums.DateControl : DisplayControlEnums.EditTextControl,
+            InputMask: "",
+            PropertyLabel: toPropertyLabel(key),
+            NullNotAllowed: false,
+        };
+    });
 
     const row: Record<string, unknown> = {
         EntID: String(record.cid ?? record.bid ?? record.EntID ?? ""),

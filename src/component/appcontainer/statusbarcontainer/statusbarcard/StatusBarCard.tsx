@@ -8,12 +8,30 @@ import { Close24x24, Copy24x24, Warning, Critical } from '@n20a/libicon';
 import './StatusBarCard.css';
 import { FnGetCssVariable } from '../../allcommon/FnGetCssVariable.ts';
 import { FnCopyToClipboard } from '../../../shared/allcommon/basic/FnCopyToClipboard.ts';
-import { IStatusBarCard } from '../../allinterface/IStatusBarContainer.ts';
 import { Label } from '../../../shared/basic/label/Label.tsx';
 import { ActionImage } from '../../../shared/basic/actionimage/ActionImage.tsx';
 import { IImage } from '../../../shared/allinterface/basic/IImage.ts';
 import { Image } from '../../../shared/basic/image/Image.tsx';
 
+interface IStatusBarCard {
+    uniqueName: string;
+    id: string;
+    cardPurpose: 'Error' | 'testapi' | 'useraction' | 'info' | 'Message' | 'Broadcast' | 'Timeout';
+    duration: number;
+    severity: "Normal" | "Warning" | "Critical";
+    titleData: string | string[];
+    contentData?: string | JSX.Element;
+    alertProfileID?: string;
+    escalationLevel?: number;
+    attemptCount?: number;
+    lastDelivered?: string;
+    lastUpdated?: string;
+    html?: string;
+    entID?: string;
+    recID?: string;
+    messageSource?: string;
+    handleCloseClick: (id: string) => void;
+}
 const StatusBarCard = (statusBarCardProps: IStatusBarCard) => {
     const [titleContent, setTitleContent] = useState<JSX.Element>();
     const [content, setContent] = useState<JSX.Element>();

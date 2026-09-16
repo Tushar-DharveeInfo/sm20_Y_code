@@ -21,8 +21,8 @@ import { FnGetCssVariable } from '../allcommon/FnGetCssVariable'
 import { TreeExplorerContainer } from '../../shared/treeexplorercontainer/TreeExplorerContainer'
 import { SettingsInstanceList } from '../../shared/settingsform/settingsinstancelist/SettingsInstanceList'
 import { IActionLabelItem } from '../../shared/allinterface/basic/IActionLabelItem'
-import { sampleBusinesses } from '../../shared/allcommon/FnBusinessesSampleData'
 import { FnMapBusinessesToTreeNodes } from '../../shared/allcommon/tree/FnMapBusinessesToTreeNodes'
+import { FnIsRootBusinessNode } from '../../shared/allcommon/tree/FnIsRootBusinessNode'
 import { useSmDataContext } from '../../shared/context/hooks/SmDataHooks'
 import { SidebarContainer } from '../sidebarcontainer/SidebarContainer'
 import { FeatureRenderContainer } from '../featurecontainer/FeatureRenderContainer'
@@ -33,6 +33,8 @@ import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks'
 interface IExplorerContainer {
     uniqueName: string;//unique identifier for the control
     featureId: string;
+    bid?: string;
+    cid?: string;
     featureData: IFeatureItem[];
     allowShowHeader: boolean;
     originalTreeData?: ITreeNode[];
@@ -64,7 +66,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     // The feature-change effect that used to pick the explorer is commented out, so the BUSINESSTREE tree is always rendered.
     const [explorerToRender, setExplorerToRender] = useState<"BUSINESSTREE" | "NONE" | "MCS" | "SAASINSTANCE" | "CLIENTIDENTITY">("BUSINESSTREE");
     const [treeData, setTreeData] = useState<ITreeNode[]>();
-    const [selectedKebabMenuExplorer] = useState<IMenuItem>();
+    const [selectedKebabMenuExplorer, setSelectedKebabMenuExplorer] = useState<IMenuItem | IFeatureItem>();
+    const [profileAddMode, setProfileAddMode] = useState<"business" | "contact" | null>(null);
 
     const [isShowSidebarIcon] = useState<boolean>(true);
 
@@ -75,7 +78,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     const smDataContext = useSmDataContext();
 
     const saasCompanyItems: IActionLabelItem[] = useMemo(() => {
-        return sampleBusinesses
+        const businesses = smDataContext.datasets?.businesses ?? [];
+        return businesses
             .map((business) => ({
                 label: business.bname,
                 actionCode: business.bid,
@@ -85,7 +89,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                 isInUse: true,
             }))
             .sort((a, b) => a.label.localeCompare(b.label));
-    }, []);
+    }, [smDataContext.datasets?.businesses]);
 
     const [selectedSaasItem, setSelectedSaasItem] = useState<IActionLabelItem | null>(null);
 
@@ -124,7 +128,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             smDataContext.setExplorerSelection(undefined, filterJson);
             return;
         }
-        const business = sampleBusinesses.find((row) => row.bid === bid);
+        const businesses = smDataContext.datasets?.businesses ?? [];
+        const business = businesses.find((row) => row.bid === bid);
         const node = business ? FnMapBusinessesToTreeNodes([business])[0] : undefined;
         smDataContext.setExplorerSelection(node, filterJson);
         if (node) {
@@ -234,14 +239,11 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             }
         }
 
-        if (!selectedKebabMenuExplorer) {
-            const node = info?.node;
-
-            if (info.selected) {
-                setTreeData(newTreeData);
-                setSelectedNodeInfo(info)
-
-            }
+        if (info.selected) {
+            setProfileAddMode(null);
+            setSelectedKebabMenuExplorer(undefined);
+            setTreeData(newTreeData);
+            setSelectedNodeInfo(info);
         }
 
         if (explorerToRender === "BUSINESSTREE") {
@@ -338,6 +340,80 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         }
     };
 
+    const activeSelectedNode = selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer ?? selectedNodeContext.selectedNode;
+    const isRootNode = !activeSelectedNode || FnIsRootBusinessNode(activeSelectedNode);
+    const isContactNode = Boolean(
+        activeSelectedNode?.NodeType?.toLowerCase() === "contact" ||
+        activeSelectedNode?.treetype?.toLowerCase() === "contact" ||
+        (activeSelectedNode?.cid && activeSelectedNode?.cid !== activeSelectedNode?.bid)
+    );
+    const isBusinessNode = !isRootNode && !isContactNode;
+
+    const hasSidebarQa = Boolean(featureQAData && featureQAData.length > 0);
+    // User logic:
+    // Root node selected -> + btn with tooltip "Add New Business"
+    // Business node selected -> + btn with tooltip "Add New Contact"
+    // Contact node selected -> hide + button
+    // Sidebar QA not found -> hide + button completely
+    const allowTreeAdd = hasSidebarQa && !isContactNode;
+    const addTooltip = isRootNode ? "Add New Business" : "Add New Contact";
+    const addActionCode = isRootNode ? "addBusiness" : "addContact";
+
+    const handleAIClick = (
+        _event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>,
+        actionCode?: string
+    ) => {
+        const mode: "business" | "contact" =
+            actionCode === "addContact" || (!isRootNode && isBusinessNode)
+                ? "contact"
+                : "business";
+
+        setProfileAddMode(mode);
+
+        const profileQa = featureQAData?.find(
+            (item) => item.Label?.toLowerCase() === "profile"
+        );
+        if (profileQa) {
+            setSelectedKebabMenuExplorer(profileQa);
+        }
+
+        const fallbackNode =
+            selectedNodeInfo?.node ??
+            selectedNodeContext.selectedNodeExplorer ??
+            selectedNodeContext.selectedNode ??
+            (treeData?.[0] as ITreeNode | undefined);
+        if (fallbackNode && !selectedNodeInfo?.node) {
+            setSelectedNodeInfo({
+                event: "select",
+                selected: true,
+                node: fallbackNode,
+                selectedNodes: [fallbackNode],
+            });
+        }
+
+        setIsShowSidebar(true);
+        setIsSidebar("sidebarOpen");
+
+        const sidebarVariable: ISession = {
+            VariableContext: "Optional",
+            VariableName: "Sidebar",
+            SessionValue: "1",
+        };
+        if (sessionContext.SessionList.some((s) => s.VariableName === "Sidebar")) {
+            sessionContext.UpdateRowName(sidebarVariable);
+        } else {
+            sessionContext.setSessionList([...sessionContext.SessionList, sidebarVariable]);
+        }
+    };
+
+    const handleReloadTree = (featureId: string, entID?: string) => {
+        commonVariableContext.setReloadTreeFor({
+            featureId,
+            entId: entID ?? "",
+        });
+        explorerContainerProps.handleReloadTree?.(featureId, entID);
+    };
+
     return (
         <div key={explorerContainerProps.uniqueName} id="FeatureContainer" className="nz-explorer-container" >
             <div className="nz-feature-explorer-container">
@@ -355,15 +431,23 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                             selectedNodeExplorer={explorerContainerProps.selectedNodeExplorer}
                             isReloadTreeCache={explorerContainerProps.selectedFeatureData?.isReloadCache}
                             originalTreeData={explorerContainerProps.originalTreeData}
+                            allowAdd={allowTreeAdd}
+                            addTooltip={addTooltip}
+                            addActionCode={addActionCode}
                             handleNodeSelect={handleNodeSelect}
                             updateOriginalTreeDataset={updateOriginalTreeDataset}
+                            handleAIClick={handleAIClick}
                         />}
 
                         {explorerToRender === "MCS" && <TreeExplorerContainer
                             uniqueName={`${explorerContainerProps.uniqueName}-business-explorer`}
                             featureId={explorerContainerProps.featureId}
                             wrapWithRootLabel="Businesses"
+                            allowAdd={allowTreeAdd}
+                            addTooltip={addTooltip}
+                            addActionCode={addActionCode}
                             handleNodeSelect={handleNodeSelect}
+                            handleAIClick={handleAIClick}
                         />}
 
                         {(explorerToRender === "SAASINSTANCE" || explorerToRender === "CLIENTIDENTITY") && (
@@ -424,6 +508,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                                 featureContainerProps={{
                                     uniqueName: explorerContainerProps.uniqueName,
                                     featureId: explorerContainerProps.featureId,
+                                    bid: explorerContainerProps.bid ?? (explorerContainerProps.selectedFeatureData?.bid as string) ?? smDataContext.selection.bid ?? mainAppContext.authSession?.bid ?? '',
+                                    cid: explorerContainerProps.cid ?? (explorerContainerProps.selectedFeatureData?.cid as string) ?? smDataContext.selection.cid ?? mainAppContext.authSession?.cid ?? '',
                                     allowShowHeader: explorerContainerProps.allowShowHeader,
                                     headerText: explorerContainerProps.headerText,
                                     selectedFeatureData: explorerContainerProps.selectedFeatureData,
@@ -440,6 +526,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                     <SidebarContainer
                         uniqueName={`${explorerContainerProps.uniqueName}-sidebar`}
                         isShowSidebar={isShowSidebar}
+                        profileAddMode={profileAddMode}
+                        onResetProfileAddMode={() => setProfileAddMode(null)}
                         featureQaList={featureQAData ?? []}
                         selectedNode={
                             explorerContainerProps.subTreeFeatureId
@@ -462,7 +550,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                                 explorerContainerProps.handleCloseSidebar();
                             }
                         }}
-                        handleReloadTree={explorerContainerProps.handleReloadTree}
+                        handleReloadTree={handleReloadTree}
                     /> : <></>
                 }
             </div>

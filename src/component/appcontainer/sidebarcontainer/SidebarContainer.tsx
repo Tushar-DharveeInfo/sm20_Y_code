@@ -18,6 +18,8 @@ interface ISidebarContainer {
   showPopupSidebar?: boolean;
   selectedMenuFeature?: IMenuItem;
   selectedFeatureQa?: IMenuItem | null;
+  profileAddMode?: 'business' | 'contact' | null;
+  onResetProfileAddMode?: () => void;
   treeData?: ITreeNode[]; // tree data for the sidebar
   hideSideBarCloseBtn?: boolean; // to hide sidebar close button
   isHideMaximizeButton?: boolean;
@@ -41,6 +43,8 @@ const SidebarContainer = (sidebarContainerProps: ISidebarContainer) => {
           sidebarContainerProps.handleCloseSidebar();
         }}
         selectedFeatureQa={sidebarContainerProps.selectedFeatureQa}
+        profileAddMode={sidebarContainerProps.profileAddMode}
+        onResetProfileAddMode={sidebarContainerProps.onResetProfileAddMode}
         featureId={sidebarContainerProps.featureId}
         fullView={sidebarContainerProps.fullView}
         showPopupSidebar={sidebarContainerProps.showPopupSidebar}

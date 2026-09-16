@@ -1,9 +1,8 @@
 import { IElementProfile, IFormElements, ControlType, IOptionItem, IDisplayControlValuesResult, ChangedValueMap } from "@n20a/libform";
-import { DisplayControlEnums, Measurement } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
+import { DisplayControlEnums } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
 import { IRefData } from "../../allinterface/basic/IRefData";
 import { FnGetRefList } from "../basic/FnGetRefList";
 import { IStatusBar } from "../../context/allinterface/IStatusBar";
-import { IRefItem } from "../../context/allinterface/IMainApp";
 import { DELIMITER } from "../../alldefaultprops/basic/DefaultPropsChekedListBoxControl";
 import { FnConvertDateToUtcOrUtcToDate } from "../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate";
 import { hideGridData } from "../../alldefaultprops/tablegrid/DefaultPropsBasicGrid";
@@ -11,7 +10,17 @@ import { IControl, IControlProperties } from "../../allinterface/settingsform/IS
 import { FnGetPrefixedPropertyValue } from "./FnGetPrefixedPropertyValue";
 import { FnFormatDateWithAppFormat } from "../../../appcontainer/allcommon/FnFormatDateWithAppFormat";
 
-
+interface IRefItem {
+    GroupName: string;
+    SubGroupName: string;
+    Name: string;
+    RefValue: string;
+    SortOrder: number;
+    IsNZ: boolean;
+    EntID: string;
+    RecID: string;
+    LastUpdated: string;
+}
 
 const FnGetDisplayControlForForm = (controlName: string): ControlType => {
     const map: Record<string, ControlType> = {
@@ -43,7 +52,7 @@ const FnGetDisplayControlForForm = (controlName: string): ControlType => {
 const handleInputMask = async (
     inputMask: string,
     controlName: string,
-    statusBarContext: IStatusBar,
+    _statusBarContext: IStatusBar,
     controlProps?: IControlProperties,
     refTableRecords?: IRefItem[]
 ): Promise<string[] | Record<string, any>[] | null> => {
@@ -293,7 +302,11 @@ const FnBuildFormElementsFromControls = (
                         value = FnGetPrefixedPropertyValue(selectedProfile, col.Name, groupName)
                     }
                     const isEditMode = selectedProfile && Object.keys(selectedProfile).length ? true : false;
-                    let isReadOnlyControl = col.DisplayControl === DisplayControlEnums.TextControl || col.disabled || col.Name.toLowerCase() === "isnz"
+                    let isReadOnlyControl =
+                        col.DisplayControl === DisplayControlEnums.TextControl ||
+                        col.disabled ||
+                        col.Name.toLowerCase() === "isnz" ||
+                        (col.disabled !== false && (col.Name.toLowerCase() === "bid" || col.Name.toLowerCase() === "cid"));
                     if (col.Name.toLowerCase() === "secured" && userBasicRole?.toLowerCase() !== "admin") {
                         isReadOnlyControl = true;
                     }
@@ -304,7 +317,7 @@ const FnBuildFormElementsFromControls = (
                     if (fieldName.includes("lastupdated") && value && !isFormattedDate(value)) {
                         value = FnConvertDateToUtcOrUtcToDate(value, false, true)
                     }
-                    else if ((fieldName.startsWith("date") || fieldName.endsWith("date")) && value) {
+                    else if ((fieldName.startsWith("date") || fieldName.endsWith("date") || fieldName.endsWith("updated") || fieldName.includes("date")) && value) {
                         const getDateOnly = (value: unknown): string => {
                             if (!value) return "";
 
@@ -337,7 +350,7 @@ const FnBuildFormElementsFromControls = (
                         value = FnExtractTimeFromDateTime(value || null)
                     }
                     else if (displayControl === "date") {
-                        value = FnConvertDateToUtcOrUtcToDate(value, false, true)
+                        value = FnConvertDateToUtcOrUtcToDate(value, false, false)
                     }
                     else if (col?.Name?.toLowerCase() === "entityname" && !value) {
                         value = entityName;
@@ -367,41 +380,41 @@ const FnBuildFormElementsFromControls = (
                     }
                     if (import.meta.env.DEV)
                         // console.log('displayControl :', displayControl, value);
-                    // Merge StartDate + EndDate into dateRange
+                        // Merge StartDate + EndDate into dateRange
 
-                    if (
-                        (col.Name === "StartDate" || col.Name === "EndDate") &&
-                        col.DisplayControl === DisplayControlEnums.DateControl
-                    ) {
+                        if (
+                            (col.Name === "StartDate" || col.Name === "EndDate") &&
+                            col.DisplayControl === DisplayControlEnums.DateControl
+                        ) {
 
-                        if (col.Name === "EndDate" && isDateRangeCreated) {
-                            return null; // skip EndDate since it is already merged
+                            if (col.Name === "EndDate" && isDateRangeCreated) {
+                                return null; // skip EndDate since it is already merged
+                            }
+
+                            if (col.Name === "StartDate") {
+
+                                const startValue = selectedProfile?.StartDate ? FnFormatDateWithAppFormat(selectedProfile?.StartDate, false) : undefined;
+                                const endValue = selectedProfile?.EndDate ? FnFormatDateWithAppFormat(selectedProfile?.EndDate, false) : undefined;
+
+                                isDateRangeCreated = true;
+
+                                return {
+                                    key: `${groupName ?? "default"}_dateRange_${index}`,
+                                    field: "dateRange",
+                                    label: "Period",
+                                    startLabel: "Start Date",
+                                    endLabel: "End Date",
+                                    datatype: '',
+                                    defaultvalue: startValue && endValue ? { startDate: startValue, endDate: endValue } : undefined,
+                                    displaycontrol: isDisabled ? 'text' : measurementUnit?.toLowerCase() === "europe" ? 'europeanDateRange' : 'dateRange',
+                                    required: col.IsRequired ? true : false,
+                                    disabled: isDisabled,
+                                    displayunit: displayUnit,
+                                    max: col.MaxDate || undefined,
+                                    onChangedValue: isReadOnlyControl ? undefined : handleChangedControlValue
+                                };
+                            }
                         }
-
-                        if (col.Name === "StartDate") {
-
-                            const startValue = selectedProfile?.StartDate ? FnFormatDateWithAppFormat(selectedProfile?.StartDate, false) : undefined;
-                            const endValue = selectedProfile?.EndDate ? FnFormatDateWithAppFormat(selectedProfile?.EndDate, false) : undefined;
-
-                            isDateRangeCreated = true;
-
-                            return {
-                                key: `${groupName ?? "default"}_dateRange_${index}`,
-                                field: "dateRange",
-                                label: "Period",
-                                startLabel: "Start Date",
-                                endLabel: "End Date",
-                                datatype: '',
-                                defaultvalue: startValue && endValue ? { startDate: startValue, endDate: endValue } : undefined,
-                                displaycontrol: isDisabled ? 'text' : measurementUnit?.toLowerCase() === "europe" ? 'europeanDateRange' : 'dateRange',
-                                required: col.IsRequired ? true : false,
-                                disabled: isDisabled,
-                                displayunit: displayUnit,
-                                max: col.MaxDate || undefined,
-                                onChangedValue: isReadOnlyControl ? undefined : handleChangedControlValue
-                            };
-                        }
-                    }
 
                     return {
                         key: `${groupName ?? "default"}_${col.Name}_${index}_${Array.isArray(col.Options) ? col.Options.length : 0}_${optionsData?.length ?? 0}`,
@@ -439,7 +452,6 @@ const FnBuildFormElementsFromControls = (
                             }
                             if (optionsData?.length) {
                                 const optionsArray: IOptionItem[] = [];
-                                let valueToSet: IOptionItem | undefined = undefined;
                                 for (let index = 0; index < optionsData.length; index++) {
                                     const item = optionsData[index];
                                     const label = col.type === "isEquipmentTypes" ? item.mty :
@@ -548,3 +560,4 @@ const FnBuildFormElementsFromControls = (
 };
 
 export { FnBuildFormElementsFromControls }
+export type { IRefItem }

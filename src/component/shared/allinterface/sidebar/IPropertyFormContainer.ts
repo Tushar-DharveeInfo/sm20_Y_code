@@ -17,6 +17,7 @@ interface IPropertyFormContainer {
     isAllowCustomAction?: boolean;
     isReadOnly?: boolean;
     allowLog?: boolean;
+    headerText?: string;
     /*Prebuilt static property values (IDataset) from selected node — skips NODE.GetKebabMenuData when set. */
     kebabMenuData?: IDataset;
     /*Prebuilt entity table schema — skips EM.GetTableVsProperty / sample tables when set. */

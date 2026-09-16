@@ -31,6 +31,8 @@ interface ISidebar {
     featureQAList: IMenuItem[]; // list of feature QA items
     handleCloseSidebar: () => void; // to handle close sidebar 
     selectedFeatureQa?: IMenuItem | null; // for set selected data
+    profileAddMode?: 'business' | 'contact' | null;
+    onResetProfileAddMode?: () => void;
     selectedRightMouseMenu?: any; // to pass selected rightmouse menu if needed
     selectedNode?: ITreeNode; // selected node data
     fullView?: boolean;
@@ -373,7 +375,14 @@ const Sidebar = (sidebarProps: ISidebar) => {
                         (item) => item?.Label === activeTab
                     );
                     setIsPropertyFound(!!propertyQaData);
-                    if (sidebarProps.selectedFeatureQa) {
+                    if (sidebarProps.profileAddMode) {
+                        const profileQa = filterData.find((item) => item?.Label?.toLowerCase() === "profile");
+                        if (profileQa) {
+                            const value = profileQa._Feature?.toString?.() ?? profileQa.Label?.toString?.();
+                            setActiveTab(profileQa.Label);
+                            setSelectedQa(value);
+                        }
+                    } else if (sidebarProps.selectedFeatureQa) {
                         const value =
                             sidebarProps.selectedFeatureQa?._Feature?.toString?.() ??
                             sidebarProps.selectedFeatureQa?.Label?.toString?.();
@@ -608,6 +617,7 @@ const Sidebar = (sidebarProps: ISidebar) => {
 
             setActiveTab(selectedTabLabel);
             setSelectedQa(actionCode ?? "");
+            sidebarProps.onResetProfileAddMode?.();
 
             if (isPropertyLikeSidebarTab(payload.Label)) {
                 clearSubMenuOpenTimeout();
@@ -1075,6 +1085,8 @@ const Sidebar = (sidebarProps: ISidebar) => {
                                         treeData={sidebarProps.treeData}
                                         selectedNodeExplorer={sidebarProps.selectedNodeExplorer}
                                         isPropertyFound={isPropertyFound}
+                                        profileAddMode={sidebarProps.profileAddMode}
+                                        onResetProfileAddMode={sidebarProps.onResetProfileAddMode}
                                         handleReloadTree={handleReloadTree}
                                         apValueChange={sidebarProps.apValueChange}
                                         handleShowErrorDialog={sidebarProps.handleShowErrorDialog}

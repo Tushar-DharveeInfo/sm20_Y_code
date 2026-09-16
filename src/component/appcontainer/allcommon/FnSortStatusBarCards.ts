@@ -1,10 +1,9 @@
 
-import { IStatusBarItem } from "../allinterface/IStatusBarContainer";
 
 function FnSortStatusBarCards(
-    items: IStatusBarItem[]
-): IStatusBarItem[] {
-    const severityOrder: Record<IStatusBarItem["cardPurpose"], number> = {
+    items: Record<string, any>[]
+): Record<string, any>[] {
+    const severityOrder: Record<Record<string, any>["cardPurpose"], number> = {
         Broadcast: 6,
         Message: 5,
         Error: 4,

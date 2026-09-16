@@ -1,8 +1,4 @@
-
 import { IStatusBar } from "../../context/allinterface/IStatusBar";
-import propertySampleData from "../../../../smsampledata/sidebar/PropertySampleData.json";
-
-const { samplePropertyKebabMenuData } = propertySampleData;
 
 type TableRecord = Record<string, unknown>;
 
@@ -35,7 +31,8 @@ const FnNodeGetKebabMenuData = (
         // );
         void apiPayload;
         void statusbarContext;
-        resolve(samplePropertyKebabMenuData as TableRecord);
+        resolve({});
     });
-}
-export { FnNodeGetKebabMenuData }
+};
+
+export { FnNodeGetKebabMenuData };

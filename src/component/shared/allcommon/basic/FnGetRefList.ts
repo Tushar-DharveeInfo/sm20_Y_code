@@ -1,6 +1,6 @@
 
 import { IRefData } from "../../allinterface/basic/IRefData";
-import { IRefItem } from "../../context/allinterface/IMainApp";
+import { IRefItem } from "../settingsform/FnBuildFormElementsFromControls";
 
 //This function reads data from cache and returns matching reference list data
 const FnGetRefList = (

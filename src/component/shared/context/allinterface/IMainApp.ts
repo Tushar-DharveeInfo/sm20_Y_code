@@ -1,7 +1,6 @@
 
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 
-
 interface IFeatureItem {
     PopupQa?: boolean;
     MenuID: string;
@@ -27,27 +26,10 @@ interface IFeatureItem {
     [key: string]: string | any;
 }
 
-
 interface IFeatureForHelp {
     featureID: string;
     featureName: string;
 }
-
-interface IRefItem {
-    GroupName: string;
-    SubGroupName: string;
-    Name: string;
-    RefValue: string;
-    SortOrder: number;
-    IsNZ: boolean;
-    EntID: string;
-    RecID: string;
-    LastUpdated: string;
-}
-
-
-
-
 
 interface IUserAuthSession {
     id: string;
@@ -105,7 +87,6 @@ interface IMainApp {
         React.SetStateAction<IFeatureForHelp | undefined>
     >;
 
-
     /**
      * Writes a single activity-log document to Firestore.
      * User identity (bid, cid, displayName, username, email) is taken
@@ -120,6 +101,5 @@ export type {
     IMainApp,
     IFeatureItem,
     IFeatureForHelp,
-    IRefItem,
     IUserAuthSession
 };

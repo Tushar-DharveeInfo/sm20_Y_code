@@ -1,10 +1,7 @@
 import type { IMenuItem } from "../../allinterface/menu/IMainMenu";
 import type { IDataset } from "../../allinterface/sidebar/IPropertyFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
-import type { IBusinessDoc } from "../../allinterface/IDatasets";
-import type { IContact } from "../../allinterface/tree/IContact";
-import { sampleBusinesses } from "../../allcommon/FnBusinessesSampleData";
-import { sampleContacts } from "../../allcommon/FnContactsSampleData";
+import { DisplayControlEnums } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
 import getTableVsPropertySample from "../../../../smsampledata/sidebar/GetTableVsPropertySample.json";
 
 /*
@@ -93,22 +90,42 @@ interface IPropertyFormPackage {
 }
 
 const toPropertyLabel = (key: string): string => {
-    if (key === "bname") return "Company Name";
-    if (key === "btype") return "Business Type";
-    if (key === "salesExec") return "Sales Executive";
-    if (key === "mmFinYear") return "Financial Year Month";
-    if (key === "daysNoticePeriod") return "Notice Period (Days)";
-    if (key === "ctype") return "Contact Type";
-    if (key === "phone1") return "Phone 1";
-    if (key === "phone2") return "Phone 2";
-    if (key === "address_street") return "Street Address";
-    if (key === "address_city") return "City";
-    if (key === "address_state") return "State";
-    if (key === "address_zip") return "Zip";
-    if (key === "address_country") return "Country";
-    if (key === "dateCreated") return "Date Created";
-    if (key === "dateUpdated") return "Date Updated";
-    if (key === "relatedBids") return "Related Bids";
+    const k = key.toLowerCase();
+    if (k === "bid") return "BID";
+    if (k === "cid") return "CID";
+    if (k === "bname") return "Company Name";
+    if (k === "btype") return "Business Type";
+    if (k === "salesexec") return "Sales Executive";
+    if (k === "mmfinyear") return "Financial Year Month";
+    if (k === "daysnoticeperiod") return "Notice Period (Days)";
+    if (k === "relatedbids") return "Related Bids";
+    if (k === "contacttype" || k === "ctype") return "Contact Type";
+    if (k === "cname" || k === "contact") return "Contact Name";
+    if (k === "phone" || k === "phone1") return "Phone";
+    if (k === "phone2") return "Phone 2";
+    if (k === "address1" || k === "address_street") return "Address 1";
+    if (k === "address2" || k === "address_line2") return "Address 2";
+    if (k === "city" || k === "address_city") return "City";
+    if (k === "state" || k === "address_state") return "State";
+    if (k === "zip" || k === "address_zip") return "Zip";
+    if (k === "country" || k === "address_country") return "Country";
+    if (k === "datecreated") return "Date Created";
+    if (k === "dateupdated") return "Date Updated";
+    if (k === "monitor") return "Monitor";
+    if (k === "monitorupdated") return "Monitor Updated";
+    if (k === "verified") return "Verified";
+    if (k === "donotcallme") return "Do Not Call Me";
+    if (k === "removemefrommailinglist") return "Remove From Mailing List";
+    if (k === "smsoptin") return "SMS Opt-in";
+    if (k === "timezoneoffset") return "Time Zone Offset";
+    if (k === "countrycode") return "Country Code";
+    if (k === "amcexpirydate") return "AMC Expiry Date";
+    if (k === "mcsexpirydate") return "MCS Expiry Date";
+    if (k === "saasexpirydate") return "SaaS Expiry Date";
+    if (k === "onpremexpirydate") return "On-Prem Expiry Date";
+    if (k === "estimatedusers") return "Estimated Users";
+    if (k === "estimatedracks") return "Estimated Racks";
+    if (k === "estimateddcsites") return "Estimated DC Sites";
     return key
         .replace(/_/g, " ")
         .replace(/([A-Z])/g, " $1")
@@ -121,7 +138,15 @@ const toFormValue = (value: unknown): string | number | boolean | null => {
     if (value === null || value === undefined) {
         return "";
     }
-    if (typeof value === "boolean" || typeof value === "number") {
+    if (typeof value === "boolean") {
+        return value;
+    }
+    if (typeof value === "string") {
+        const lower = value.trim().toLowerCase();
+        if (lower === "true") return true;
+        if (lower === "false") return false;
+    }
+    if (typeof value === "number") {
         return value;
     }
     return String(value);
@@ -129,7 +154,8 @@ const toFormValue = (value: unknown): string | number | boolean | null => {
 
 /**
  * Builds property schema + values from a flat key/value record.
- * Every field uses DisplayControl = EditTextControl.
+ * Uses TrueFalseControl for boolean/verify fields, EditTextControl for others.
+ * ID fields (bid, cid) are marked Disabled.
  */
 const buildEditTextPropertyFormFromRecord = (
     record: Record<string, unknown>,
@@ -142,21 +168,44 @@ const buildEditTextPropertyFormFromRecord = (
     const entityName = options?.entityName || "Business";
     const tableName = options?.tableName || `_${entityName}`;
     const tableLabel = options?.tableLabel || entityName;
-    const keys = Object.keys(record).filter((k) => k.toLowerCase() !== "cid");
+    const keys = Object.keys(record);
 
-    const properties = keys.map((key, index) => ({
-        TableName: tableName,
-        PName: key,
-        Description: key,
-        MaxLength: null,
-        SortOrder: index + 1,
-        RequiredToAddRecord: false,
-        RequiredToUpdateRecord: false,
-        DisplayControl: "EditTextControl",
-        InputMask: "",
-        PropertyLabel: toPropertyLabel(key),
-        NullNotAllowed: false,
-    }));
+    const properties = keys.map((key, index) => {
+        const val = record[key];
+        const lowerKey = key.toLowerCase();
+        const isIdField = lowerKey === "bid" || lowerKey === "cid";
+        const isAuditDateField = lowerKey === "datecreated" || lowerKey === "dateupdated";
+        const isBoolean =
+            typeof val === "boolean" ||
+            lowerKey === "verified" ||
+            lowerKey === "monitor" ||
+            (typeof val === "string" && (val.toLowerCase() === "true" || val.toLowerCase() === "false"));
+        const isDateField =
+            lowerKey.startsWith("date") ||
+            lowerKey.endsWith("date") ||
+            lowerKey.endsWith("updated") ||
+            lowerKey.includes("date");
+
+        return {
+            TableName: tableName,
+            PName: key,
+            Description: key,
+            MaxLength: null,
+            SortOrder: index + 1,
+            RequiredToAddRecord: false,
+            RequiredToUpdateRecord: false,
+            DisplayControl: isBoolean
+                ? DisplayControlEnums.TrueFalseControl
+                : isDateField
+                ? DisplayControlEnums.DateControl
+                : DisplayControlEnums.EditTextControl,
+            Disabled: isIdField || isAuditDateField,
+            disabled: isIdField || isAuditDateField,
+            InputMask: "",
+            PropertyLabel: toPropertyLabel(key),
+            NullNotAllowed: false,
+        };
+    });
 
     const row: Record<string, unknown> = {
         EntID: String(record.cid ?? record.bid ?? record.EntID ?? ""),
@@ -193,36 +242,36 @@ const buildEditTextPropertyFormFromRecord = (
 const resolveBusinessFallback = (node: ITreeNode, entId: string): Record<string, unknown> => ({
     bid: entId,
     bname: String(node.Name ?? node.bname ?? ""),
+    name: String(node.name ?? node.bname ?? node.Name ?? ""),
     btype: String(node.Type ?? node.btype ?? ""),
-    status: String(node.Description ?? node.status ?? ""),
+    status: String(node.Description ?? node.status ?? "Active"),
     verified: Boolean(node.IsAuthorized ?? node.verified ?? false),
-    salesExec: String(node.salesExec ?? ""),
+    salesexec: String(node.salesexec ?? node.salesExec ?? ""),
     country: String(node.country ?? ""),
     state: String(node.state ?? ""),
-    daysNoticePeriod: Number(node.daysNoticePeriod ?? 0),
-    mmFinYear: Number(node.mmFinYear ?? 0),
-    relatedBids: String(node.relatedBids ?? ""),
-    dateCreated: String(node.dateCreated ?? ""),
-    dateUpdated: String(node.dateUpdated ?? ""),
+    daysnoticeperiod: Number(node.daysnoticeperiod ?? node.daysNoticePeriod ?? 0),
+    mmfinyear: Number(node.mmfinyear ?? node.mmFinYear ?? 0),
+    relatedbids: node.relatedbids ?? node.relatedBids ?? [],
+    datecreated: String(node.datecreated ?? node.dateCreated ?? ""),
+    dateupdated: String(node.dateupdated ?? node.dateUpdated ?? ""),
 });
 
 const resolveContactFallback = (node: ITreeNode, entId: string): Record<string, unknown> => ({
     bid: String(node.bid ?? node.parentEntID ?? ""),
     cid: entId,
-    ctype: String(node.Type ?? node.ctype ?? "contact"),
-    status: String(node.Description ?? node.status ?? ""),
-    verified: Boolean(node.IsAuthorized ?? node.verified ?? false),
-    contact: String(node.Name ?? node.contact ?? ""),
+    contacttype: String(node.Type ?? node.contacttype ?? node.ctype ?? "contact"),
+    status: String(node.Description ?? node.status ?? "Active"),
+    monitor: Boolean(node.IsAuthorized ?? node.monitor ?? node.verified ?? false),
+    cname: String(node.Name ?? node.cname ?? node.contact ?? ""),
     email: String(node.email ?? ""),
-    phone1: String(node.phone1 ?? ""),
-    phone2: String(node.phone2 ?? ""),
-    address_street: String(node.address_street ?? ""),
-    address_city: String(node.address_city ?? ""),
-    address_state: String(node.address_state ?? ""),
-    address_zip: String(node.address_zip ?? ""),
-    address_country: String(node.address_country ?? ""),
-    dateCreated: String(node.dateCreated ?? ""),
-    dateUpdated: String(node.dateUpdated ?? ""),
+    phone: String(node.phone ?? node.phone1 ?? ""),
+    address1: String(node.address1 ?? node.address_street ?? ""),
+    city: String(node.city ?? node.address_city ?? ""),
+    state: String(node.state ?? node.address_state ?? ""),
+    zip: String(node.zip ?? node.address_zip ?? ""),
+    country: String(node.country ?? node.address_country ?? ""),
+    datecreated: String(node.datecreated ?? node.dateCreated ?? ""),
+    dateupdated: String(node.dateupdated ?? node.dateUpdated ?? ""),
 });
 
 /*Resolves a flat property record from the selected tree node (Business / Contact sample JSON). */
@@ -233,24 +282,10 @@ const resolvePropertyRecordFromSelectedNode = (
     const entId = String(node.NodeEntID || node.EntID || node.key || "");
 
     if (entityName === "business") {
-        const businessId = String(node.bid || node.NodeEntID || node.EntID || node.key || "").toLowerCase();
-        const business: IBusinessDoc | undefined = sampleBusinesses.find(
-            (item) => item.bid?.toLowerCase() === businessId || item.bname?.toLowerCase() === (node.Name ?? node.bname ?? "").toLowerCase()
-        );
-        if (business) {
-            return { ...business };
-        }
         return resolveBusinessFallback(node, entId);
     }
 
     if (entityName === "contact") {
-        const contactId = String(node.cid || node.NodeEntID || node.EntID || node.key || "").toLowerCase();
-        const contact: IContact | undefined = sampleContacts.find(
-            (item) => item.cid?.toLowerCase() === contactId || item.contact?.toLowerCase() === (node.Name ?? node.contact ?? "").toLowerCase()
-        );
-        if (contact) {
-            return { ...contact };
-        }
         return resolveContactFallback(node, entId);
     }
 

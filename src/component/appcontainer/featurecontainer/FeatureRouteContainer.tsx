@@ -36,7 +36,6 @@ const DynamicRouteComponent = () => {
     const [StatusBarType, setStatusBarType] = useState<"menu" | "appqa" | undefined>();
     const helpTipsContext = useHelpTipContext();
     const statusBarContext = useStatusBarContext();
-    const [isShowChart, setIsShowChart] = useState<boolean>(false)
     const [isShowHelptip, setIsShowHelptip] = useState<boolean>(false)
     const [statusBarData, setStatusBarData] = useState<Record<string, number | string>>({});
     const mainAppContext = useMainAppContext();

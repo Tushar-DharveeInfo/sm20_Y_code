@@ -8,7 +8,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStatusBarContext } from '../../context/hooks/StatusBarHooks'
 import { FnNodeGetKebabMenuData } from '../../allcommon/settingsform/FnNodeGetKebabMenuData'
 import { FnBuildFormElementsFromDataset } from '../../allcommon/sidebar/FnBuildFormElementsFromDataset'
-import { useMainAppContext } from '../../context/hooks/MainAppHooks'
 import { Label } from '../../basic/label/Label'
 import { IImage } from '../../allinterface/basic/IImage'
 import { Back24x24, Save24x24 } from '@n20a/libicon'
@@ -23,6 +22,11 @@ import { FnParseJsonSafely } from '../../../appcontainer/allcommon/FnParseJsonSa
 import { FnCheckPermissionToEditName, IFeaturePermission } from '../../allcommon/FnCheckPermissionToEditName'
 import { handleFormControlsBubbleKeyDown, handleFormControlsKeyDown } from '../../allcommon/basic/FnHandleContainerKeyDown'
 import { samplePropertyEntityTables } from './PropertySampleData'
+import { useActivities, useBusinesses, useContacts } from '@n20a/libfsdb'
+import { useSmDataContext } from '../../context/hooks/SmDataHooks'
+import { useMainAppContext } from '../../context/hooks/MainAppHooks'
+import { FnLogActivity } from '../../allcommon/basic/FnLogActivity'
+import type { IBusinessDoc, IContactDoc } from '../../allinterface/IDatasets'
 
 const addressFieldNames = new Set([
     "address1",
@@ -68,15 +72,206 @@ const parsePropertyColumns = (properties: string): IPropertyColumn[] =>
 const parsePgColumnDefs = (properties: string): IPgColumnDef[] =>
     FnParseJsonSafely<IPgColumnDef[], IPgColumnDef[]>(properties, { fallback: [] });
 
+const ALLOWED_CONTACT_FIELDS = new Set([
+    "bid",
+    "cid",
+    "monitorupdated",
+    "monitor",
+    "contacttype",
+    "role",
+    "status",
+    "ctag",
+    "cname",
+    "email",
+    "phone",
+    "address1",
+    "address2",
+    "city",
+    "state",
+    "country",
+    "zip",
+    "countrycode",
+    "timezoneoffset",
+    "donotcallme",
+    "removemefrommailinglist",
+    "smsoptin",
+    "datecreated",
+    "dateupdated"
+]);
 
+const ALLOWED_BUSINESS_FIELDS = new Set([
+    "bid",
+    "btype",
+    "status",
+    "tag",
+    "verified",
+    "salesexec",
+    "bname",
+    "country",
+    "state",
+    "daysnoticeperiod",
+    "mmfinyear",
+    "relatedbids",
+    "datecreated",
+    "dateupdated",
+    "name",
+    "updatedby",
+    "createdby",
+    "contactsupdated",
+    "notesupdated",
+    "ticketsupdated",
+    "ticketnotesupdated",
+    "activitiesupdated",
+    "ordersupdated",
+    "subsupdated",
+    "downloadupdated",
+    "amcexpirydate",
+    "mcsexpirydate",
+    "saasexpirydate",
+    "onpremexpirydate",
+    "estimatedusers",
+    "estimatedracks",
+    "estimateddcsites"
+]);
+
+function buildFirestoreContactPayload(
+    contactId: string,
+    parentBid: string,
+    source: Record<string, unknown>
+): Record<string, unknown> {
+    const raw: Record<string, unknown> = {
+        bid: parentBid || String(source.bid ?? ""),
+        cid: contactId,
+        cname: String(source.cname ?? source.contact ?? source.Name ?? ""),
+        contacttype: String(source.contacttype ?? source.ctype ?? "contact"),
+        email: String(source.email ?? ""),
+        phone: String(source.phone ?? source.phone1 ?? ""),
+        address1: String(source.address1 ?? source.address_street ?? ""),
+        address2: source.address2 !== undefined && source.address2 !== "" ? String(source.address2) : undefined,
+        city: String(source.city ?? source.address_city ?? ""),
+        state: String(source.state ?? source.address_state ?? ""),
+        country: String(source.country ?? source.address_country ?? ""),
+        zip: String(source.zip ?? source.address_zip ?? ""),
+        countrycode: source.countrycode !== undefined && source.countrycode !== "" ? String(source.countrycode) : undefined,
+        status: String(source.status ?? "Active"),
+        monitor: Boolean(source.monitor ?? source.verified ?? false),
+        monitorupdated: String(source.monitorupdated ?? new Date().toISOString()),
+        dateupdated: new Date().toISOString(),
+    };
+
+    const dc = source.datecreated ?? source.dateCreated;
+    if (dc !== undefined && String(dc).trim() !== "") {
+        raw.datecreated = String(dc);
+    }
+    if (source.role !== undefined && source.role !== "") raw.role = String(source.role);
+    if (source.ctag !== undefined && source.ctag !== "") raw.ctag = String(source.ctag);
+    if (source.timezoneoffset !== undefined && source.timezoneoffset !== "") raw.timezoneoffset = Number(source.timezoneoffset) || 0;
+    if (source.donotcallme !== undefined) raw.donotcallme = Boolean(source.donotcallme);
+    if (source.removemefrommailinglist !== undefined) raw.removemefrommailinglist = Boolean(source.removemefrommailinglist);
+    if (source.smsoptin !== undefined) raw.smsoptin = Boolean(source.smsoptin);
+
+    const filtered: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(raw)) {
+        if (ALLOWED_CONTACT_FIELDS.has(k) && v !== undefined) {
+            filtered[k] = v;
+        }
+    }
+    return filtered;
+}
+
+function buildFirestoreBusinessPayload(
+    businessId: string,
+    source: Record<string, unknown>
+): Record<string, unknown> {
+    const raw: Record<string, unknown> = {
+        bid: businessId,
+        bname: String(source.bname ?? source.name ?? source.Name ?? ""),
+        name: String(source.name ?? source.bname ?? source.Name ?? ""),
+        btype: String(source.btype ?? ""),
+        status: String(source.status ?? "Active"),
+        verified: Boolean(source.verified ?? false),
+        salesexec: String(source.salesexec ?? source.salesExec ?? ""),
+        country: String(source.country ?? ""),
+        state: String(source.state ?? ""),
+        dateupdated: new Date().toISOString(),
+    };
+
+    const dnp = source.daysnoticeperiod ?? source.daysNoticePeriod;
+    if (dnp !== undefined && dnp !== "") {
+        raw.daysnoticeperiod = Number(dnp) || 0;
+    }
+    const mfy = source.mmfinyear ?? source.mmFinYear;
+    if (mfy !== undefined && mfy !== "") {
+        raw.mmfinyear = Number(mfy) || 0;
+    }
+    const dc = source.datecreated ?? source.dateCreated;
+    if (dc !== undefined && String(dc).trim() !== "") {
+        raw.datecreated = String(dc);
+    }
+
+    if (source.tag !== undefined && source.tag !== "") raw.tag = String(source.tag);
+    if (source.relatedbids !== undefined || source.relatedBids !== undefined) {
+        const rb = source.relatedbids ?? source.relatedBids;
+        if (Array.isArray(rb)) {
+            raw.relatedbids = rb.map(String).filter(Boolean);
+        } else if (typeof rb === "string" && rb.trim()) {
+            raw.relatedbids = rb.split(",").map((s) => s.trim()).filter(Boolean);
+        } else {
+            raw.relatedbids = [];
+        }
+    }
+
+    const optionalStringFields = [
+        "updatedby",
+        "createdby",
+        "contactsupdated",
+        "notesupdated",
+        "ticketsupdated",
+        "ticketnotesupdated",
+        "activitiesupdated",
+        "ordersupdated",
+        "subsupdated",
+        "downloadupdated",
+        "amcexpirydate",
+        "mcsexpirydate",
+        "saasexpirydate",
+        "onpremexpirydate",
+    ];
+    for (const field of optionalStringFields) {
+        const val = source[field] ?? source[field.toLowerCase()];
+        if (val !== undefined && val !== "") {
+            raw[field] = String(val);
+        }
+    }
+
+    const optionalNumberFields = [
+        "estimatedusers",
+        "estimatedracks",
+        "estimateddcsites",
+    ];
+    for (const field of optionalNumberFields) {
+        const val = source[field] ?? source[field.toLowerCase()];
+        if (val !== undefined && val !== "") {
+            raw[field] = Number(val) || 0;
+        }
+    }
+
+    const filtered: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(raw)) {
+        if (ALLOWED_BUSINESS_FIELDS.has(k) && v !== undefined) {
+            filtered[k] = v;
+        }
+    }
+    return filtered;
+}
 
 const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContainer) => {
     const [entityTables, setEntityTables] = useState<IEntityTable[]>([]);
     const [formElements, setFormElements] = useState<IFormElements>();
     const [pgClassRecord, setPgClassRecord] = useState<IEntityTable>();
-    const [pgRecord, setPgRecord] = useState<IEntityTable>();
+    const [, setPgRecord] = useState<IEntityTable>();
     const [kebabMenuData, setKebabMenuData] = useState<IKebabMenuData>();
-    const [oneToManyTableData, setOneToManyTableData] = useState<IPropertyRow[]>();
+    const [, setOneToManyTableData] = useState<IPropertyRow[]>();
     const [isOneToManyPgTable, setIsOneToManyPgTable] = useState<boolean>(false);
     const [isShowMainHeader, setIsShowMainHeader] = useState<boolean>(false);
     const [isDirty, setIsDirty] = useState<boolean>(false);
@@ -85,9 +280,10 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
     const [isAddressFormShow, setIsAddressFormShow] = useState<boolean>(false);
     const [loading, setLoading] = useState(true);
     const statusBarContext = useStatusBarContext();
-    const mainAppContext = useMainAppContext();
     const selectedNodeContext = useSelectedNodeContext();
     const sessionContext = useSessionContext();
+    const smDataContext = useSmDataContext();
+    const mainAppContext = useMainAppContext();
     const { NodeEntityname } = propertyFormContainerProps.selectedNode;
     const {
         selectedNode,
@@ -98,6 +294,21 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
         allowBackButton,
         handleRefreshUpdatedRecord
     } = propertyFormContainerProps;
+
+    const effectiveBid = useMemo(() => {
+        return String(
+            selectedNode?.bid ??
+            selectedNode?.parentEntID ??
+            selectedNode?.NodeEntID ??
+            selectedNode?.key ??
+            ""
+        );
+    }, [selectedNode?.bid, selectedNode?.parentEntID, selectedNode?.NodeEntID, selectedNode?.key]);
+
+    const { updateBusiness } = useBusinesses();
+    const { updateContact } = useContacts(effectiveBid);
+    const { createActivity } = useActivities(effectiveBid);
+
     const isShowPgTableFirst = !!selectedNodeMenu;
     const requestIdRef = useRef(0);
     const [entityTablesEntityName, setEntityTablesEntityName] = useState<string>();
@@ -530,95 +741,302 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
         setIsDirty(isValid);
     };
 
-    const savePgTable = (
-        newAddedEntID: string,
-        newAddedName?: string
-    ) => {
+    // Saves property changes for both Business and Contact entities via @n20a/libfsdb hooks and local state updates.
+    const saveEntityProperties = async (formData?: IFormData) => {
+        // Map element keys (e.g. _Contact_contact__5) to actual field names (e.g. contact)
+        const keyToFieldMap = new Map<string, string>();
+        if (formElements?.TableSections) {
+            for (const section of Object.values(formElements.TableSections)) {
+                for (const el of section) {
+                    if (el.key && el.field) {
+                        keyToFieldMap.set(el.key, el.field);
+                    }
+                }
+            }
+        }
+
+        let formSectionValues: Record<string, unknown> = {};
+        if (formData?.TableSections) {
+            for (const sectionKey of Object.keys(formData.TableSections)) {
+                const sectionData = formData.TableSections[sectionKey];
+                if (sectionData && typeof sectionData === "object") {
+                    for (const [k, v] of Object.entries(sectionData)) {
+                        const actualField = keyToFieldMap.get(k) || k;
+                        formSectionValues[actualField] = v;
+                    }
+                }
+            }
+        }
+
+        const rawUpdates: Record<string, unknown> = {
+            ...(updatedProperties ?? {}),
+            ...formSectionValues,
+        };
+
+        const updates: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(rawUpdates)) {
+            const actualField = keyToFieldMap.get(k) || k;
+            if (!actualField.startsWith("_")) {
+                updates[actualField] = v;
+            }
+        }
+
+        if (updatedAddress) {
+            if (updatedAddress.Address1 !== undefined) {
+                updates["address_street"] = updatedAddress.Address1;
+                updates["address1"] = updatedAddress.Address1;
+            }
+            if (updatedAddress.Address2 !== undefined) {
+                updates["address_line2"] = updatedAddress.Address2;
+                updates["address2"] = updatedAddress.Address2;
+            }
+            if (updatedAddress.City !== undefined) {
+                updates["address_city"] = updatedAddress.City;
+                updates["city"] = updatedAddress.City;
+            }
+            if (updatedAddress.State !== undefined) {
+                updates["address_state"] = updatedAddress.State;
+                updates["state"] = updatedAddress.State;
+            }
+            if (updatedAddress.Zip !== undefined) {
+                updates["address_zip"] = updatedAddress.Zip;
+                updates["zip"] = updatedAddress.Zip;
+            }
+            if (updatedAddress.Country !== undefined) {
+                updates["address_country"] = updatedAddress.Country;
+                updates["country"] = updatedAddress.Country;
+            }
+        }
+
+        // Normalize boolean values
+        for (const [key, val] of Object.entries(updates)) {
+            if (val === "true") updates[key] = true;
+            else if (val === "false") updates[key] = false;
+        }
+
+        const entityType = String(
+            selectedNode?.NodeEntityname ||
+            selectedNode?.NodeType ||
+            selectedNode?.treetype ||
+            ""
+        ).toLowerCase();
+
+        const isContact =
+            entityType === "contact" ||
+            (Boolean(selectedNode?.cid) && selectedNode?.cid !== selectedNode?.bid);
+
+        const oldPgClassRow = (kebabMenuData?.[String(pgClassRecord?.tableName)]?.[0] ?? {}) as Record<string, unknown>;
+
+        statusBarContext.setIsLoading(true);
+        statusBarContext.setLoadingLabel("Updating property...");
+
+        try {
+            if (isContact) {
+                const contactId = String(
+                    selectedNode?.cid ||
+                    selectedNode?.NodeEntID ||
+                    selectedNode?.EntID ||
+                    selectedNode?.key ||
+                    ""
+                );
+                const parentBid = String(
+                    selectedNode?.bid ||
+                    selectedNode?.parentEntID ||
+                    effectiveBid ||
+                    ""
+                );
+
+                if (updates.contact && !updates.Name) updates.Name = updates.contact;
+                if (updates.Name && !updates.contact) updates.contact = updates.Name;
+                if (updates.cname && !updates.contact) updates.contact = updates.cname;
+                if (updates.contact && !updates.cname) updates.cname = updates.contact;
+
+                const mergedRecord: Record<string, unknown> = {
+                    ...oldPgClassRow,
+                    ...updates,
+                    cid: contactId,
+                    bid: parentBid,
+                    dateUpdated: new Date().toISOString(),
+                };
+
+                // Build strictly filtered payload containing only allowed Firestore subcollection fields
+                const fsdbPayload = buildFirestoreContactPayload(contactId, parentBid, mergedRecord);
+
+                // 1. Call firestore hook from @n20a/libfsdb
+                if (contactId) {
+                    try {
+                        const res = await updateContact(contactId, fsdbPayload);
+                        if (res && !res.success) {
+                            console.error("updateContact failed:", res.error);
+                            statusBarContext.setFetchError([res.error ?? "Failed to update contact"]);
+                        }
+                    } catch (fsErr) {
+                        console.warn("updateContact hook failed (offline/mock mode):", fsErr);
+                    }
+                }
+
+                // 2. Update smDataContext
+                if (smDataContext?.datasets?.contacts) {
+                    const nextContacts = smDataContext.datasets.contacts.map((c) =>
+                        c.cid?.toLowerCase() === contactId.toLowerCase()
+                            ? ({ ...c, ...mergedRecord } as unknown as IContactDoc)
+                            : c
+                    );
+                    smDataContext.updateDataset("contacts", nextContacts);
+                }
+
+                const userCid = String(
+                    mainAppContext.authSession?.cid ||
+                    mainAppContext.authSession?.username ||
+                    'User'
+                ).trim();
+                const logMsg = `${userCid} of ${parentBid} updated contact ${contactId} successfully.`;
+                void FnLogActivity({
+                    bid: parentBid,
+                    cid: userCid,
+                    message: logMsg,
+                    createActivity,
+                    createActivityLog: mainAppContext.createActivityLog,
+                    updateDataset: smDataContext?.updateDataset,
+                    currentActivities: smDataContext?.datasets?.activities,
+                });
+
+                // 3. Update selectedNode in-place
+                if (selectedNode) {
+                    if (mergedRecord.contact) selectedNode.Name = String(mergedRecord.contact);
+                    if (mergedRecord.contact) (selectedNode as Record<string, unknown>).contact = String(mergedRecord.contact);
+                    if (mergedRecord.verified !== undefined) {
+                        selectedNode.verified = Boolean(mergedRecord.verified);
+                        selectedNode.IsAuthorized = Boolean(mergedRecord.verified);
+                    }
+                    if (mergedRecord.status) selectedNode.status = String(mergedRecord.status);
+                }
+
+                // 5. Update local kebabMenuData state
+                if (pgClassRecord?.tableName) {
+                    setKebabMenuData((prev) => ({
+                        ...prev,
+                        [String(pgClassRecord.tableName)]: [mergedRecord as IPropertyRow],
+                    }));
+                }
+
+                setIsDirty(false);
+                setUpdatedProperties(undefined);
+
+                const targetName = String(mergedRecord.contact ?? selectedNode?.Name ?? "");
+                propertyFormContainerProps.handleRefreshUpdatedRecord?.(contactId, targetName, "save");
+                propertyFormContainerProps.handlePropertyChange?.(mergedRecord);
+            } else {
+                // Business
+                const businessId = String(
+                    selectedNode?.bid ||
+                    selectedNode?.NodeEntID ||
+                    selectedNode?.EntID ||
+                    selectedNode?.key ||
+                    effectiveBid ||
+                    ""
+                );
+
+                if (updates.bname && !updates.Name) updates.Name = updates.bname;
+                if (updates.Name && !updates.bname) updates.bname = updates.Name;
+                if (updates.name && !updates.bname) updates.bname = updates.name;
+                if (updates.bname && !updates.name) updates.name = updates.bname;
+
+                const mergedRecord: Record<string, unknown> = {
+                    ...oldPgClassRow,
+                    ...updates,
+                    bid: businessId,
+                    dateUpdated: new Date().toISOString(),
+                };
+
+                // Build strictly filtered payload containing only allowed Firestore root collection fields
+                const fsdbPayload = buildFirestoreBusinessPayload(businessId, mergedRecord);
+
+                // 1. Call firestore hook from @n20a/libfsdb
+                if (businessId) {
+                    try {
+                        const res = await updateBusiness(businessId, fsdbPayload);
+                        if (res && !res.success) {
+                            console.error("updateBusiness failed:", res.error);
+                            statusBarContext.setFetchError([res.error ?? "Failed to update business"]);
+                        }
+                    } catch (fsErr) {
+                        console.warn("updateBusiness hook failed (offline/mock mode):", fsErr);
+                    }
+                }
+
+                // 2. Update smDataContext
+                if (smDataContext?.datasets?.businesses) {
+                    const nextBusinesses = smDataContext.datasets.businesses.map((b) =>
+                        b.bid?.toLowerCase() === businessId.toLowerCase()
+                            ? ({ ...b, ...mergedRecord } as unknown as IBusinessDoc)
+                            : b
+                    );
+                    smDataContext.updateDataset("businesses", nextBusinesses);
+                }
+
+                const userCid = String(
+                    mainAppContext.authSession?.cid ||
+                    mainAppContext.authSession?.username ||
+                    'User'
+                ).trim();
+                const logMsg = `${userCid} of ${businessId} updated business ${businessId} successfully.`;
+                void FnLogActivity({
+                    bid: businessId,
+                    cid: userCid,
+                    message: logMsg,
+                    createActivity,
+                    createActivityLog: mainAppContext.createActivityLog,
+                    updateDataset: smDataContext?.updateDataset,
+                    currentActivities: smDataContext?.datasets?.activities,
+                });
+
+                // 3. Update selectedNode in-place
+                if (selectedNode) {
+                    if (mergedRecord.bname) selectedNode.Name = String(mergedRecord.bname);
+                    if (mergedRecord.bname) selectedNode.bname = String(mergedRecord.bname);
+                    if (mergedRecord.verified !== undefined) {
+                        selectedNode.verified = Boolean(mergedRecord.verified);
+                        selectedNode.IsAuthorized = Boolean(mergedRecord.verified);
+                    }
+                    if (mergedRecord.status) selectedNode.status = String(mergedRecord.status);
+                }
+
+                // 5. Update local kebabMenuData state
+                if (pgClassRecord?.tableName) {
+                    setKebabMenuData((prev) => ({
+                        ...prev,
+                        [String(pgClassRecord.tableName)]: [mergedRecord as IPropertyRow],
+                    }));
+                }
+
+                setIsDirty(false);
+                setUpdatedProperties(undefined);
+
+                const targetName = String(mergedRecord.bname ?? selectedNode?.Name ?? "");
+                propertyFormContainerProps.handleRefreshUpdatedRecord?.(businessId, targetName, "save");
+                propertyFormContainerProps.handlePropertyChange?.(mergedRecord);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 300));
+        } catch (error) {
+            console.error("Failed to save entity properties", error);
+            statusBarContext.setFetchError(["Failed to update property"]);
+        } finally {
+            statusBarContext.setIsLoading(false);
+            statusBarContext.setLoadingLabel(undefined);
+        }
     };
 
     // Saves dirty-flag property changes via add/update API with optional pg table follow-up.
     const handleSaveProperties = (
         _event: React.MouseEvent<HTMLDivElement>
     ) => {
-        /*
-     * No property changes, but address has changed.
-     * Save only PG table.
-     */
-        if (
-            !updatedProperties &&
-            isAddressFormShow &&
-            updatedAddress
-        ) {
-            const oldPgClassRow =
-                kebabMenuData?.[
-                String(pgClassRecord?.tableName)
-                ]?.[0];
-
-            const existingEntID =
-                oldPgClassRow?.EntID as string;
-
-            const existingName =
-                oldPgClassRow?.[
-                String(pgClassRecord?.tableName)
-                ] as string;
-
-            if (existingEntID) {
-                savePgTable(
-                    existingEntID,
-                    existingName
-                );
-            }
-
-            return;
-        }
-        if (!updatedProperties || !pgClassRecord?.properties) return;
-        try {
-            const pgClassColumns = parsePgColumnDefs(String(pgClassRecord.properties));
-
-            const pgClassData = buildPgClassDataFromKeys(
-                pgClassColumns,
-                String(pgClassRecord.tableName),
-                updatedProperties
-            );
-            const oldPgClassRow = kebabMenuData?.[String(pgClassRecord.tableName)]?.[0] ?? {};
-            pgClassData["LastUpdated"] = undefined;
-
-
-        } catch (error) {
-            console.error("Failed to map properties", error);
-        }
+        void saveEntityProperties();
     };
 
     // Saves property form data via add/update API with forensic logging and pg table follow-up.
     const handleSavePropertyForm = (formData: IFormData) => {
-        if (!formData?.TableSections || !Object.keys(formData?.TableSections).length || !pgClassRecord?.properties) return;
-        const pgClassData: IPropertyRow = {};
-        const pgData: IPropertyRow = {};
-        try {
-            const pgClassColumns = parsePropertyColumns(String(pgClassRecord.properties));
-            const pgColumns = pgRecord?.properties
-                ? parsePgColumnDefs(String(pgRecord.properties))
-                : [];
-            const pgClassUpdatedData = formData?.TableSections[String(pgClassRecord.tableLabel)];
-            if (!pgClassUpdatedData || typeof pgClassUpdatedData !== "object") return;
-            pgClassColumns.forEach((col) => {
-                if (col.PName) {
-                    const value = pgClassUpdatedData[col.PName];
-                    pgClassData[col.PName] = value !== "" ? value : undefined;
-                }
-            });
-            const oldPgClassRow = kebabMenuData?.[String(pgClassRecord.tableName)]?.[0] ?? {};
-            pgClassData["LastUpdated"] = undefined;
-            const mergedPgClassRow = {
-                ...oldPgClassRow,
-                ...pgClassData
-            };
-            const payload = {
-                [String(pgClassRecord.tableName)]: [mergedPgClassRow]
-            };
-        } catch (error) {
-            console.error("Failed to map properties", error);
-        }
+        void saveEntityProperties(formData);
     };
 
     // Navigates back via the parent refresh callback when the close button is clicked.
@@ -659,13 +1077,13 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
     // Injects save and close handlers into form elements for the renderer.
     const renderedFormElements = useMemo(() => {
         if (!formElements) return undefined;
-        console.log('formElements :', formElements);
         return {
             ...formElements,
-            onSave: propertyFormContainerProps.handlePropertyChange || propertyFormContainerProps.isReadOnly || isAddressFormShow ? undefined : handleSavePropertyForm,
+            Formisdirty: isDirty,
+            onSave: propertyFormContainerProps.isReadOnly ? undefined : handleSavePropertyForm,
             onX: propertyFormContainerProps.allowCloseButton ? handleClickX : undefined
         };
-    }, [formElements, isAddressFormShow]);
+    }, [formElements, isDirty, propertyFormContainerProps.isReadOnly, propertyFormContainerProps.allowCloseButton]);
 
     const saveImageData: IImage = {
         source: <Save24x24
@@ -699,7 +1117,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
     return (
         <div key={propertyFormContainerProps.uniqueName} className='nz-wh-100 nz-d-flex-column nz-prop-form-container'>
             {isShowMainHeader || isAddressFormShow ? <div className='nz-sub-header nz-prop-form-container-action'>
-                <Label uniqueName={propertyFormContainerProps.uniqueName + 'header'} label={"Properties"} />
+                <Label uniqueName={propertyFormContainerProps.uniqueName + 'header'} label={propertyFormContainerProps.headerText ?? "Properties"} />
                 <div className='nz-header-action'>
                     {allowBackButton ? <ActionImage
                         uniqueName={propertyFormContainerProps.uniqueName + 'back-icon'}

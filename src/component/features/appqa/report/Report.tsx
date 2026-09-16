@@ -4,7 +4,6 @@ import "./Report.css";
 import "@n20a/libreport/style.css";
 import { Report24x24 } from "@n20a/libicon";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
-import { IReportProfileItem } from "../../../shared/context/allinterface/IReport";
 import { Label } from "../../../shared/basic/label/Label";
 import { YesNoFormContainer } from "../../../shared/basic/yesnoformcontainer/YesNoFormContainer";
 import { CardLayout } from "../../../shared/cardlayout/CardLayout";
@@ -15,6 +14,12 @@ import { useCommonVariableContext } from "../../../shared/context/hooks/CommonVa
 import PdfMakerContainer from "./pdfmakercontainer/PdfMakerContainer";
 import reportSampleData from "../../../../smsampledata/appqa/ReportSampleData.json";
 const { sampleReportSessionVars } = reportSampleData;
+interface IReportProfileItem {
+    _ReportProfile: string;
+    Description: string;
+    EntityNames: string;
+    [key: string]: string | number | boolean | any
+}
 
 const REPORT_PROFILE_KEY = "_ReportProfile";
 interface IAppqaReport {

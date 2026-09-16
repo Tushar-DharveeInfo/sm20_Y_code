@@ -13,6 +13,7 @@ import { Log } from '../../features/appqa/log/Log'
 import { FqaNotes } from './notes/FqaNotes'
 import { Key } from 'rc-tree/lib/interface'
 import { PropertyFormContainer } from './propertyformcontainer/PropertyFormContainer'
+import { ProfileAddFormContainer } from './propertyformcontainer/ProfileAddFormContainer'
 import { useHelpTipContext } from '../context/hooks/HelptipHooks'
 // import { Assign } from './assign/Assign'
 import { AlertLog } from './alertlog/AlertLog'
@@ -31,6 +32,8 @@ interface ISidebarContent {
     treeData?: ITreeNode[] | null; // tree data for the sidebar
     selectedNodeExplorer?: ITreeNode;
     isPropertyFound?: boolean; // to check property tab is available or not
+    profileAddMode?: 'business' | 'contact' | null;
+    onResetProfileAddMode?: () => void;
     handleReloadTree?: (featureId: string, entID?: string) => void;
     apValueChange?: (value: any, EntID: string, event: unknown, selectedData: unknown, instanceName?: string) => void; // ap form value change
     handleShowErrorDialog?: (message: string, isOpen: boolean) => void;
@@ -57,7 +60,7 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
             setLabel(sidebarProps.Label)
         }
 
-    }, [sidebarProps.Label, sidebarProps.featureId, helpTipsContext.helpTipRecords, mainAppContext.emRecords])
+    }, [sidebarProps.Label, sidebarProps.featureId, helpTipsContext.helpTipRecords])
 
     // Update selected node state and determine readonly mode when node selection changes.
     useEffect(() => {
@@ -165,11 +168,16 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
         selectedNode?.dateUpdated,
     ]);
 
+    const isProfileTab = Label === SidebarEnum.Profile || Label === "Profile";
+    const isPropertyTab = Label === SidebarEnum.Property || Label === "Property" || Label === "Details";
+
     const renderPropertyContainer = () => {
+        const isPropertyOrProfile = isPropertyTab || isProfileTab;
         const shouldShowPropertyContainer =
             selectedNode &&
-            sidebarProps.isPropertyFound &&
-            (Label === SidebarEnum.Property || Label === SidebarEnum.Profile) &&
+            (sidebarProps.isPropertyFound || Label === "Details" || isProfileTab) &&
+            isPropertyOrProfile &&
+            !sidebarProps.profileAddMode &&
             !selectedNode.NodeType?.toLowerCase().includes("helptip");
 
         if (!shouldShowPropertyContainer || !propertyFormPackage) {
@@ -184,11 +192,12 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                 }}
             >
                 {FnIsRootBusinessNode(selectedNode) || selectedNode.Name?.toLowerCase().startsWith("businesses") ?
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "start", height: "100%" }}>
-                        Select a business/contect to view its details
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "start", height: "100%", padding: "16px", color: "var(--text-color-secondary, #757575)" }}>
+                        Select a business or contact to view its profile
                     </div>
                     : <PropertyFormContainer
                         uniqueName={`property-container-${sidebarProps.Label}`}
+                        headerText={isProfileTab ? "Profile" : "Properties"}
                         treeData={sidebarProps.treeData ?? undefined}
                         featureId={sidebarProps.featureId}
                         subTreeFeatureId={sidebarProps.subTreeFeatureId}
@@ -201,7 +210,7 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                         handleValueChange={sidebarProps.apValueChange}
                         handleRefreshUpdatedRecord={(
                             newAddedId: string,
-                            newAddedName: string,
+                            _newAddedName: string,
                             action?: "save" | "back"
                         ) => {
                             if (
@@ -222,6 +231,45 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                         }}
                     />}
 
+            </div>
+        );
+    };
+
+    const renderProfileAddContainer = () => {
+        if (!isProfileTab || !sidebarProps.profileAddMode) {
+            return null;
+        }
+
+        const isBusiness =
+            selectedNode &&
+            !FnIsRootBusinessNode(selectedNode) &&
+            (selectedNode.NodeType?.toLowerCase() === "business" ||
+                selectedNode.treetype?.toLowerCase() === "business");
+
+        const effectiveMode: "business" | "contact" =
+            sidebarProps.profileAddMode ||
+            (isBusiness ? "contact" : "business");
+
+        return (
+            <div
+                style={{
+                    height: "100%",
+                    width: "100%"
+                }}
+            >
+                <ProfileAddFormContainer
+                    uniqueName={`profile-add-${sidebarProps.uniqueName}`}
+                    initialMode={effectiveMode}
+                    actionType="add"
+                    selectedNode={selectedNode}
+                    treeData={sidebarProps.treeData}
+                    featureId={sidebarProps.featureId}
+                    subTreeFeatureId={sidebarProps.subTreeFeatureId}
+                    handleReloadTree={sidebarProps.handleReloadTree}
+                    onClose={() => {
+                        sidebarProps.onResetProfileAddMode?.();
+                    }}
+                />
             </div>
         );
     };
@@ -279,6 +327,7 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
     return (
         <div className="nz-sidebar-container">
             {renderPropertyContainer()}
+            {renderProfileAddContainer()}
             {renderSidebarContent()}
         </div>
     );

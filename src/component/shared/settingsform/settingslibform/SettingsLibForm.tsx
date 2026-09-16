@@ -21,6 +21,10 @@ import { DisplayControlEnums } from '../../alldefaultprops/basic/DefaultPropsFor
 import { IImage } from '../../allinterface/basic/IImage'
 
 import { ActionImage } from '../../basic/actionimage/ActionImage'
+import { Label } from '../../basic/label/Label'
+import { useSessionContext } from '../../context/hooks/SessionHooks'
+import { FnCheckPermissionToEditName, IFeaturePermission } from '../../allcommon/FnCheckPermissionToEditName'
+
 interface IControlProperties {
     uniqueName: string;
     isEditMode?: boolean;
@@ -107,12 +111,6 @@ interface IIsAuthorizedResponse {
     isAuthorized?: boolean;
     IsAuthorized?: boolean;
 }
-import { JsonViewerControl } from '../../basic/jsonviewercontrol/JsonViewerControl'
-import { Label } from '../../basic/label/Label'
-import { OneToManyPropertyFormWithGrid } from '../onetomanypropertyformwithgrid/OneToManyPropertyFormWithGrid'
-import { useSessionContext } from '../../context/hooks/SessionHooks'
-import { FnCheckPermissionToEditName, IFeaturePermission } from '../../allcommon/FnCheckPermissionToEditName'
-
 // Normalizes libform changed values to string values expected by save handlers.
 function normalizeChangedControlValue(rawValue: unknown): unknown {
     if (typeof rawValue === "boolean") {
@@ -963,40 +961,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                             const value = getExternalControlValue(control, selectedProfile);
 
                             switch (control.DisplayControl) {
-                                case DisplayControlEnums.JsonViewerControl:
-                                    return (
-                                        <JsonViewerControl
-                                            key={control._AP}
-                                            uniqueName={control._AP}
-                                            label={control.PropertyLabel}
-                                            isRenderAsForm={true}
-                                            value={jsonForView ? JSON.stringify(jsonForView) : ""}
-                                            isRequired={control.IsRequired === 1 || false}
-                                            nameDesc={control.NameDesc}
-                                            tooltip={control.ValueDesc}
-                                            valueDesc={control.ValueDesc}
-                                            inputMask={control.InputMask || ""}
-                                            containerName={uniqueName}
-                                        />
-                                    );
-                                case DisplayControlEnums.jsonPropertyGridRW:
-                                    return <OneToManyPropertyFormWithGrid
-                                        uniqueName={control.Name}
-                                        headerText={control.PropertyLabel}
-                                        propertyData={value as string | Record<string, unknown>[]}
-                                        allowAdd={true}
-                                        allowEdit={true}
-                                        allowDelete={true}
-                                        handleValueChange={handleOnGridValueChange} />
-                                case DisplayControlEnums.jsonPropertyGridAdd:
-                                    return <OneToManyPropertyFormWithGrid
-                                        uniqueName={control.Name}
-                                        headerText={control.PropertyLabel}
-                                        propertyData={value as string | Record<string, unknown>[]}
-                                        allowAdd={true}
-                                        allowEdit={false}
-                                        allowDelete={false}
-                                        handleValueChange={handleOnGridValueChange} />
+
                                 case DisplayControlEnums.AddressForm: {
                                     return (
                                         <AddressForm

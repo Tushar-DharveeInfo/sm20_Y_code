@@ -4,12 +4,26 @@ import { Close24x24, Copy24x24, Down24x24, NoInternet, Secured24x24, Up24x24 } f
 import './StatusBarTitleContainer.css';
 import { FnGetCssVariable } from '../../allcommon/FnGetCssVariable.ts';
 import { FnCopyToClipboard } from '../../../shared/allcommon/basic/FnCopyToClipboard.ts';
-import { IStatusBarTitleContainer } from '../../allinterface/IStatusBarContainer.ts'
 import { Label } from '../../../shared/basic/label/Label.tsx';
 import { ActionImage } from '../../../shared/basic/actionimage/ActionImage.tsx';
 import { Image } from '../../../shared/basic/image/Image.tsx';
 
 
+interface IStatusBarTitleContainer {
+    uniqueName: string;
+    isError: boolean;
+    titleData: string | string[];
+    isOpen: boolean;
+    cardsCount: number;
+    isInternetAvailable: boolean;
+    isSiteLocked: boolean;
+    isSiteManaged: boolean;
+    handleOpenCloseStatusBar: () => void;
+    criticalAlertCount?: number;
+    isShowFullTitle?: boolean;
+    handleShowFullTitle?: () => void;
+    handleClearClick?: () => void;
+}
 const StatusBarTitleContainer = (statusBarTitleContainerProps: IStatusBarTitleContainer) => {
     // console.log('statusBarTitleContainerProps :', statusBarTitleContainerProps);
     const [titleContent, setTitleContent] = useState<JSX.Element>();

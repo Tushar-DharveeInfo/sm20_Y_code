@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Key } from 'rc-tree/lib/interface'
 import './TreeExplorerContainer.css'
@@ -9,7 +9,9 @@ import {
   hasActiveContactFilters,
   normalizeFilterFieldName,
 } from '../allcommon/searchfilter/FnFilterBusinessContactRecords.ts'
+import { FnMapToBusinessDocs } from '../allcommon/dataset/FnMapToBusinessDoc.ts'
 import { FnMapToContactDocs } from '../allcommon/dataset/FnMapToContactDoc.ts'
+import type { IBusinessDoc, IContactDoc } from '../allinterface/IDatasets.ts'
 import { useSmDataContext } from '../context/hooks/SmDataHooks.ts'
 import {
   FnGetClientExplorerAutoFilter,
@@ -25,7 +27,8 @@ import { IFeatureTree, ITreeForFlatDataContainer } from '../allinterface/tree/IT
 import { FilterFormContainer } from '../searchfilter/filterformcontainer/FilterFormContainer.tsx'
 import { SearchControl } from '../searchfilter/searchcontrol/SearchControl.tsx'
 import { TreeControl } from '../tree/treecontrol/TreeControl.tsx'
-import { useContacts } from '@n20a/libfsdb'
+import { useBusinesses, useContacts, useFirestore } from '@n20a/libfsdb'
+import { useCommonVariableContext } from '../context/hooks/CommonVariableHooks.ts'
 
 function buildFeatureTreeProps(allowCheckbox = false): IFeatureTree {
   return {
@@ -73,6 +76,7 @@ function accordionExpandedKeys(tree: ITreeNode[] | undefined, businessKey: Key):
 
 const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContainer) => {
   const smDataContext = useSmDataContext()
+  const commonVariableContext = useCommonVariableContext()
   const [featureTreeProps, setFeatureTreeProps] = useState<IFeatureTree | null>(null)
   const [treeContainerFlatDataProps, setTreeContainerFlatDataProps] = useState<ITreeForFlatDataContainer>()
   const [treeData, setTreeData] = useState<ITreeNode[]>()
@@ -88,6 +92,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   const [filterFormData, setFilterFormData] = useState<IDCFilterControlValues>({})
   const filterFormDataRef = useRef<IDCFilterControlValues>({})
   const isFilterChangeRef = useRef(false)
+  const firestore = useFirestore()
+  const { getBusinesses } = useBusinesses()
   const treeDataRef = useRef<ITreeNode[] | undefined>(undefined)
   const originalTreeDataRef = useRef<ITreeNode[]>([])
   const getContactsRef = useRef<ReturnType<typeof useContacts>['getContacts'] | null>(null)
@@ -99,6 +105,19 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   getContactsRef.current = getContacts
   treeDataRef.current = treeData
   originalTreeDataRef.current = originalTreeData
+
+  const fetchContactsFromApi = useCallback(async (bid: string): Promise<Record<string, unknown>[]> => {
+    if (!bid) return []
+    try {
+      const res = await firestore.queryDocuments({
+        pathSegments: ['businesses', bid, 'contacts'],
+      })
+      return (res?.data ?? []) as Record<string, unknown>[]
+    } catch (err) {
+      console.warn('fetchContactsFromApi error for bid:', bid, err)
+      return []
+    }
+  }, [firestore])
 
 
 
@@ -128,7 +147,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     treeExplorerContainerProps.handleNodeSelect?.([node.key], info, expandedKeys, currentTree)
   }
 
-  const setBusinessTree = (nodes: ITreeNode[]) => {
+  const setBusinessTree = (nodes: ITreeNode[], targetIdToSelect?: string) => {
     const rawRootLabel = treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses'
     const baseLabel = rawRootLabel.replace(/\s*\(\d+\)$/, '').trim() || 'Businesses'
     const rootLabel = `${baseLabel} (${nodes.length})`
@@ -166,14 +185,14 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     setExpandedBusinessId('')
 
     const urlParams = new URLSearchParams(window.location.search);
-    const targetBid = urlParams.get('bid')?.trim() || String(smDataContext.selection?.bid ?? '').trim();
+    const targetBid = targetIdToSelect || urlParams.get('bid')?.trim() || String(smDataContext.selection?.bid ?? '').trim();
     const targetNode = targetBid
       ? nodes.find((n) => n.NodeEntID === targetBid || n.key === targetBid || (n as any).bid === targetBid)
       : undefined;
 
     if (targetNode) {
       setDefaultExpandedKeys([treeNodes[0].key, targetNode.key]);
-      selectNode(targetNode, [treeNodes[0].key, targetNode.key], treeNodes);
+      selectNode(targetNode, [treeNodes[0].key, targetNode.key], treeNodes, 'select');
     } else if (treeNodes.length > 0) {
       setDefaultExpandedKeys(treeNodes[0] ? [treeNodes[0].key] : []);
       selectNode(treeNodes[0], [treeNodes[0].key], treeNodes);
@@ -183,7 +202,195 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       setDefaultSelectedNodeInfo(null);
       smDataContext.setExplorerSelection(undefined, getAppliedFilterJson(filterFormDataRef.current));
     }
+    return treeNodes;
   }
+
+  const refreshTreeAndSelectNode = async (targetEntId?: string, hintParentBid?: string) => {
+    if (!treeExplorerContainerProps.featureId) return;
+    const featureProps = featureTreeProps ?? buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox);
+
+    // Refresh businesses from API to include any newly added business
+    const apiBusinesses = await getBusinesses().catch(() => null);
+    if (apiBusinesses?.length) {
+      smDataContext.setDatasets((prev) => ({
+        ...prev,
+        businesses: FnMapToBusinessDocs(apiBusinesses),
+      }));
+    }
+
+    const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId);
+    const mergedForm: IDCFilterControlValues = { ...autoFilter, ...filterFormDataRef.current };
+
+    const sourceBusinesses = (apiBusinesses?.length ? FnMapToBusinessDocs(apiBusinesses) : null)
+      ?? (smDataContext.datasets.businesses?.length ? smDataContext.datasets.businesses : null)
+      ?? [];
+
+    const seenBids = new Set<string>();
+    const uniqueBusinesses: IBusinessDoc[] = [];
+    for (const b of sourceBusinesses) {
+      const bid = String(b.bid || (b as any).EntID || (b as any).id || '').trim();
+      if (bid) {
+        const lower = bid.toLowerCase();
+        if (!seenBids.has(lower)) {
+          seenBids.add(lower);
+          uniqueBusinesses.push(b);
+        }
+      } else {
+        uniqueBusinesses.push(b);
+      }
+    }
+    let businesses = filterBusinessRecords(uniqueBusinesses, mergedForm);
+    if (hasActiveContactFilters(mergedForm)) {
+      const matchingBids = new Set(
+        smDataContext.getContactsForTree("", mergedForm).map((contact) => contact.bid)
+      );
+      businesses = businesses.filter((business) => matchingBids.has(business.bid));
+    }
+    const businessNodes = FnMapBusinessesToTreeNodes(businesses, featureProps, treeExplorerContainerProps.featureId);
+
+    // Resolve parent business ID
+    let parentBid = hintParentBid ? String(hintParentBid).trim() : '';
+
+    if (!parentBid && targetEntId) {
+      const allKnownContacts = smDataContext.datasets.contacts ?? [];
+      const foundContact = allKnownContacts.find(
+        (c) => String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase() === targetEntId.trim().toLowerCase()
+      );
+      if (foundContact?.bid) {
+        parentBid = String(foundContact.bid);
+      }
+    }
+
+    if (!parentBid && smDataContext.selectedNode?.bid) {
+      parentBid = String(smDataContext.selectedNode.bid);
+    }
+
+    if (!parentBid && targetEntId && targetEntId.startsWith('cid_')) {
+      const parts = targetEntId.split('_');
+      if (parts.length >= 3) {
+        parentBid = `${parts[1]}_${parts[2]}`;
+      }
+    }
+
+    // If parent business is resolved, fetch its contacts from API and bind
+    if (parentBid) {
+      const rawRootLabel = treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses';
+      const baseLabel = rawRootLabel.replace(/\s*\(\d+\)$/, '').trim() || 'Businesses';
+      const rootLabel = `${baseLabel} (${businessNodes.length})`;
+      const treeNodes: ITreeNode[] = [{
+        key: 'root-businesses',
+        NodeEntID: 'root-businesses',
+        EntID: 'root-businesses',
+        NodeEntityname: 'Businesses',
+        NodeType: 'Root',
+        Name: rootLabel,
+        Description: rootLabel,
+        NodeState: null,
+        IsAuthorized: false,
+        title: rootLabel,
+        icon: null,
+        children: businessNodes.map((node) => ({ ...node, parentEntID: 'root-businesses' })),
+        treetype: 'Root',
+        Type: 'Root',
+        parentEntID: null,
+        stepNo: 0,
+        HasChildren: businessNodes.length > 0 ? 1 : 0,
+        isLeaf: businessNodes.length === 0,
+        checkable: false,
+      }];
+
+      // Call contact API for the selected business node
+      const apiRecords = await fetchContactsFromApi(parentBid);
+      const apiContacts = FnMapToContactDocs(apiRecords, parentBid);
+
+      // Merge API contacts with any in-memory contacts for this bid, deduplicating by cid
+      const contextContacts = (smDataContext.datasets.contacts ?? []).filter(
+        (c) => String(c.bid).trim().toLowerCase() === parentBid.trim().toLowerCase()
+      );
+
+      const combinedRaw = [...apiContacts, ...contextContacts];
+      const seenCids = new Set<string>();
+      const uniqueContactsForBid: IContactDoc[] = [];
+      for (const c of combinedRaw) {
+        const cid = String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase();
+        if (cid) {
+          if (!seenCids.has(cid)) {
+            seenCids.add(cid);
+            uniqueContactsForBid.push(c);
+          }
+        } else {
+          uniqueContactsForBid.push(c);
+        }
+      }
+
+      smDataContext.setDatasets((prev) => ({
+        ...prev,
+        contacts: [
+          ...(prev.contacts ?? []).filter(
+            (c) => String(c.bid).trim().toLowerCase() !== parentBid.trim().toLowerCase()
+          ),
+          ...uniqueContactsForBid,
+        ],
+      }));
+
+      const filteredContacts = filterContactRecords(
+        uniqueContactsForBid,
+        filterFormDataRef.current,
+        parentBid
+      );
+      const contactNodes = FnMapContactsToTreeNodes(
+        filteredContacts,
+        featureProps,
+        treeExplorerContainerProps.featureId,
+        parentBid
+      );
+      const seenNodeKeys = new Set<string>();
+      const uniqueContactNodes = contactNodes.filter((cn) => {
+        const key = String(cn.key ?? cn.NodeEntID ?? cn.EntID ?? '').trim().toLowerCase();
+        if (key && seenNodeKeys.has(key)) return false;
+        if (key) seenNodeKeys.add(key);
+        return true;
+      });
+
+      const updatedTreeData = await FnAddSubNode(
+        treeNodes,
+        parentBid,
+        uniqueContactNodes,
+        featureProps,
+        treeExplorerContainerProps.featureId,
+        false,
+        0
+      );
+      const updatedOriginalData = await FnAddSubNode(
+        treeNodes,
+        parentBid,
+        uniqueContactNodes,
+        featureProps,
+        treeExplorerContainerProps.featureId,
+        true,
+        0
+      );
+
+      const nextExpandedKeys = ['root-businesses', parentBid];
+      setTreeData(updatedTreeData);
+      setOriginalTreeData(updatedOriginalData);
+      setDefaultExpandedKeys(nextExpandedKeys);
+
+      const targetCidClean = (targetEntId ?? '').trim().toLowerCase();
+      const selectedContactNode = uniqueContactNodes.find(
+        (cn) => {
+          const nodeKey = String(cn.key ?? cn.NodeEntID ?? (cn as any).cid ?? '').trim().toLowerCase();
+          return nodeKey === targetCidClean;
+        }
+      ) ?? uniqueContactNodes[uniqueContactNodes.length - 1] ?? uniqueContactNodes[0];
+
+      if (selectedContactNode) {
+        selectNode(selectedContactNode, nextExpandedKeys, updatedTreeData, 'select');
+      }
+    } else {
+      setBusinessTree(businessNodes, targetEntId);
+    }
+  };
 
   /*Filters sample businesses (and contact-gated businesses) then maps to tree nodes. */
   const applyBusinessTreeFromFilter = (
@@ -225,61 +432,101 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       featureTreeProps: featureProps,
     })
 
-    // TODO: replace sampleBusinesses with API response when available
     applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
   }, [treeExplorerContainerProps.featureId, treeExplorerContainerProps.uniqueName, treeExplorerContainerProps.allowCheckbox, smDataContext.isBusinessesLoaded])
 
+  useEffect(() => {
+    if (!commonVariableContext.reloadTreeFor) return;
+    const { featureId, entId, dropNodeEntId } = commonVariableContext.reloadTreeFor;
+    if (featureId && featureId !== treeExplorerContainerProps.featureId) return;
+    void refreshTreeAndSelectNode(entId, dropNodeEntId);
+  }, [commonVariableContext.reloadTreeFor]);
+
   const applyContactsToBusiness = async (
     businessId: string,
-    records: Record<string, unknown>[] | null
+    records: Record<string, unknown>[] | null,
+    autoSelectFirstChild: boolean = true
   ) => {
     if (!featureTreeProps || !treeContainerFlatDataProps) {
       return
     }
-    const mappedContacts = FnMapToContactDocs(records, businessId)
+    const apiContacts = FnMapToContactDocs(records, businessId);
+    const contextContacts = (smDataContext.datasets.contacts ?? []).filter(
+      (c) => String(c.bid).trim().toLowerCase() === businessId.trim().toLowerCase()
+    );
+
+    const combined = [...apiContacts, ...contextContacts];
+    const seenCids = new Set<string>();
+    const mappedContacts: IContactDoc[] = [];
+    for (const c of combined) {
+      const cid = String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase();
+      if (cid) {
+        if (!seenCids.has(cid)) {
+          seenCids.add(cid);
+          mappedContacts.push(c);
+        }
+      } else {
+        mappedContacts.push(c);
+      }
+    }
+
     smDataContext.setDatasets((prev) => ({
       ...prev,
-      contacts: mappedContacts,
-    }))
+      contacts: [
+        ...(prev.contacts ?? []).filter(
+          (c) => String(c.bid).trim().toLowerCase() !== businessId.trim().toLowerCase()
+        ),
+        ...mappedContacts,
+      ],
+    }));
+
     const filteredContacts = filterContactRecords(
       mappedContacts,
       filterFormDataRef.current,
       businessId
-    )
+    );
     const contactNodes = FnMapContactsToTreeNodes(
       filteredContacts,
       featureTreeProps,
       treeContainerFlatDataProps.featureId,
       businessId
-    )
-    const clearedTree = clearBusinessContactChildren(treeDataRef.current ?? [])
-    const clearedOriginal = clearBusinessContactChildren(originalTreeDataRef.current)
+    );
+    const seenNodeKeys = new Set<string>();
+    const uniqueContactNodes = contactNodes.filter((cn) => {
+      const key = String(cn.key ?? cn.NodeEntID ?? cn.EntID ?? '').trim().toLowerCase();
+      if (key && seenNodeKeys.has(key)) return false;
+      if (key) seenNodeKeys.add(key);
+      return true;
+    });
+
+    const clearedTree = clearBusinessContactChildren(treeDataRef.current ?? []);
+    const clearedOriginal = clearBusinessContactChildren(originalTreeDataRef.current);
     const updatedTreeData = await FnAddSubNode(
       clearedTree,
       businessId,
-      contactNodes,
+      uniqueContactNodes,
       featureTreeProps,
       treeContainerFlatDataProps.featureId,
       false,
       0
-    )
+    );
     const updatedOriginalData = await FnAddSubNode(
       clearedOriginal,
       businessId,
-      contactNodes,
+      uniqueContactNodes,
       featureTreeProps,
       treeContainerFlatDataProps.featureId,
       true,
       0
-    )
-    const nextExpandedKeys = accordionExpandedKeys(updatedTreeData, businessId)
-    setTreeData(updatedTreeData)
-    setOriginalTreeData(updatedOriginalData)
-    setDefaultExpandedKeys(nextExpandedKeys)
-    if (contactNodes.length > 0) {
-      selectNode(contactNodes[0], nextExpandedKeys, updatedTreeData, 'select')
+    );
+    const nextExpandedKeys = accordionExpandedKeys(updatedTreeData, businessId);
+    setTreeData(updatedTreeData);
+    setOriginalTreeData(updatedOriginalData);
+    setDefaultExpandedKeys(nextExpandedKeys);
+    if (autoSelectFirstChild && uniqueContactNodes.length > 0) {
+      selectNode(uniqueContactNodes[0], nextExpandedKeys, updatedTreeData, 'select');
     }
-  }
+  };
 
   const handleNodeExpand = async (expandedNodeKeys: Key[], info: IExpandedNodeInfo) => {
     if (!info?.node || !treeContainerFlatDataProps || !featureTreeProps) return
@@ -317,14 +564,14 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       setExpandedBusinessId(businessId)
     })
 
-    const records = await getContactsRef.current?.()
+    const records = await fetchContactsFromApi(businessId)
     if (requestId !== contactsRequestRef.current) {
       return
     }
-    await applyContactsToBusiness(businessId, records ?? [])
+    await applyContactsToBusiness(businessId, records ?? [], true)
   }
 
-  const handleNodeSelect = (selectedKeys: Key[], info: ISelectedNodeInfo, expandedNodeKeys?: Key[]) => {
+  const handleNodeSelect = async (selectedKeys: Key[], info: ISelectedNodeInfo, expandedNodeKeys?: Key[]) => {
     setDefaultSelectedKeys(selectedKeys)
     setDefaultSelectedNodeInfo(info)
     smDataContext.setExplorerSelection(info.node, getAppliedFilterJson(filterFormDataRef.current))
@@ -334,6 +581,26 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       expandedNodeKeys ?? defaultExpandedKeys,
       treeData
     )
+
+    // Fetch and bind contacts data into dataset on selection without expanding the node
+    if (isBusinessNode(info.node) && !treeExplorerContainerProps.businessesOnly) {
+      const businessId = getBusinessNodeId(info.node)
+      if (businessId) {
+        const records = await fetchContactsFromApi(businessId)
+        if (records?.length) {
+          const apiContacts = FnMapToContactDocs(records, businessId)
+          smDataContext.setDatasets((prev) => ({
+            ...prev,
+            contacts: [
+              ...(prev.contacts ?? []).filter(
+                (c) => String(c.bid).trim().toLowerCase() !== businessId.trim().toLowerCase()
+              ),
+              ...apiContacts,
+            ],
+          }))
+        }
+      }
+    }
   }
 
   const handleFilterActionClick = (
@@ -447,10 +714,17 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
                 allowCheckStrictly={false}
                 allowIcon={false}
                 allowInternalDrag={false}
+                allowAdd={treeExplorerContainerProps.allowAdd ?? false}
+                addTooltip={treeExplorerContainerProps.addTooltip}
+                addActionCode={treeExplorerContainerProps.addActionCode}
+                disableAdd={treeExplorerContainerProps.disableAdd}
+                allowAddBusiness={treeExplorerContainerProps.allowAddBusiness}
+                allowAddContact={treeExplorerContainerProps.allowAddContact}
                 allowMultiple={false}
                 className="nz-dce-tree-for-flat-data"
                 allowAPICallOnExpand={true}
                 handleNodeExpand={handleNodeExpand}
+                handleAIClick={treeExplorerContainerProps.handleAIClick}
                 handleNodeSelect={handleNodeSelect}
                 handleNodeCheck={treeExplorerContainerProps.handleNodeCheck}
               />

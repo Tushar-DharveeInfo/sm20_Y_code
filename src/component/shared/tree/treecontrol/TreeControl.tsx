@@ -5,7 +5,7 @@ import { EventDataNode, Key } from 'rc-tree/lib/interface'
 import Tree, { CheckInfo } from 'rc-tree/lib/Tree'
 import './tree.css'
 import './TreeControl.css'
-import { Cross, Edit24x24, Plus } from '@n20a/libicon'
+import { Cross, Edit24x24, Plus, User24x24 } from '@n20a/libicon'
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable'
 import { FnGetNodeDetailsBaseOnKey } from '../../allcommon/sidebar/FnGetNodeDetailsBaseOnKey'
 import { FnGetAutoExpandNodeKeys } from '../../allcommon/tree/FnGetAutoExpandNodeKeys'
@@ -416,7 +416,29 @@ const TreeControl = (treeControlProps: ITreeControl) => {
       strokeWidth={1} />,
     type: "svg" as const,
     w: 'var(--image-size-2)',
-    tooltip: "Click to Add"
+    tooltip: treeControlProps.addTooltip || "Click to Add"
+  }), [treeControlProps.uniqueName, treeControlProps.addTooltip]);
+
+  const addBusinessImage: IImage = useMemo(() => ({
+    uniqueName: `${treeControlProps.uniqueName}-iadd-business`,
+    source: <Plus
+      size={FnGetCssVariable('--image-size-2')}
+      fill='none'
+      strokeWidth={1} />,
+    type: "svg" as const,
+    w: 'var(--image-size-2)',
+    tooltip: "Add Business"
+  }), [treeControlProps.uniqueName]);
+
+  const addContactImage: IImage = useMemo(() => ({
+    uniqueName: `${treeControlProps.uniqueName}-iadd-contact`,
+    source: <User24x24
+      size={FnGetCssVariable('--image-size-2')}
+      fill='none'
+      strokeWidth={1} />,
+    type: "svg" as const,
+    w: 'var(--image-size-2)',
+    tooltip: "Add Contact"
   }), [treeControlProps.uniqueName]);
 
   const editImage: IImage = useMemo(() => ({
@@ -518,7 +540,7 @@ const TreeControl = (treeControlProps: ITreeControl) => {
     <div
       key={treeControlProps.uniqueName}
       ref={treeDivRef}
-      className={`nz-tree-action-control-container${treeControlProps.allowDelete || treeControlProps.allowAdd || treeControlProps.allowEdit ? " nz-tree-with-buttons" : ""}`}
+      className={`nz-tree-action-control-container${treeControlProps.allowDelete || treeControlProps.allowAdd || treeControlProps.allowEdit || treeControlProps.allowAddBusiness || treeControlProps.allowAddContact ? " nz-tree-with-buttons" : ""}`}
       onMouseDown={() => {
         // Include empty-space clicks so only this tree stays focused in dual-tree layouts.
         treeNodeKeyBordfocus();
@@ -558,12 +580,26 @@ const TreeControl = (treeControlProps: ITreeControl) => {
           handleDragEnd={handleDragEnd}
         />
       </div>
-      {(treeControlProps.allowAdd || treeControlProps.allowDelete || treeControlProps.allowEdit) &&
+      {(treeControlProps.allowAdd || treeControlProps.allowDelete || treeControlProps.allowEdit || treeControlProps.allowAddBusiness || treeControlProps.allowAddContact) &&
         <div className='nz-action-panel'>
+          {treeControlProps.allowAddBusiness && treeControlProps.handleAIClick &&
+            <ActionImage image={addBusinessImage} w={'var(--node_height)'} h={'var(--node_height)'}
+              uniqueName={`${treeControlProps.uniqueName}-aiadd-business`}
+              actionCode={'addBusiness'}
+              disabled={treeControlProps.disableAddBusiness || false}
+              handleMouse={treeControlProps.handleAIClick} />
+          }
+          {treeControlProps.allowAddContact && treeControlProps.handleAIClick &&
+            <ActionImage image={addContactImage} w={'var(--node_height)'} h={'var(--node_height)'}
+              uniqueName={`${treeControlProps.uniqueName}-aiadd-contact`}
+              actionCode={'addContact'}
+              disabled={treeControlProps.disableAddContact || false}
+              handleMouse={treeControlProps.handleAIClick} />
+          }
           {treeControlProps.allowAdd && treeControlProps.handleAIClick &&
             <ActionImage image={addImage} w={'var(--node_height)'} h={'var(--node_height)'}
               uniqueName={`${treeControlProps.uniqueName}-aiadd`}
-              actionCode={'add'}
+              actionCode={treeControlProps.addActionCode || 'add'}
               disabled={treeControlProps.disableAdd || false}
               handleMouse={treeControlProps.handleAIClick} />
           }

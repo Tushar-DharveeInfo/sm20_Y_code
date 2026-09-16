@@ -16,8 +16,8 @@ const ReuseDataForFeatures: string[] = [];
 interface IFeatureContainer {
     uniqueName: string;//unique identifier for the control
     featureId: string;
-    bid: string;
-    cid: string;
+    bid?: string;
+    cid?: string;
     allowShowHeader: boolean;
     appqaId?: string;
     headerText?: string;
@@ -273,6 +273,8 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
 
                 <ExplorerContainer uniqueName={`${featureContainerProps.uniqueName}-explorer-container`}
                     featureId={featureContainerProps.featureId}
+                    bid={featureContainerProps.bid}
+                    cid={featureContainerProps.cid}
                     originalTreeData={originalTreeData}
                     allowShowHeader={true}
                     featureData={mainAppContext.featureRecords}
@@ -283,6 +285,7 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
                     handleShowUserMessage={handleShowUserMessage}
                     updateStatusBarData={featureContainerProps.updateStatusBarData}
                     handleReloadTree={handleReloadTree}
+
                 />
             </div>
             {/* Renders feature modules dynamically based on featureId.

@@ -35,10 +35,9 @@ const ImpersonateService = lazy(() => import('../../features/services/impersonat
 
 interface IFeatureRenderTarget {
     uniqueName: string;
-    bid: string;
-    cid: string;
+    bid?: string;
+    cid?: string;
     selectedtenantshortname?: string;
-
     featureId: string;
     headerText?: string;
     selectedFeatureData?: IMenuItem;
@@ -114,7 +113,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
-
                         />
                     </Suspense>
                 </ErrorBoundary>

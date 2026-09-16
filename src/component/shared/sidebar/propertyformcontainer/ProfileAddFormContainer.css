@@ -1,0 +1,13 @@
+.nz-profile-add-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--card-bg, #ffffff);
+    color: var(--text-color, #333333);
+}
+
+.nz-profile-add-container .nz-settings-lib-form-container {
+    height: 100%;
+}

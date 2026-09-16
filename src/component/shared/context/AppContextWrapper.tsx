@@ -1,5 +1,4 @@
 import { IAppContextWrapper } from "./allinterface/IAppContextWrapper";
-import { ApProfileProvider } from "./contextandprovider/ApProfile";
 import { CommonVariableProvider } from "./contextandprovider/CommonVariable";
 import { HelpTipProvider } from "./contextandprovider/Helptip";
 import { MainAppProvider } from "./contextandprovider/MainApp";
@@ -19,7 +18,6 @@ const AppContextWrapper = ({ children }: IAppContextWrapper) => {
         CommonVariableProvider,
         ResourceProvider,
         SelectedNodeProvider,
-        ApProfileProvider,
         SmDataProvider
     ];
 

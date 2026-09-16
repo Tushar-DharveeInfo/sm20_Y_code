@@ -77,6 +77,11 @@ interface ITreeExplorerContainer {
     subTreeFeatureId?: string;//this will be used to control tree
     originalTreeData?: ITreeNode[];//for use from cache
     allowAdd?: boolean; // Enables the ability to add new items (optional)
+    addTooltip?: string; // Custom tooltip for Add button
+    addActionCode?: string; // Custom action code for Add button
+    disableAdd?: boolean; // Disable the Add button
+    allowAddBusiness?: boolean; // Enables the ability to add business items (optional)
+    allowAddContact?: boolean; // Enables the ability to add contact items (optional)
     allowEdit?: boolean; // Enables the ability to edit existing items (optional)
     allowDelete?: boolean; // Enables the ability to delete items (optional)
     treeDataFor?: string;// used to handle conditions for drag and drop event

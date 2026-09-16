@@ -1,8 +1,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { Splitter, SplitterPanel } from 'primereact/splitter';
-import { useApProfileContext } from '../../context/hooks/ApProfileHooks.ts';
-import { useStatusBarContext } from '../../context/hooks/StatusBarHooks.ts';
 import './SettingsContainer.css';
 import { DeviceByModelComboFieldNames } from '../../alldefaultprops/basic/DefaultPropsComboBoxControl.ts';
 import { SettingsCustomImplementedSubGroups } from '../../alldefaultprops/basic/DefaultPropsFormContainer.ts';
@@ -64,8 +62,6 @@ const SettingsContainer = (formContainerProps: ISettingsContainer) => {
     const [refDataObject, setRefDataObject] = useState<any[]>([]);
     const [isAddMode, setIsAddMode] = useState<boolean>(false);
 
-    const statusBarContext = useStatusBarContext();
-    const apProfileContext = useApProfileContext();
     const { formControls, actionLabelItems, allowActionList, optionalFromControls, subGroup } = formContainerProps; // Destructure formContainerProps
     useEffect(() => {
         // Update action list items only if the value changes
@@ -331,11 +327,11 @@ const SettingsContainer = (formContainerProps: ISettingsContainer) => {
         );
     };
     const handleYesButtonClick = () => {
-        const handleApiCallApProfileDelete = (apDeleteResponse: unknown, status?: string) => {
-            if (status === "200" && apDeleteResponse !== undefined) {
-                apProfileContext.fetchApProfile(true, statusBarContext);
-            }
-        }
+        // const handleApiCallApProfileDelete = (apDeleteResponse: unknown, status?: string) => {
+        //     if (status === "200" && apDeleteResponse !== undefined) {
+        //         // apProfileContext.fetchApProfile(true, statusBarContext);
+        //     }
+        // }
         // axiosInterceptor({
         //     url: AP.DeleteApInstance,
         //     data: { recID: selectedItem?.actionCode },
