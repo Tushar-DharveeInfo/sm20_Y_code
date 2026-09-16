@@ -1,0 +1,134 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "dateupdated", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "salesexec", "order": "ASCENDING" },
+        { "fieldPath": "dateupdated", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "businesses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "verified", "order": "ASCENDING" },
+        { "fieldPath": "dateupdated", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "contacts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "dateupdated", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tickets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "daterequested", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "activities",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bid", "order": "ASCENDING" },
+        { "fieldPath": "dateupdated", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "datecreated", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "subs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bid", "order": "ASCENDING" },
+        { "fieldPath": "enddate", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [],
+  "collectionGroups": [
+    {
+      "collectionId": "contacts",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "fields": [
+            { "fieldPath": "cid", "order": "ASCENDING" },
+            { "fieldPath": "dateupdated", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    {
+      "collectionId": "tickets",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "fields": [
+            { "fieldPath": "cid", "order": "ASCENDING" },
+            { "fieldPath": "daterequested", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    {
+      "collectionId": "orders",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "fields": [
+            { "fieldPath": "cid", "order": "ASCENDING" },
+            { "fieldPath": "datecreated", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    {
+      "collectionId": "activities",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "fields": [
+            { "fieldPath": "cid", "order": "ASCENDING" },
+            { "fieldPath": "dateupdated", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    },
+    {
+      "collectionId": "subs",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "fields": [
+            { "fieldPath": "cid", "order": "ASCENDING" },
+            { "fieldPath": "enddate", "order": "DESCENDING" }
+          ]
+        }
+      ]
+    }
+  ]
+}

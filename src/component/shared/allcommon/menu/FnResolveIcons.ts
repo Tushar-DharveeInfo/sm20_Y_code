@@ -283,7 +283,7 @@ const FnResolveIcons = (options?: ResolverOptions) => {
         );
 
         return (fileName?: string): ComponentType<any> => {
-            console.log('fileName FnResolveIcons:', fileName);
+            // console.log('fileName FnResolveIcons:', fileName);
             try {
                 if (!fileName) return defaultIcon;
 
@@ -326,5 +326,3 @@ const smFeatureIconKeys = (): string[] => {
 };
 
 export { FnResolveIcons, N, Setting24x24, smFeatureIconKeys, toFeatureIconKey };
-
-

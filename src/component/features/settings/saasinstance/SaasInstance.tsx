@@ -4,10 +4,12 @@ import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 import { sampleBusinesses } from '../../../shared/allcommon/FnBusinessesSampleData';
 import '../../../shared/settingsform/settingslibform/SettingsLibForm.css';
 import { SettingsEnums } from '../../../constants/Feature';
-import { ImpersonateUser } from './ImpersonateUser';
+import { ConfirmSaasInstance } from './ConfirmSaasInstance';
 
 interface ISaasInstance {
     uniqueName: string;
+    tenantshortname: string;
+    userid: string;
     featureId?: string;
     headerText?: string;
 }
@@ -15,15 +17,15 @@ interface ISaasInstance {
 const SaasInstance: React.FC<ISaasInstance> = (props) => {
     const { uniqueName, headerText, featureId = SettingsEnums.Instance } = props;
     const smDataContext = useSmDataContext();
-    const bid = smDataContext.selection.bid;
-    const cid = smDataContext.selection.cid;
+    const tenantshortname = smDataContext.selection.bid;
+    const userid = smDataContext.selection.cid;
 
     const selectedLabel = useMemo(() => {
-        if (!bid) {
+        if (!tenantshortname) {
             return undefined;
         }
-        return sampleBusinesses.find((business) => business.bid === bid)?.bname ?? bid;
-    }, [bid]);
+        return sampleBusinesses.find((business) => business.bid === tenantshortname)?.bname ?? tenantshortname;
+    }, [tenantshortname]);
 
     return (
         <div key={`${uniqueName}-${featureId}`} className="nz-form-controls-container nz-d-flex-column nz-wh-100">
@@ -38,13 +40,11 @@ const SaasInstance: React.FC<ISaasInstance> = (props) => {
                 />
             </div>
             <div className="nz-wh-100 nz-d-flex-hv-center" style={{ flex: 1, padding: '2rem' }}>
-                {bid ? (
-                    <ImpersonateUser
-                        key={bid}
-                        data={{
-                            tenantshortname: String(bid),
-                            userid: String(cid ?? ''),
-                        }}
+                {tenantshortname ? (
+                    <ConfirmSaasInstance
+                        key={tenantshortname}
+                        tenantshortname={String(tenantshortname)}
+                        userid={String(userid ?? '')}
                     />
                 ) : (
                     <Label

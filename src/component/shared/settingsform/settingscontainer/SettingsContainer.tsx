@@ -360,7 +360,7 @@ const SettingsContainer = (formContainerProps: ISettingsContainer) => {
         <div key={formContainerProps.uniqueName} className="nz-form-list-container" tabIndex={1} >
             {formContainerProps.allowHelp && selectedItem && <Help
                 uniqueName={selectedItem.label}
-                pdfUrl='/privatedocs/api.pdf'
+                pdfUrl='/privatehelp/api.pdf'
                 featureName={selectedItem.label}
                 headerText={formContainerProps.headerText || selectedItem.label} />}
 

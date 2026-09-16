@@ -29,9 +29,12 @@ const DATE_TYPE_FIELDS = [
     "ticketnotesupdated",
     "activitiesupdated",
     "ordersupdated",
-    "quoteupdated",
     "subsupdated",
     "downloadupdated",
+    "amcexpirydate",
+    "mcsexpirydate",
+    "saasexpirydate",
+    "onpremexpirydate",
 ];
 
 // Date-range max is today so start/end stay in the past.

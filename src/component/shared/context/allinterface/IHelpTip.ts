@@ -7,7 +7,6 @@ interface IHelpTipProperty {
 interface IHelpTip {
     helpTipRecords: IHelpTipProperty[];
     setHelpTipRecords: (data: IHelpTipProperty[]) => void;
-    isLoading: boolean;
     error: string | null;
 }
 

@@ -1,25 +1,21 @@
 
-import { FlipPdf, prepareToc } from '@n20a/libflippdf'
+import { prepareToc } from '@n20a/libflippdf'
 import './Help.css'
-import '@n20a/libflippdf/style.css'
-import { useMainAppContext } from "../context/hooks/MainAppHooks.ts";
 import { handleContainerKeyDown } from "../allcommon/basic/FnHandleContainerKeyDown.ts";
-import { FnGetEnvVariableByKey } from "../../appcontainer/allcommon/FnGetEnvVariableByKey.ts";
-import { envVarEnums } from "../../appcontainer/alldefaultprops/DefaultPropsAppContainer.ts";
+import { RenderPdf } from './RenderPdf.tsx';
 
 import MarkdownIt from 'markdown-it';
 import parse from 'html-react-parser';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActionImage } from '../basic/actionimage/ActionImage.tsx';
 import { Close24x24 } from '@n20a/libicon';
-import { FnGetCssVariable } from '../../appcontainer/allcommon/FnGetCssVariable.ts';
+import { FnGetCssVariable} from '../allcommon/FnGetCssVariable.ts';
 import { Label } from '../basic/label/Label.tsx';
-import { OverlayTab } from '../basic/overlaytab/OverlayTab.tsx';
 import { PdfDownloadOverlay } from './pdfviewer/PdfDownloadOverlay.tsx';
 
 interface IHelp {
     uniqueName: string;
-    pdfUrl?: string;      // "/privatedocs/docs.pdf" || "/privatedocs/api.pdf"
+    pdfUrl?: string;      // "/privatehelp/docs-sm.pdf" 
     featureName?: string;
     featureId?: string;
     mdString?: string;  // markdown string to render helptip
@@ -79,11 +75,7 @@ const Helptip = (helpProps: IHelp) => {
 
 const Help = (helpProps: IHelp) => {
     const [displayFeatureName, setDisplayFeatureName] = useState<string>("Help")
-    const [isUserGuideAvailable, setIsUserGuideAvailable] = useState<boolean>(false);
-    const [isUserGuideUrlValidated, setIsUserGuideUrlValidated] = useState<boolean>(false);
-    const localPdfUrl = helpProps.pdfUrl ?? "/privatedocs/docs.pdf";
-    const mainAppContext = useMainAppContext();
-    const USER_GUIDE_URL = FnGetEnvVariableByKey(envVarEnums.USER_GUIDE_URL);
+    const localPdfUrl = helpProps.pdfUrl ?? "/privatehelp/docs-sm.pdf";
 
     useEffect(() => {
         if (helpProps.featureName) {
@@ -97,117 +89,22 @@ const Help = (helpProps: IHelp) => {
         }
     }, [helpProps.featureName, helpProps.helpTitle])
 
-    useEffect(() => {
-        if (import.meta.env.DEV)
-            console.log('displayFeatureName :', displayFeatureName);
-    }, [displayFeatureName])
+    // useEffect(() => {
+    //     if (import.meta.env.DEV)
+    //         // console.log('displayFeatureName :', displayFeatureName);
+    // }, [displayFeatureName])
 
-    useEffect(() => {
-        const validateUserGuideUrl = async () => {
-            setIsUserGuideUrlValidated(false);
-
-            if (
-                !mainAppContext.isInternetAvailable ||
-                !USER_GUIDE_URL?.trim()
-            ) {
-                setIsUserGuideAvailable(false);
-                setIsUserGuideUrlValidated(true);
-                return;
-            }
-
-            try {
-                const response = await fetch(USER_GUIDE_URL, { method: "HEAD" });
-                const isReachable = response.ok;
-
-                setIsUserGuideAvailable(isReachable);
-                setIsUserGuideUrlValidated(true);
-
-                if (!isReachable) {
-                    console.error(
-                        "Remote Help Documentation is not available.",
-                        response.statusText
-                    );
-                }
-
-            } catch (error) {
-
-                console.error(
-                    "Failed to validate User Guide URL.",
-                    error
-                );
-
-                setIsUserGuideAvailable(false);
-                setIsUserGuideUrlValidated(true);
-
-                helpProps.handleShowUserMessage?.(
-                    `Remote Help Documentation is not available!\n\n${USER_GUIDE_URL}`
-                );
-            }
-        };
-
-        void validateUserGuideUrl();
-
-    }, [
-        USER_GUIDE_URL,
-        mainAppContext.isInternetAvailable
-    ]);
-
-    const useRemoteUserGuide =
-        mainAppContext.isInternetAvailable &&
-        isUserGuideAvailable &&
-        !!USER_GUIDE_URL?.trim();
-
-    const helpDocumentSource = useMemo(() => {
-        if (!isUserGuideUrlValidated) {
-            return {
-                label: 'Loading...',
-                tooltip: 'Validating remote help documentation availability.',
-            };
-        }
-
-        if (!useRemoteUserGuide) {
-            return {
-                label: 'Local',
-                tooltip: `Help is loaded from the local PDF (${localPdfUrl}).`,
-            };
-        }
-
-
-    }, [
-        isUserGuideUrlValidated,
-        useRemoteUserGuide,
-        USER_GUIDE_URL,
-        localPdfUrl,
-    ]);
-
-    const helpDownloadUrl = useRemoteUserGuide && USER_GUIDE_URL ? USER_GUIDE_URL : localPdfUrl;
+    const helpDownloadUrl = localPdfUrl;
     const helpDownloadFileName = helpDownloadUrl.split(/[\\/]/).pop() ?? 'help.pdf';
 
-    const helpContent = useRemoteUserGuide && USER_GUIDE_URL ? (
-        <iframe
-            src={USER_GUIDE_URL}
-            title={helpProps.helpTitle?.length ? helpProps.helpTitle : "User Guide"}
-            style={{
-                width: "100%",
-                height: "100%",
-                border: "none"
-            }}
-        />
-    ) : (
-        <FlipPdf
-            documentTitle={
-                helpProps.helpTitle?.length
-                    ? helpProps.helpTitle
-                    : "NetZoom Documentation"
-            }
-            pdfUrl={localPdfUrl}
+    const helpContent = (
+        <RenderPdf
+            bucketName="n20-bucket-01"
+            baseFolder="sm"
+            fileName="/help/docs-sm.pdf"
+            documentTitle={helpProps.helpTitle?.length ? helpProps.helpTitle : "NetZoom Documentation"}
             tocWidthPercent={20}
-            initialTocItem={
-                helpProps.selectedGroup?.length
-                    ? helpProps.selectedGroup
-                    : displayFeatureName
-            }
-            initialPageNumber={undefined}
+            initialTocItem={helpProps.selectedGroup?.length ? helpProps.selectedGroup : displayFeatureName}
         />
     );
 
@@ -238,16 +135,6 @@ const Help = (helpProps: IHelp) => {
                             />
                         </div>
                     )}
-                    {helpDocumentSource && <div className='nz-help-overlay-pane' title={helpDocumentSource.tooltip}>
-                        <OverlayTab
-                            uniqueName={`${helpProps.uniqueName}-help-source-overlay`}
-                            tabs={[]}
-                            selectedTabName=''
-                            tabAlignment='horizontal'
-                            headerText={helpDocumentSource.label}
-                            hideDrager={true}
-                        />
-                    </div>}
                 </div>
             )}
             <div className='nz-help-body'>
@@ -258,5 +145,5 @@ const Help = (helpProps: IHelp) => {
 }
 
 
-export { type IHelp, Helptip }
+export { Help, type IHelp, Helptip }
 export default Help

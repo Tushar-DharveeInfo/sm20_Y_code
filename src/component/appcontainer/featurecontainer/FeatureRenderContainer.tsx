@@ -1,32 +1,44 @@
-import { lazy, Suspense } from 'react'
-import { LibraryEnums, SettingsEnums, ClientEnums, HomeEnums, ServicesEnums } from '../../constants/Feature.ts'
+import { lazy, Suspense, } from 'react'
+import { LibraryEnums, SettingsEnums, ServicesEnums, ClientEnums, HomeEnums, } from '../../constants/Feature.ts'
 import ErrorBoundary from '../../shared/errorboundary/ErrorBoundary.tsx'
 import { Loader } from '../../shared/loader/Loader.tsx'
 import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu.ts'
 import { ITreeNode } from '../../shared/allinterface/tree/ITreeControl.ts'
 
-const DashboardChartsContainer = lazy(() => import('../../features/home/dashboardchartscontainer/DashboardChartsContainer.tsx'))
-const DeviceLibrary = lazy(() => import('../../features/library/devicelibrary/DeviceLibrary.tsx'))
-const DailySchedular = lazy(() => import('../../features/settings/dailyschedular/DailySchedular.tsx'))
-const SaasInstance = lazy(() => import('../../features/settings/saasinstance/SaasInstance.tsx'))
+import { getFirebaseServices } from '@n20a/libauth'
 
-const ClientIdentityManagement = lazy(() => import('../../features/settings/clientidentitymanagement/ClientIdentityManagement.tsx'))
+import { CatalogAndDiscounts } from '../../features/services/cataloganddiscounts/CatalogAndDiscounts.tsx'
+import { DownloadXlsxImportTemplates } from '../../features/services/downloadxlsximporttemplates/DownloadXlsxImportTemplates.tsx'
+import ClientIdentityManagement from '../../features/settings/clientidentitymanagement/ClientIdentityManagement.tsx'
+
+const DashboardChartsContainer = lazy(() => import('../../features/home/dashboardchartscontainer/DashboardChartsContainer.tsx'))
+
+
+// Client Features
+// const ClientIdentity = lazy(() => import('../../features/settings/clientidentity/ClientIdentity.tsx'))
 const NetZoom = lazy(() => import('../../features/client/netzoom/NetZoom.tsx'))
 const VisioStencils = lazy(() => import('../../features/client/visiostencils/VisioStencils.tsx'))
 const SSIAndOtherServices = lazy(() => import('../../features/client/ssiandotherservices/SSIAndOtherServices.tsx'))
 const Reseller = lazy(() => import('../../features/client/reseller/Reseller.tsx'))
-const Mcs = lazy(() => import('../../features/client/mcs/Mcs.tsx'))
+// const Mcs = lazy(() => import('../../features/client/mcs/Mcs.tsx'))
 
+// Library Features
+const DeviceLibrary = lazy(() => import('../../features/library/devicelibrary/DeviceLibrary.tsx'))
 const RequestsReceived = lazy(() => import('../../features/library/requestsreceived/RequestsReceived.tsx'))
 const ApprovedTickets = lazy(() => import('../../features/library/approvedtickets/ApprovedTickets.tsx'))
 const McsDevelopment = lazy(() => import('../../features/library/mcsdevelopment/McsDevelopment.tsx'))
 
-const CatalogAndDiscounts = lazy(() => import('../../features/services/cataloganddiscounts/CatalogAndDiscounts.tsx'))
-const DownloadExcelTempates = lazy(() => import('../../features/services/downloadexceltempates/DownloadExcelTempates.tsx'))
-const Services = lazy(() => import('../../features/services/services/Services.tsx'))
+const DailySchedular = lazy(() => import('../../features/settings/dailyschedular/DailySchedular.tsx'))
+const SaasInstance = lazy(() => import('../../features/settings/saasinstance/SaasInstance.tsx'))
+// const ImportCollections = lazy(() => import('../../features/settings/importcollections/ImportCollections.tsx'))
+const ImpersonateService = lazy(() => import('../../features/services/impersonateservice/ImpersonateService.tsx'))
 
 interface IFeatureRenderTarget {
     uniqueName: string;
+    bid: string;
+    cid: string;
+    selectedtenantshortname?: string;
+
     featureId: string;
     headerText?: string;
     selectedFeatureData?: IMenuItem;
@@ -43,7 +55,8 @@ interface IFeatureRenderContainer {
     handleShowUserMessage: (messageText: string, container?: HTMLDivElement) => void;
 }
 
-/* Features That Do Not Require the Explorer Tree */
+/* Features that own the whole content area instead of the explorer tree.
+   Client menu features intentionally omit this list so they keep the business explorer + filter layout. */
 const FeaturesWithOwnLayout: string[] = [
     HomeEnums.Home,
     HomeEnums.HomeDashboard,
@@ -54,6 +67,21 @@ const FeaturesWithOwnLayout: string[] = [
     ServicesEnums.DownloadExcelTempates
 ];
 
+
+const getAuthToken = async (): Promise<string> => {
+    const { auth } = getFirebaseServices();
+    const user = auth.currentUser;
+
+    if (!user) {
+        throw new Error('No authenticated user');
+    }
+
+    return user.getIdToken();
+};
+
+
+/* Renders feature modules dynamically based on featureId.
+   Returns null if no matching feature module exists. */
 function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderContainer) {
     const {
         featureContainerProps,
@@ -61,8 +89,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
         selectedNode,
         treeData,
     } = featureRenderContainerProps;
-
-
 
     switch (featureContainerProps.featureId) {
         case HomeEnums.Home:
@@ -75,6 +101,97 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText ?? 'Home'}
                             handleShowUserMessage={handleShowUserMessage} />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case SettingsEnums.ClientIdentityManagement:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <ClientIdentityManagement
+                            uniqueName={'feature-client-identity-management'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText}
+                            selectedFeatureData={featureContainerProps.selectedFeatureData}
+
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+
+        case ClientEnums.NetZoom:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <NetZoom
+                            uniqueName={'feature-client-netzoom'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText}
+                            featureData={undefined}
+                            selectedFeatureData={featureContainerProps.selectedFeatureData}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case ClientEnums.VisioStencils:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <VisioStencils
+                            uniqueName={'feature-client-visiostencils'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText}
+                            featureData={undefined}
+                            selectedFeatureData={featureContainerProps.selectedFeatureData}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case ClientEnums.SSIAndOtherServices:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <SSIAndOtherServices
+                            uniqueName={'feature-client-ssi-and-other-services'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText}
+                            featureData={undefined}
+                            selectedFeatureData={featureContainerProps.selectedFeatureData}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case ClientEnums.Reseller:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <Reseller
+                            uniqueName={'feature-client-reseller'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText}
+                            featureData={undefined}
+                            selectedFeatureData={featureContainerProps.selectedFeatureData}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case ClientEnums.Mcs:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <McsDevelopment
+                            uniqueName={'feature-client-mcs'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText}
+                            featureData={undefined}
+                            selectedFeatureData={featureContainerProps.selectedFeatureData}
+                        />
                     </Suspense>
                 </ErrorBoundary>
             );
@@ -99,6 +216,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-requests-received'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
+                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                             selectedNode={selectedNode}
                             treeData={treeData}
@@ -115,6 +233,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-approved-tickets'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
+                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                             selectedNode={selectedNode}
                             treeData={treeData}
@@ -131,6 +250,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-mcs-development'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
+                            featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                             selectedNode={selectedNode}
                             treeData={treeData}
@@ -139,12 +259,12 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case SettingsEnums.ClientIdentityManagement:
+        case ServicesEnums.Services:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
-                        <ClientIdentityManagement
-                            uniqueName={'feature-client-identity-management'}
+                        <ImpersonateService
+                            uniqueName={'feature-services'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
@@ -153,73 +273,24 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case ClientEnums.NetZoom:
+        case ServicesEnums.CatalogAndDiscounts:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
-                        <NetZoom
-                            uniqueName={'feature-client-netzoom'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
+                        <CatalogAndDiscounts />
                     </Suspense>
                 </ErrorBoundary>
             );
 
-        case ClientEnums.VisioStencils:
+        case ServicesEnums.DownloadExcelTempates:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
-                        <VisioStencils
-                            uniqueName={'feature-client-visiostencils'}
+                        <DownloadXlsxImportTemplates
+                            uniqueName={'feature-download-netzoom'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
-        case ClientEnums.SSIAndOtherServices:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <SSIAndOtherServices
-                            uniqueName={'feature-client-ssi-and-other-services'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
-        case ClientEnums.Reseller:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <Reseller
-                            uniqueName={'feature-client-reseller'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
-        case ClientEnums.Mcs:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <Mcs
-                            uniqueName={'feature-client-mcs'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
+                            handleShowUserMessage={handleShowUserMessage} />
                     </Suspense>
                 </ErrorBoundary>
             );
@@ -243,58 +314,25 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                         <SaasInstance
                             uniqueName={'feature-settings-saas-instance'}
                             featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText} />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
-        case ServicesEnums.CatalogAndDiscounts:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <CatalogAndDiscounts
-                            uniqueName={'feature-services-catalog-and-discounts'}
-                            featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
+                            tenantshortname={String(featureContainerProps.selectedFeatureData?.bid ?? '')}
+                            userid={String(featureContainerProps.selectedFeatureData?.cid ?? '')} />
                     </Suspense>
                 </ErrorBoundary>
             );
 
-        case ServicesEnums.DownloadExcelTempates:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <DownloadExcelTempates
-                            uniqueName={'feature-services-download-excel-tempates'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
+        // case SettingsEnums.Import:
+        //     return (
+        //         <ErrorBoundary>
+        //             <Suspense fallback={<Loader />}>
+        //                 <ImportCollections />
+        //             </Suspense>
+        //         </ErrorBoundary>
+        //     );
 
-        case ServicesEnums.Service:
-        case ServicesEnums.Services:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <Services
-                            uniqueName={'feature-services'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                            selectedNode={selectedNode}
-                            treeData={treeData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
+        default:
+            return null;
     }
 }
 
 export { FeatureRenderContainer, FeaturesWithOwnLayout }
-export type { IFeatureRenderContainer }

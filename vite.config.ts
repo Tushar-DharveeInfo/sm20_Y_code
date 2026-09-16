@@ -1,5 +1,57 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+
+// Groups a module id under a short package/app label for the inventory report.
+function getModuleGroup(id: string): string {
+  if (id.includes('node_modules')) {
+    const match = id.replace(/\\/g, '/').match(/node_modules\/(\.pnpm\/)?(@[^/]+\/[^/]+|[^/]+)/);
+    return match ? match[2].replace(/^@n20a\//, '@n20a/') : 'node_modules/other';
+  }
+  const appMatch = id.replace(/\\/g, '/').match(/\/component\/([^/]+)/);
+  return appMatch ? `src/${appMatch[1]}` : 'app/other';
+}
+
+// Emits dist/chunk-inventory.json: for every output chunk, its size and the
+// modules it contains (grouped by package), so oversized chunks can be reorganized.
+function chunkInventoryPlugin(): Plugin {
+  return {
+    name: 'chunk-inventory',
+    generateBundle(_options, bundle) {
+      const report: Record<string, unknown> = {};
+
+      for (const [fileName, item] of Object.entries(bundle)) {
+        if (item.type !== 'chunk') continue;
+
+        const groupSizes: Record<string, number> = {};
+        for (const [modId, modInfo] of Object.entries(item.modules)) {
+          const group = getModuleGroup(modId);
+          groupSizes[group] = (groupSizes[group] || 0) + (modInfo.renderedLength || 0);
+        }
+
+        const topContributors = Object.entries(groupSizes)
+          .sort((a, b) => b[1] - a[1])
+          .map(([group, bytes]) => ({ group, bytes }));
+
+        report[fileName] = {
+          name: item.name,
+          isEntry: item.isEntry,
+          isDynamicEntry: item.isDynamicEntry,
+          sizeBytes: Buffer.byteLength(item.code, 'utf8'),
+          imports: item.imports,
+          dynamicImports: item.dynamicImports,
+          moduleCount: Object.keys(item.modules).length,
+          topContributors,
+        };
+      }
+
+      this.emitFile({
+        type: 'asset',
+        fileName: 'chunk-inventory.json',
+        source: JSON.stringify(report, null, 2),
+      });
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -12,69 +64,102 @@ export default defineConfig({
   build: {
     minify: 'esbuild',
     rollupOptions: {
+      plugins: [chunkInventoryPlugin()],
       output: {
         manualChunks(id) {
-          // Only chunk vendor modules to avoid circular dependencies
-          // Let Vite handle app code chunking automatically
+          // Only chunk vendor modules to avoid circular dependencies.
+          // Let Vite handle React and app code chunking automatically.
 
           if (id.includes('node_modules')) {
-            // Let Vite handle React, ReactDOM, and scheduler automatically
-            // Manually chunking React causes circular dependencies with MUI
+            // Let Vite handle React, ReactDOM, and scheduler automatically.
+            // Manually chunking React causes circular dependencies with MUI.
 
-            // 1. React Router
-            if (id.includes('react-router')) {
-              return 'vendor-router';
+            // 1. AG Grid (large grid library)
+            if (id.includes('ag-grid')) {
+              return 'vendor-aggrid';
             }
 
-            // 2. MUI + Emotion (tightly coupled, must be together)
-            if (id.includes('@mui') || id.includes('@emotion')) {
-              return 'vendor-mui';
-            }
-
-            // 3. PrimeReact (UI components)
-            if (id.includes('primereact')) {
-              return 'vendor-primereact';
-            }
-
-            // Let Vite handle libraries automatically; note: Manually chunking them causes circular dependencies with react-router
-            // 4. Charts and visualization
+            // 2. Charts library
             if (id.includes('ag-charts')) {
               return 'vendor-charts';
             }
 
-            // 5. Heavy utilities (lazy load these)
+            // 3. Heavy utilities (lazy loaded via dynamic import in app code)
             if (id.includes('xlsx')) {
               return 'vendor-xlsx';
             }
-            if (id.includes('markdown-it')) {
-              return 'vendor-markdown';
+
+            // 4. PDF/canvas export utilities
+            if (id.includes('html2canvas') || id.includes('jspdf')) {
+              return 'vendor-pdf';
             }
 
-            // 6. Utilities
-            if (id.includes('lodash')) {
-              return 'vendor-utils';
+            // 5. @n20a libs isolated as their own vendor chunks (each is large
+            // enough on its own, and none of them depend back on vendor-core).
+            if (id.includes('@n20a/libcountry')) {
+              return 'vendor-libcountry';
+            }
+            if (id.includes('@n20a/libcart')) {
+              return 'vendor-libcart';
+            }
+            if (id.includes('@n20a/libflippdf')) {
+              return 'vendor-libflippdf';
+            }
+            if (id.includes('@n20a/libreport')) {
+              return 'vendor-libreport';
+            }
+            if (id.includes('@n20a/libform')) {
+              return 'vendor-libform';
+            }
+            if (id.includes('@n20a/libchart')) {
+              return 'vendor-libchart';
             }
 
-            // 7. Let Vite handle other node_modules automatically to avoid circular dependencies
-            // Don't use a catch-all return here
+            // 6. Core UI stack + remaining smaller @n20a libraries + standalone
+            // third-party utilities, all merged into a single chunk. These groups
+            // cross-depend on each other in both directions (e.g. some @n20a libs
+            // render MUI/PrimeReact components and need libicon, while MUI/
+            // PrimeReact/libform pull in axios/lodash-style utilities) — keeping
+            // them in one chunk avoids a circular chunk reference (this project's
+            // previous config hit exactly this: "n20a-libform -> n20a-utils ->
+            // n20a-libform") and cuts down on small requests.
+            // react-router + MUI/Emotion + PrimeReact + libicon + libauth +
+            // libavnotes + libaxios + libalerts + libmiscfn + libfsdb +
+            // libmcpclient + liblayout + markdown-it + lodash + axios + dompurify +
+            // file-saver + html-react-parser + styled-components + rc-tree +
+            // react-zoom-pan-pinch + react-error-boundary
+            if (
+              id.includes('react-router') ||
+              id.includes('@mui') ||
+              id.includes('@emotion') ||
+              id.includes('primereact') ||
+              id.includes('@n20a/') ||
+              id.includes('markdown-it') ||
+              id.includes('lodash') ||
+              id.includes('axios') ||
+              id.includes('dompurify') ||
+              id.includes('purify.es') ||
+              id.includes('file-saver') ||
+              id.includes('html-react-parser') ||
+              id.includes('styled-components') ||
+              id.includes('rc-tree') ||
+              id.includes('react-zoom-pan-pinch') ||
+              id.includes('react-error-boundary')
+            ) {
+              return 'vendor-core';
+            }
+
+            // 7. Let Vite handle other node_modules (react, react-dom, scheduler,
+            // @heroicons/react, etc.) automatically to avoid circular dependencies.
+            // Don't use a catch-all return here.
           }
 
-          // App code chunking strategy for appqa components
-          //slash-bounded matching (/appqaentities/, /appqamessage/, /appqaalerts/, /appqareminder/, /appqareport/, /appqadelegate/, /appqatask/), ensuring shared interface files in allinterface/ stay in app-appqa
-          // Check specific components first before general appqa pattern
-          if (id.includes('/appqa')) {
-            // Individual chunks for components without circular dependencies
-            if (id.includes('/appqamessage/')) {
-              return 'app-appqamessage';
-            }
-            // All other appqa components must stay together to avoid circular dependencies
-            // appqahelp is used by appqaentities, appcontainer, settings, appqasettings — cannot isolate
-            // appqasettings imports appqahelp which is too widely shared
-            // appqatheme and alldefaultprops are imported by NzApp — keep with app-appqa
-            return 'app-appqa';
-          }
-
-          // Let Vite handle other app code chunking automatically; note: Manually chunking app code causes circular dependencies with appqa
+          // Let Vite handle all app code chunking automatically.
+          // This preserves the existing lazy-loaded feature boundaries (React.lazy /
+          // dynamic import) and avoids circular dependencies between app-* chunks
+          // that naive folder-based manual chunking previously introduced
+          // (e.g. feature-appqa/feature-library being manually merged into
+          // "feature-common" specifically to work around circular deps).
         },
         // Asset file naming pattern (CSS is combined into single file due to cssCodeSplit: false)
         assetFileNames: 'assets/[name]-[hash][extname]',
@@ -85,8 +170,11 @@ export default defineConfig({
         warn(warning);
       },
     },
-    chunkSizeWarningLimit: 2000,
-    // Combine all CSS into single file to reduce network requests (most CSS chunks are small)
+    // vendor-libcountry is expected to be several MB (bundled country/reference
+    // data) — raise the warning threshold so only genuinely unexpected large
+    // chunks get flagged.
+    chunkSizeWarningLimit: 9000,
+    // Combine all CSS into a single file to reduce network requests (most CSS chunks are small)
     cssCodeSplit: false,
     // Enable source maps for better debugging (disable in production if needed)
     sourcemap: false,
@@ -99,17 +187,10 @@ export default defineConfig({
     modulePreload: {
       polyfill: true,
       resolveDependencies: (_filename, deps) => {
-        // Strategy: Preload critical chunks that are needed for initial app render
-        // Browser will load these in parallel while parsing the main chunk
-
-        // Always preload these critical vendor chunks (needed by most pages)
-        const criticalVendors = deps.filter(dep =>
-          dep.includes('vendor-router') ||    // React Router (routing)
-          dep.includes('vendor-mui') ||       // MUI (UI components)
-          dep.includes('vendor-primereact')   // PrimeReact (grid, dialogs)
-        );
-
-        return criticalVendors;
+        // Always preload vendor-core (react-router + MUI + PrimeReact + the
+        // smaller @n20a libs + small shared utilities), needed by most pages,
+        // while the browser parses the main chunk in parallel.
+        return deps.filter(dep => dep.includes('vendor-core'));
       }
     }
   }

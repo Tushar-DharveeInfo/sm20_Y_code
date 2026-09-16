@@ -2,141 +2,187 @@
   {
     "bid": "bid_1001",
     "cid": "cid_5001",
-    "btype": "Government",
+    "btype": "enduser",
     "status": "Suspended",
-    "whattodo": "Review follow-up checklist item #1 for alignment."
+    "whattodo": "Review follow-up checklist item #1 for alignment.",
+    "duedate": "2026-09-17T03:41:12.279Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1002",
     "cid": "cid_5002",
-    "btype": "Startup",
-    "status": "Closed",
-    "whattodo": "Review follow-up checklist item #2 for alignment."
+    "btype": "enduser",
+    "status": "Suspended",
+    "whattodo": "Review follow-up checklist item #2 for alignment.",
+    "duedate": "2026-10-02T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1003",
     "cid": "cid_5003",
-    "btype": "Startup",
-    "status": "Closed",
-    "whattodo": "Review follow-up checklist item #3 for alignment."
+    "btype": "enduser",
+    "status": "Pending",
+    "whattodo": "Review follow-up checklist item #3 for alignment.",
+    "duedate": "2026-09-03T03:41:12.280Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_3.pdf"
   },
   {
     "bid": "bid_1004",
     "cid": "cid_5004",
-    "btype": "Startup",
-    "status": "Suspended",
-    "whattodo": "Review follow-up checklist item #4 for alignment."
+    "btype": "mcs",
+    "status": "Closed",
+    "whattodo": "Review follow-up checklist item #4 for alignment.",
+    "duedate": "2026-09-23T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1005",
     "cid": "cid_5005",
-    "btype": "Enterprise",
-    "status": "Active",
-    "whattodo": "Review follow-up checklist item #5 for alignment."
+    "btype": "enduser",
+    "status": "Pending",
+    "whattodo": "Review follow-up checklist item #5 for alignment.",
+    "duedate": "2026-09-11T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1006",
     "cid": "cid_5006",
-    "btype": "Government",
-    "status": "Active",
-    "whattodo": "Review follow-up checklist item #6 for alignment."
+    "btype": "reseller",
+    "status": "Pending",
+    "whattodo": "Review follow-up checklist item #6 for alignment.",
+    "duedate": "2026-09-08T03:41:12.280Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_6.pdf"
   },
   {
     "bid": "bid_1007",
     "cid": "cid_5007",
-    "btype": "Government",
+    "btype": "reseller",
     "status": "Active",
-    "whattodo": "Review follow-up checklist item #7 for alignment."
+    "whattodo": "Review follow-up checklist item #7 for alignment.",
+    "duedate": "2026-09-21T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1008",
     "cid": "cid_5008",
-    "btype": "SMB",
-    "status": "Pending",
-    "whattodo": "Review follow-up checklist item #8 for alignment."
+    "btype": "mcs",
+    "status": "Closed",
+    "whattodo": "Review follow-up checklist item #8 for alignment.",
+    "duedate": "2026-09-03T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1009",
     "cid": "cid_5009",
-    "btype": "Government",
-    "status": "Suspended",
-    "whattodo": "Review follow-up checklist item #9 for alignment."
+    "btype": "consultant",
+    "status": "Closed",
+    "whattodo": "Review follow-up checklist item #9 for alignment.",
+    "duedate": "2026-09-03T03:41:12.280Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_9.pdf"
   },
   {
     "bid": "bid_1010",
     "cid": "cid_5010",
-    "btype": "Government",
-    "status": "Pending",
-    "whattodo": "Review follow-up checklist item #10 for alignment."
+    "btype": "mcs",
+    "status": "Suspended",
+    "whattodo": "Review follow-up checklist item #10 for alignment.",
+    "duedate": "2026-09-07T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1011",
     "cid": "cid_5011",
-    "btype": "Government",
-    "status": "Suspended",
-    "whattodo": "Review follow-up checklist item #11 for alignment."
+    "btype": "mcs",
+    "status": "Closed",
+    "whattodo": "Review follow-up checklist item #11 for alignment.",
+    "duedate": "2026-09-17T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1012",
     "cid": "cid_5012",
-    "btype": "Government",
-    "status": "Suspended",
-    "whattodo": "Review follow-up checklist item #12 for alignment."
+    "btype": "enduser",
+    "status": "Closed",
+    "whattodo": "Review follow-up checklist item #12 for alignment.",
+    "duedate": "2026-09-10T03:41:12.280Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_12.pdf"
   },
   {
     "bid": "bid_1013",
     "cid": "cid_5013",
-    "btype": "Startup",
+    "btype": "reseller",
     "status": "Closed",
-    "whattodo": "Review follow-up checklist item #13 for alignment."
+    "whattodo": "Review follow-up checklist item #13 for alignment.",
+    "duedate": "2026-09-26T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1014",
     "cid": "cid_5014",
-    "btype": "Government",
-    "status": "Active",
-    "whattodo": "Review follow-up checklist item #14 for alignment."
+    "btype": "reseller",
+    "status": "Closed",
+    "whattodo": "Review follow-up checklist item #14 for alignment.",
+    "duedate": "2026-10-02T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1015",
     "cid": "cid_5015",
-    "btype": "Government",
-    "status": "Suspended",
-    "whattodo": "Review follow-up checklist item #15 for alignment."
+    "btype": "consultant",
+    "status": "Active",
+    "whattodo": "Review follow-up checklist item #15 for alignment.",
+    "duedate": "2026-09-29T03:41:12.280Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_15.pdf"
   },
   {
     "bid": "bid_1016",
     "cid": "cid_5016",
-    "btype": "Government",
+    "btype": "reseller",
     "status": "Active",
-    "whattodo": "Review follow-up checklist item #16 for alignment."
+    "whattodo": "Review follow-up checklist item #16 for alignment.",
+    "duedate": "2026-09-08T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1017",
     "cid": "cid_5017",
-    "btype": "Government",
-    "status": "Suspended",
-    "whattodo": "Review follow-up checklist item #17 for alignment."
+    "btype": "consultant",
+    "status": "Pending",
+    "whattodo": "Review follow-up checklist item #17 for alignment.",
+    "duedate": "2026-09-16T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1018",
     "cid": "cid_5018",
-    "btype": "SMB",
-    "status": "Suspended",
-    "whattodo": "Review follow-up checklist item #18 for alignment."
+    "btype": "consultant",
+    "status": "Pending",
+    "whattodo": "Review follow-up checklist item #18 for alignment.",
+    "duedate": "2026-10-02T03:41:12.280Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_18.pdf"
   },
   {
     "bid": "bid_1019",
     "cid": "cid_5019",
-    "btype": "Startup",
-    "status": "Pending",
-    "whattodo": "Review follow-up checklist item #19 for alignment."
+    "btype": "enduser",
+    "status": "Suspended",
+    "whattodo": "Review follow-up checklist item #19 for alignment.",
+    "duedate": "2026-09-30T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   },
   {
     "bid": "bid_1020",
     "cid": "cid_5020",
-    "btype": "Startup",
-    "status": "Pending",
-    "whattodo": "Review follow-up checklist item #20 for alignment."
+    "btype": "reseller",
+    "status": "Closed",
+    "whattodo": "Review follow-up checklist item #20 for alignment.",
+    "duedate": "2026-09-25T03:41:12.280Z",
+    "addedby": "system_mock_gen"
   }
 ]

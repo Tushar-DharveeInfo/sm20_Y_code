@@ -11,7 +11,8 @@ type IExternalSearch = {
 }
 
 /* Props for the DeviceModel sidebar search and result pane. */
-interface IDeviceModel {
+interface IDeviceModel 
+{
     uniqueName: string;
     featureId: string;
     selectedNode: ITreeNode;

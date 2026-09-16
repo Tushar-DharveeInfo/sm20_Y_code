@@ -2,31 +2,31 @@
   {
     "bid": 0,
     "cid": "cid_prospect_8001",
-    "status": "tobedeleted",
+    "status": "unverified",
     "whattodo": "Verify inbound marketing lead #1 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8002",
-    "status": "tobedeleted",
+    "status": "unverified",
     "whattodo": "Verify inbound marketing lead #2 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8003",
-    "status": "unverified",
+    "status": "tobedeleted",
     "whattodo": "Verify inbound marketing lead #3 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8004",
-    "status": "tobedeleted",
+    "status": "unverified",
     "whattodo": "Verify inbound marketing lead #4 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8005",
-    "status": "unverified",
+    "status": "tobedeleted",
     "whattodo": "Verify inbound marketing lead #5 registration data."
   },
   {
@@ -38,13 +38,13 @@
   {
     "bid": 0,
     "cid": "cid_prospect_8007",
-    "status": "unverified",
+    "status": "tobedeleted",
     "whattodo": "Verify inbound marketing lead #7 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8008",
-    "status": "tobedeleted",
+    "status": "unverified",
     "whattodo": "Verify inbound marketing lead #8 registration data."
   },
   {
@@ -68,19 +68,19 @@
   {
     "bid": 0,
     "cid": "cid_prospect_8012",
-    "status": "unverified",
+    "status": "tobedeleted",
     "whattodo": "Verify inbound marketing lead #12 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8013",
-    "status": "unverified",
+    "status": "tobedeleted",
     "whattodo": "Verify inbound marketing lead #13 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8014",
-    "status": "tobedeleted",
+    "status": "unverified",
     "whattodo": "Verify inbound marketing lead #14 registration data."
   },
   {
@@ -92,19 +92,19 @@
   {
     "bid": 0,
     "cid": "cid_prospect_8016",
-    "status": "unverified",
+    "status": "tobedeleted",
     "whattodo": "Verify inbound marketing lead #16 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8017",
-    "status": "unverified",
+    "status": "tobedeleted",
     "whattodo": "Verify inbound marketing lead #17 registration data."
   },
   {
     "bid": 0,
     "cid": "cid_prospect_8018",
-    "status": "tobedeleted",
+    "status": "unverified",
     "whattodo": "Verify inbound marketing lead #18 registration data."
   },
   {
@@ -116,7 +116,7 @@
   {
     "bid": 0,
     "cid": "cid_prospect_8020",
-    "status": "unverified",
+    "status": "tobedeleted",
     "whattodo": "Verify inbound marketing lead #20 registration data."
   }
 ]

@@ -11,6 +11,15 @@ export interface IUseLoadRemoteJsonOptions<T> {
     parse?: (raw: string) => T;
 }
 
+/* Example usage:
+ * useLoadRemoteJson<MyDataType>({
+ *     bucket: 'my-bucket',
+ *     baseFolder: 'configs',
+ *     fileName: 'settings.json',
+ *     onSuccess: (data) => setData(data),
+ *     onError: (message) => setError(message),
+ * })
+ */
 /* Downloads and parses a .json file from Cloud Storage, discarding results if the caller unmounts mid-request. */
 const useLoadRemoteJson = <T = unknown>(options: IUseLoadRemoteJsonOptions<T>): void => {
     const { downloadSingleFile } = useFileDownload()

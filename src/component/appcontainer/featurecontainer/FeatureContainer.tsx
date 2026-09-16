@@ -16,6 +16,8 @@ const ReuseDataForFeatures: string[] = [];
 interface IFeatureContainer {
     uniqueName: string;//unique identifier for the control
     featureId: string;
+    bid: string;
+    cid: string;
     allowShowHeader: boolean;
     appqaId?: string;
     headerText?: string;
@@ -256,8 +258,6 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
             yesNoDialogContainerRef.current = container;
         }
     }
-
-
 
     function handleSelectedMenuItem(selectedMenuItem: IMenuItem): void {
     }

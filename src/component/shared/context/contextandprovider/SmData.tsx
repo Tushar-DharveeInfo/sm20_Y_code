@@ -83,8 +83,8 @@ function SmDataProvider({ children }: IAppContextWrapper) {
     const [datasets, setDatasets] = useState<ISmDatasetCache>(createEmptyCache);
     const [selection, setSelection] = useState<IExplorerSelection>(emptySelection);
     const [filterJson, setFilterJson] = useState<string>(toFilterJsonString({})); // applied explorer filter json
-    console.log('filterJson SmDataProvider', filterJson)
-    console.log('selection SmDataProvider', selection)
+    // console.log('filterJson SmDataProvider', filterJson)
+    // console.log('selection SmDataProvider', selection)
     const [selectedNode, setSelectedNode] = useState<ITreeNode>();
     const [isBusinessesLoaded, setIsBusinessesLoaded] = useState(false);
     const [isScopedDatasetsLoaded, setIsScopedDatasetsLoaded] = useState(true);

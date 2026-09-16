@@ -1,4 +1,5 @@
-import { FeaturePlaceholder } from '../featureplaceholder/FeaturePlaceholder';
+import React from 'react';
+import { TreeExplorerContainer } from '../../../shared/treeexplorercontainer/TreeExplorerContainer';
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
 import { ClientEnums } from '../../../constants/Feature';
@@ -9,15 +10,24 @@ interface IMcsProps {
     headerText?: string;
     featureData?: IFeatureItem[];
     selectedFeatureData?: IMenuItem;
+    onNodeSelect?: (selectedKeys: any[], info: any) => void;
 }
 
-const Mcs = (props: IMcsProps) => {
+const Mcs: React.FC<IMcsProps> = (props) => {
+    const {
+        uniqueName = 'feature-mcs',
+        featureId = ClientEnums.Mcs,
+        onNodeSelect
+    } = props;
+
     return (
-        <FeaturePlaceholder
-            uniqueName={props.uniqueName ?? 'feature-mcs'}
-            featureId={props.featureId ?? ClientEnums.Mcs}
-            featureName={props.headerText ?? 'MCS'}
-        />
+        <div className="nz-feature-mcs nz-wh-100">
+            <TreeExplorerContainer
+                uniqueName={`${uniqueName}-explorer`}
+                featureId={featureId}
+                handleNodeSelect={onNodeSelect}
+            />
+        </div>
     );
 };
 

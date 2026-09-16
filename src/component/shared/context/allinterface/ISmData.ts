@@ -5,11 +5,10 @@ import type {
     IBusinessDoc,
     ICollectionDocMap,
     IContactDoc,
-    IDownloadDoc,
+    IVssDownloadDoc,
     INoteDoc,
     IOrderDoc,
     IProspectDoc,
-    IQuoteDoc,
     ISubDoc,
     ITicketDoc,
     ITicketNoteDoc,
@@ -22,6 +21,7 @@ import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 interface IExplorerSelection {
     bid?: string;
     cid?: string;
+    selectedtenantshortname?: string;
     filterJson: IFilterControlValues;
 }
 
@@ -59,12 +59,11 @@ export type {
     IActivityDoc,
     IBusinessDoc,
     IContactDoc,
-    IDownloadDoc,
+    IVssDownloadDoc,
     IExplorerSelection,
     INoteDoc,
     IOrderDoc,
     IProspectDoc,
-    IQuoteDoc,
     ISmData,
     ISmDatasetCache,
     ISubDoc,

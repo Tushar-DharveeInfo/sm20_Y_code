@@ -2,14 +2,15 @@ import type {
     CollectionName,
     IActivityDoc,
     IBusinessDoc,
+    ICartDoc,
     ICollectionDocMap,
     IContactDoc,
-    IDownloadDoc,
+    IVssDownloadDoc,
     INoteDoc,
     IOrderDoc,
     IProspectDoc,
-    IQuoteDoc,
     ISubDoc,
+    ISupportHoursUsedDoc,
     ITicketDoc,
     ITicketNoteDoc,
     ITodoDoc,
@@ -18,13 +19,14 @@ import type { ISmDatasetCache } from "../context/allinterface/ISmData";
 
 import activitiesJson from "../../../smsampledata/datasets/activities.json";
 import businessesJson from "../../../smsampledata/datasets/businesses.json";
+import cartsJson from "../../../smsampledata/datasets/carts.json";
 import contactsJson from "../../../smsampledata/datasets/contacts.json";
 import downloadsJson from "../../../smsampledata/datasets/downloads.json";
 import notesJson from "../../../smsampledata/datasets/notes.json";
 import ordersJson from "../../../smsampledata/datasets/orders.json";
 import prospectJson from "../../../smsampledata/datasets/prospect.json";
-import quotesJson from "../../../smsampledata/datasets/quotes.json";
 import subsJson from "../../../smsampledata/datasets/subs.json";
+import supporthoursusedJson from "../../../smsampledata/datasets/supporthoursused.json";
 import ticketnotesJson from "../../../smsampledata/datasets/ticketnotes.json";
 import ticketsJson from "../../../smsampledata/datasets/tickets.json";
 import todoJson from "../../../smsampledata/datasets/todo.json";
@@ -58,9 +60,10 @@ const sourceTickets: ITicketDoc[] = asArray<ITicketDoc>(ticketsJson);
 const sourceTicketNotes: ITicketNoteDoc[] = asArray<ITicketNoteDoc>(ticketnotesJson);
 const sourceActivities: IActivityDoc[] = asArray<IActivityDoc>(activitiesJson);
 const sourceOrders: IOrderDoc[] = asArray<IOrderDoc>(ordersJson);
-const sourceQuotes: IQuoteDoc[] = asArray<IQuoteDoc>(quotesJson);
+const sourceCarts: ICartDoc[] = asArray<ICartDoc>(cartsJson);
+const sourceSupportHoursUsed: ISupportHoursUsedDoc[] = asArray<ISupportHoursUsedDoc>(supporthoursusedJson);
 const sourceSubs: ISubDoc[] = asArray<ISubDoc>(subsJson);
-const sourceDownloads: IDownloadDoc[] = asArray<IDownloadDoc>(downloadsJson);
+const sourceDownloads: IVssDownloadDoc[] = asArray<IVssDownloadDoc>(downloadsJson);
 const sourceTodo: ITodoDoc[] = asArray<ITodoDoc>(todoJson);
 const sourceProspect: IProspectDoc[] = asArray<Record<string, unknown>>(prospectJson).map(normalizeProspect);
 
@@ -72,7 +75,8 @@ const SOURCE_DATASETS: ISmDatasetCache = {
     ticketnotes: sourceTicketNotes,
     activities: sourceActivities,
     orders: sourceOrders,
-    quotes: sourceQuotes,
+    carts: sourceCarts,
+    supporthoursused: sourceSupportHoursUsed,
     subs: sourceSubs,
     downloads: sourceDownloads,
     todo: sourceTodo,
@@ -86,7 +90,8 @@ const SCOPED_COLLECTION_NAMES: Exclude<CollectionName, "businesses">[] = [
     "ticketnotes",
     "activities",
     "orders",
-    "quotes",
+    "carts",
+    "supporthoursused",
     "subs",
     "downloads",
     "todo",
@@ -100,7 +105,8 @@ const emptyScopedDatasets = (): Omit<ISmDatasetCache, "businesses"> => ({
     ticketnotes: [],
     activities: [],
     orders: [],
-    quotes: [],
+    carts: [],
+    supporthoursused: [],
     subs: [],
     downloads: [],
     todo: [],

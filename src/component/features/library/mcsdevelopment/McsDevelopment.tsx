@@ -3,7 +3,7 @@ import LibraryTicketsContainer from '../librarytickets/LibraryTicketsContainer';
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl';
-import { ILibraryTicketMode } from '../librarytickets/ticketexplorercontainer/TicketExplorerContainer';
+import { ILibraryTicketMode } from '../../../shared/ticketexplorercontainer/TicketExplorerContainer';
 import { useSelectedNodeContext } from '../../../shared/context/hooks/SelectedNodeHooks';
 import { LibraryEnums } from '../../../constants/Feature';
 
