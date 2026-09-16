@@ -15,8 +15,19 @@ function StatusBarProvider({ children }: IAppContextWrapper) {
     const [userActionData, setUserActionData] = useState<string>();
     const [testApiData, setTestApiData] = useState<string>();
     const [actionLogData, setActionLogData] = useState<IErrorData[]>();
-    const [statusBarStringData, setStatusBarStringData] = useState<string[]>();
+    const [statusBarStringData, setStatusBarStringDataState] = useState<string[]>();
     const [userSessionId, setUserSessionIdState] = useState<string>("");
+
+    const setStatusBarStringData = useCallback((data: React.SetStateAction<string[] | undefined>) => {
+        setStatusBarStringDataState(prev => {
+            const next = typeof data === 'function' ? data(prev) : data;
+            if (prev === next) return prev;
+            if (Array.isArray(prev) && Array.isArray(next) && prev.length === next.length && prev.every((v, i) => v === next[i])) {
+                return prev;
+            }
+            return next;
+        });
+    }, []);
 
     const setUserSessionId = useCallback((sessionId: string) => {
         userSession = sessionId;
@@ -32,7 +43,7 @@ function StatusBarProvider({ children }: IAppContextWrapper) {
             setIsLoading(false);
             setLoadingLabel(undefined);
             setActionLogData(undefined);
-            setStatusBarStringData(undefined);
+            setStatusBarStringDataState(undefined);
         } catch (error) {
             console.error("Error clearing status:", error);
         }
@@ -69,7 +80,8 @@ function StatusBarProvider({ children }: IAppContextWrapper) {
         loadingLabel,
         userSessionId,
         setUserSessionId,
-        clearAllStatus
+        clearAllStatus,
+        setStatusBarStringData
     ]);
 
     return (

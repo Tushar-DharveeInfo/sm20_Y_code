@@ -10,7 +10,7 @@ const DeviceLibrary = lazy(() => import('../../features/library/devicelibrary/De
 const DailySchedular = lazy(() => import('../../features/settings/dailyschedular/DailySchedular.tsx'))
 const SaasInstance = lazy(() => import('../../features/settings/saasinstance/SaasInstance.tsx'))
 
-const ClientIdentityManagement = lazy(() => import('../../features/client/clientidentitymanagement/ClientIdentityManagement.tsx'))
+const ClientIdentityManagement = lazy(() => import('../../features/settings/clientidentitymanagement/ClientIdentityManagement.tsx'))
 const NetZoom = lazy(() => import('../../features/client/netzoom/NetZoom.tsx'))
 const VisioStencils = lazy(() => import('../../features/client/visiostencils/VisioStencils.tsx'))
 const SSIAndOtherServices = lazy(() => import('../../features/client/ssiandotherservices/SSIAndOtherServices.tsx'))
@@ -139,7 +139,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case ClientEnums.ClientIdentityManagement:
+        case SettingsEnums.ClientIdentityManagement:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>

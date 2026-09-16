@@ -129,42 +129,59 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   }
 
   const setBusinessTree = (nodes: ITreeNode[]) => {
-    const rootLabel = treeExplorerContainerProps.wrapWithRootLabel
-    const treeNodes = rootLabel
-      ? [{
-        key: 'root-businesses',
-        NodeEntID: 'root-businesses',
-        EntID: 'root-businesses',
-        NodeEntityname: 'Businesses',
-        NodeType: 'Root',
-        Name: rootLabel,
-        Description: rootLabel,
-        NodeState: null,
-        IsAuthorized: false,
-        title: rootLabel,
-        icon: null,
-        children: nodes.map((node) => ({ ...node, parentEntID: 'root-businesses' })),
-        treetype: 'Root',
-        Type: 'Root',
-        parentEntID: null,
-        stepNo: 0,
-        HasChildren: nodes.length > 0 ? 1 : 0,
-        isLeaf: nodes.length === 0,
-        checkable: false,
-      } as ITreeNode]
+    const rawRootLabel = treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses'
+    const baseLabel = rawRootLabel.replace(/\s*\(\d+\)$/, '').trim() || 'Businesses'
+    const rootLabel = `${baseLabel} (${nodes.length})`
+
+    const businessesOnly = !!treeExplorerContainerProps.businessesOnly
+    const childNodes = businessesOnly
+      ? nodes.map((node) => ({ ...node, isLeaf: true, HasChildren: 0 }))
       : nodes
+
+    const treeNodes: ITreeNode[] = [{
+      key: 'root-businesses',
+      NodeEntID: 'root-businesses',
+      EntID: 'root-businesses',
+      NodeEntityname: 'Businesses',
+      NodeType: 'Root',
+      Name: rootLabel,
+      Description: rootLabel,
+      NodeState: null,
+      IsAuthorized: false,
+      title: rootLabel,
+      icon: null,
+      children: childNodes.map((node) => ({ ...node, parentEntID: 'root-businesses' })),
+      treetype: 'Root',
+      Type: 'Root',
+      parentEntID: null,
+      stepNo: 0,
+      HasChildren: nodes.length > 0 ? 1 : 0,
+      isLeaf: nodes.length === 0,
+      checkable: false,
+    }]
 
     setTreeData(treeNodes)
     setOriginalTreeData(treeNodes)
     contactsRequestRef.current += 1
     setExpandedBusinessId('')
-    setDefaultExpandedKeys(rootLabel && treeNodes[0] ? [treeNodes[0].key] : [])
-    if (treeNodes.length > 0) {
-      selectNode(treeNodes[0], rootLabel ? [treeNodes[0].key] : [], treeNodes)
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetBid = urlParams.get('bid')?.trim() || String(smDataContext.selection?.bid ?? '').trim();
+    const targetNode = targetBid
+      ? nodes.find((n) => n.NodeEntID === targetBid || n.key === targetBid || (n as any).bid === targetBid)
+      : undefined;
+
+    if (targetNode) {
+      setDefaultExpandedKeys([treeNodes[0].key, targetNode.key]);
+      selectNode(targetNode, [treeNodes[0].key, targetNode.key], treeNodes);
+    } else if (treeNodes.length > 0) {
+      setDefaultExpandedKeys(treeNodes[0] ? [treeNodes[0].key] : []);
+      selectNode(treeNodes[0], [treeNodes[0].key], treeNodes);
     } else {
-      setDefaultSelectedKeys([])
-      setDefaultSelectedNodeInfo(null)
-      smDataContext.setExplorerSelection(undefined, getAppliedFilterJson(filterFormDataRef.current))
+      setDefaultExpandedKeys([]);
+      setDefaultSelectedKeys([]);
+      setDefaultSelectedNodeInfo(null);
+      smDataContext.setExplorerSelection(undefined, getAppliedFilterJson(filterFormDataRef.current));
     }
   }
 
@@ -266,6 +283,12 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
   const handleNodeExpand = async (expandedNodeKeys: Key[], info: IExpandedNodeInfo) => {
     if (!info?.node || !treeContainerFlatDataProps || !featureTreeProps) return
+
+    // When businessesOnly is active, never load contacts — just track expanded keys
+    if (treeExplorerContainerProps.businessesOnly) {
+      setDefaultExpandedKeys(expandedNodeKeys)
+      return
+    }
 
     if (!isBusinessNode(info.node)) {
       if (info.expanded) {

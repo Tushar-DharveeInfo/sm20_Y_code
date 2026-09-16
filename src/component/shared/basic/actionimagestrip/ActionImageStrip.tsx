@@ -55,7 +55,7 @@ const ActionImageStrip = (imageStripProps: IActionImageStrip) => {
         } else {
             setActionImages([])
         }
-    }, [imageStripProps]);
+    }, [imageStripProps.actionImages]);
 
     useEffect(() => {
         if (imageStripProps.optionalComponent) {

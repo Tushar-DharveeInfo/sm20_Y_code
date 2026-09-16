@@ -62,7 +62,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     const [confirmMessage, setConfirmMessage] = useState<string>("");
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
     // The feature-change effect that used to pick the explorer is commented out, so the BUSINESSTREE tree is always rendered.
-    const [explorerToRender, setExplorerToRender] = useState<"BUSINESSTREE" | "NONE" | "MCS" | "SAASINSTANCE">("BUSINESSTREE");
+    const [explorerToRender, setExplorerToRender] = useState<"BUSINESSTREE" | "NONE" | "MCS" | "SAASINSTANCE" | "CLIENTIDENTITY">("BUSINESSTREE");
     const [treeData, setTreeData] = useState<ITreeNode[]>();
     const [selectedKebabMenuExplorer] = useState<IMenuItem>();
 
@@ -109,6 +109,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         const MSCTree = [LibraryEnums.McsDevelopment, LibraryEnums.ApprovedTickets, LibraryEnums.RequestsReceived] as string[]
         if (explorerContainerProps.featureId === SettingsEnums.Instance) {
             setExplorerToRender("SAASINSTANCE");
+        } else if (explorerContainerProps.featureId === SettingsEnums.ClientIdentityManagement) {
+            setExplorerToRender("CLIENTIDENTITY");
         } else if (explorerContainerProps.featureId && MSCTree.includes(explorerContainerProps.featureId)) {
             setExplorerToRender("MCS");
         } else {
@@ -136,7 +138,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     }, [smDataContext]);
 
     useEffect(() => {
-        if (explorerToRender !== "SAASINSTANCE") {
+        if (explorerToRender !== "SAASINSTANCE" && explorerToRender !== "CLIENTIDENTITY") {
             return;
         }
         const contextBid = smDataContext.selection.bid;
@@ -364,7 +366,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                             handleNodeSelect={handleNodeSelect}
                         />}
 
-                        {explorerToRender === "SAASINSTANCE" && (
+                        {(explorerToRender === "SAASINSTANCE" || explorerToRender === "CLIENTIDENTITY") && (
                             <div className="nz-form-instance-container nz-w-100 nz-h-100">
                                 <SettingsInstanceList
                                     uniqueName={`${explorerContainerProps.uniqueName}-alist`}
@@ -389,7 +391,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                     </SplitterPanel>
 
                     <SplitterPanel tabIndex={-1} size={75} minSize={10} className={`nz-d-flex-column nz-align-center nz-layout-with-sidebar-pane${!explorerContainerProps.subTreeFeatureId ? " nz-pane-1" : " nz-pane-2"}`}>
-                        {explorerToRender !== "SAASINSTANCE" && (
+                        {explorerToRender !== "SAASINSTANCE" && explorerToRender !== "CLIENTIDENTITY" && (
                             <div className='nz-h-40-px nz-d-flex-row nz-align-center nz-justify-between nz-sub-header nz-w-100'>
                                 <div className="nz-d-flex-row nz-align-center nz-w-100">
                                     <div className='nz-fq-container-header'>

@@ -5,12 +5,13 @@ import './AppContainer.css'
 import { FeatureRouteContainer } from "./featurecontainer/FeatureRouteContainer"
 import { TitleContainer } from "./titlecontainer/TitleContainer"
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { AppQA, ClientEnums } from '../constants/Feature'
 import { FnGenerateUID } from '../shared/allcommon/settingsform/FnGenerateUID'
-import { AppQA } from '../constants/Feature'
 import { useSessionContext } from '../shared/context/hooks/SessionHooks'
 import { ISession } from '../shared/context/allinterface/ISession'
 import { FnGetSessionVariableFromStorage } from '../shared/allcommon/basic/FnGetSessionVariableFromStorage'
 import { useMainAppContext } from '../shared/context/hooks/MainAppHooks'
+import { useSmDataContext } from '../shared/context/hooks/SmDataHooks'
 import { MainMenu } from '../shared/menu/mainmenu/MainMenu'
 
 interface IAppContainer {
@@ -43,6 +44,7 @@ const AppContainer = (appContainerProps: IAppContainer) => {
     const location = useLocation();
     const sessionContext = useSessionContext();
     const mainAppContext = useMainAppContext();
+    const smDataContext = useSmDataContext();
     const selectedFeatureIdRef = useRef<string | undefined>(undefined);
 
     // One-time guard: fire the login activity log only once per mount,
@@ -200,12 +202,44 @@ const AppContainer = (appContainerProps: IAppContainer) => {
         if (!mainAppContext.featureRecords?.length) return;
         if (selectedFeatureData || selectedAppQAData) return;
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryBid = urlParams.get("bid")?.trim();
+        const queryCid = urlParams.get("cid")?.trim();
+        const queryFeature = urlParams.get("feature")?.trim();
+
         const match = location.pathname.match(/\/feature\/([^/]+)/);
         const pathFeatureId = match ? match[1] : undefined;
 
         let defaultItem: IMenuItem | undefined;
 
-        if (pathFeatureId) {
+        if (queryBid && queryCid) {
+            let targetFeatureId = ClientEnums.NetZoom;
+            if (
+                queryFeature === ClientEnums.VisioStencils ||
+                queryFeature?.toLowerCase().includes("visio") ||
+                queryFeature?.toLowerCase().includes("vss")
+            ) {
+                targetFeatureId = ClientEnums.VisioStencils;
+            } else if (
+                queryFeature === ClientEnums.NetZoom ||
+                queryFeature?.toLowerCase().includes("netzoom")
+            ) {
+                targetFeatureId = ClientEnums.NetZoom;
+            } else {
+                const isVisio = smDataContext.datasets.businesses?.some(
+                    (b) =>
+                        b.bid === queryBid &&
+                        (b.tag?.toLowerCase().includes("visio") ||
+                            b.btype?.toLowerCase().includes("enduser") ||
+                            b.bname?.toLowerCase().includes("visio"))
+                );
+                targetFeatureId = isVisio ? ClientEnums.VisioStencils : ClientEnums.NetZoom;
+            }
+
+            defaultItem = mainAppContext.featureRecords.find(
+                (item) => String(item._Feature) === String(targetFeatureId)
+            );
+        } else if (pathFeatureId) {
             defaultItem = mainAppContext.featureRecords.find(
                 (item) => String(item._Feature) === pathFeatureId || String(item.EntID) === pathFeatureId
             );
@@ -240,7 +274,7 @@ const AppContainer = (appContainerProps: IAppContainer) => {
         if (defaultItem) {
             void handleMenuSelect(null, undefined, defaultItem);
         }
-    }, [mainAppContext.featureRecords, location.pathname]);
+    }, [mainAppContext.featureRecords, location.pathname, smDataContext.datasets.businesses]);
 
     useEffect(() => {
         return () => {
@@ -282,7 +316,7 @@ const AppContainer = (appContainerProps: IAppContainer) => {
         return () => {
             rafIds.forEach(id => cancelAnimationFrame(id));
         };
-    }, [mainAppContext.featureRecords.length, mainAppContext.refTableRecords.length, sessionContext.SessionList.length, appContainerProps.isNewSession, searchParams])
+    }, [mainAppContext.featureRecords.length, sessionContext.SessionList.length, appContainerProps.isNewSession, searchParams])
 
     // Fire the login activity log once per session as soon as authSession is ready.
     useEffect(() => {

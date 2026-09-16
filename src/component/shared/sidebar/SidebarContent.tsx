@@ -19,6 +19,7 @@ import { AlertLog } from './alertlog/AlertLog'
 import { ContactList } from './contactlist/ContactList'
 import { buildPropertyFormDataFromSelectedNode } from './propertyformcontainer/PropertySampleData'
 import { IMenuItem } from '../allinterface/menu/IMainMenu'
+import { FnIsRootBusinessNode } from '../allcommon/tree/FnIsRootBusinessNode'
 
 interface ISidebarContent {
     Label: string;
@@ -182,7 +183,7 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                     width: "100%"
                 }}
             >
-                {selectedNode.Name?.toLowerCase() === "businesses" ?
+                {FnIsRootBusinessNode(selectedNode) || selectedNode.Name?.toLowerCase().startsWith("businesses") ?
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "start", height: "100%" }}>
                         Select a business/contect to view its details
                     </div>

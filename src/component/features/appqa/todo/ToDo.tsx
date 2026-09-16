@@ -17,6 +17,8 @@ import './ToDo.css';
 import { useTodos, useFileDownload, useFileDelete } from '@n20a/libfsdb';
 import type { ITodoDoc } from '@n20a/libfsdb';
 import { useUploadRemoteFile } from '../../../shared/allcommon/UploadRemoteFileHooks';
+import { ClientEnums } from '../../../constants/Feature';
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 
 interface IToDo {
 	uniqueName: string;
@@ -25,6 +27,8 @@ interface IToDo {
 
 interface ITodoItem extends ITodoDoc {
 	id?: string;
+	bid: string;
+	cid: string;
 	datecreated?: string;
 }
 
@@ -82,13 +86,15 @@ function parseTodoDate(item: Record<string, any>): number {
 	return 0;
 }
 
-function mapToTodoItem(record: Record<string, unknown>, index: number): ITodoItem {
+function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBid?: string, defaultCid?: string): ITodoItem {
 	const docId = String(record.id || record.todoid || record.docId || `todo_${index}`);
 	const rawFileName = record.filename ? String(record.filename).trim() : undefined;
+	const bid = String(record.bid ?? defaultBid ?? '').trim();
+	const cid = String(record.cid ?? defaultCid ?? '').trim();
 	return {
 		id: docId,
-		bid: String(record.bid ?? ''),
-		cid: String(record.cid ?? ''),
+		bid,
+		cid,
 		btype: String(record.btype ?? ''),
 		status: String(record.status ?? 'Open'),
 		whattodo: String(record.whattodo ?? record.title ?? record.message ?? ''),
@@ -99,10 +105,38 @@ function mapToTodoItem(record: Record<string, unknown>, index: number): ITodoIte
 	};
 }
 
+/**
+ * Determines whether a ToDo card's bid belongs to NetZoom or VisioStencils.
+ */
+function getTargetFeatureForBid(
+	item: ITodoItem,
+	businesses?: Array<{ bid?: string; btype?: string; tag?: string; bname?: string }>
+): string {
+	const textToCheck = `${item.btype || ''} ${item.whattodo || ''} ${item.filename || ''}`.toLowerCase();
+	if (
+		textToCheck.includes('visio') ||
+		textToCheck.includes('vss') ||
+		textToCheck.includes('stencil')
+	) {
+		return ClientEnums.VisioStencils;
+	}
+
+	const business = businesses?.find((b) => b.bid === item.bid);
+	if (business) {
+		const bText = `${business.tag || ''} ${business.btype || ''} ${business.bname || ''}`.toLowerCase();
+		if (bText.includes('visio') || bText.includes('enduser') || bText.includes('stencil')) {
+			return ClientEnums.VisioStencils;
+		}
+	}
+
+	return ClientEnums.NetZoom;
+}
+
 const ToDo = (todoProps: IToDo) => {
 	const mainAppContext = useMainAppContext();
 	const statusBarContext = useStatusBarContext();
-	const userInfo = mainAppContext.userInfoAndSubscription?.userInfo;
+	const smDataContext = useSmDataContext();
+	const userInfo = mainAppContext.authSession;
 	const authSession = mainAppContext.authSession;
 	const userBid = String(authSession?.bid ?? userInfo?.bid ?? '').trim();
 	const userCid = String(authSession?.cid ?? userInfo?.cid ?? '').trim();
@@ -157,13 +191,13 @@ const ToDo = (todoProps: IToDo) => {
 	// Sync local list with Firestore todos hook (sorted ascending by date)
 	useEffect(() => {
 		if (Array.isArray(todos)) {
-			const mapped = todos.map(mapToTodoItem);
+			const mapped = todos.map((item, index) => mapToTodoItem(item, index, userBid, userCid));
 			const sorted = [...mapped].sort((a, b) => parseTodoDate(a) - parseTodoDate(b));
 			setTodoItems(sorted);
 		} else if (todos === null) {
 			setTodoItems([]);
 		}
-	}, [todos]);
+	}, [todos, userBid, userCid]);
 
 	// Auto-scroll to bottom of list when todo items change
 	useEffect(() => {
@@ -330,6 +364,66 @@ const ToDo = (todoProps: IToDo) => {
 			statusBarContext?.setLoadingLabel?.('');
 		}
 	}, [selectedItem, resetEditor, downloadSingleFile, getStoragePath, statusBarContext]);
+	const SM_TAB_PREFIX = 'SM-';
+
+	const getSmTabLabels = async (): Promise<string[]> => {
+		const currentTitle = document.title;
+		const initialLabels = currentTitle.startsWith(SM_TAB_PREFIX) ? [currentTitle] : [];
+		const labels = new Set<string>(initialLabels);
+
+		try {
+			const channel = new BroadcastChannel('sm-tab-control');
+			const requestId = `sm-tabs-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+			const listener = (event: MessageEvent) => {
+				if (event.data?.action !== 'response-sm-tab-label') return;
+				if (event.data?.requestId !== requestId) return;
+
+				const label = event.data?.label;
+				if (typeof label === 'string' && label.startsWith(SM_TAB_PREFIX)) {
+					labels.add(label);
+				}
+			};
+
+			channel.addEventListener('message', listener);
+			channel.postMessage({ action: 'request-sm-tab-label', requestId });
+
+			await new Promise((resolve) => setTimeout(resolve, 150));
+
+			channel.removeEventListener('message', listener);
+			channel.close();
+		} catch (error) {
+			console.warn('Failed to query SM- tab labels:', error);
+		}
+
+		return Array.from(labels);
+	};
+
+	// Clicking on a ToDo card selects the item locally and, if bid and cid are both non-empty,
+	// launches another instance of sm20 in a new browser tab with bid, cid, and auto-selected feature
+	const handleCardClick = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+		void handleSelectTodo(item);
+
+		const bid = String(item.bid || '').trim();
+		const cid = String(item.cid || '').trim();
+
+		if (bid && cid) {
+			const targetFeature = getTargetFeatureForBid(item, smDataContext.datasets.businesses);
+			const origin = window.location.origin;
+			const pathname = window.location.pathname;
+			const params = new URLSearchParams();
+			const existingSMTabs = await getSmTabLabels();
+			const newTabLabel = `SM-${existingSMTabs.length + 1}`;
+			params.set('bid', bid);
+			params.set('cid', cid);
+			params.set('feature', targetFeature);
+			params.set('isnew', '1');
+			params.set('tablabel', newTabLabel);
+
+			const url = `${origin}${pathname}?${params.toString()}`;
+			window.open(url, '_blank', 'noopener,noreferrer');
+		}
+	}, [handleSelectTodo, smDataContext.datasets.businesses]);
 
 	// Remove file attachment inside Notes control
 	const handleDeleteAttachment = useCallback(
@@ -685,8 +779,9 @@ const ToDo = (todoProps: IToDo) => {
 								<div
 									className={`nz-node-list-box${isSelected ? ' nz-node-list-box-selected' : ''}`}
 									key={todoKey}
-									onClick={() => handleSelectTodo(item)}
+									onClick={(e) => handleCardClick(item, e)}
 									style={{ cursor: 'pointer' }}
+									title={item.bid && item.cid ? `Click to launch SM for BID: ${item.bid}, CID: ${item.cid}` : undefined}
 								>
 									<div className="nz-node-list-delete">
 										<div
@@ -712,7 +807,7 @@ const ToDo = (todoProps: IToDo) => {
 										<div className="nz-note-user">
 											<Label
 												uniqueName={`${todoProps.uniqueName}-type-${index}`}
-												label={[item.btype, item.bid, item.cid].filter(Boolean).join(' · ')}
+												label={[item.btype, item.bid ? `bid: ${item.bid}` : '', item.cid ? `cid: ${item.cid}` : ''].filter(Boolean).join(' · ')}
 											/>
 										</div>
 									</div>

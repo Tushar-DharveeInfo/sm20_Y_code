@@ -1,9 +1,10 @@
 import { createContext, useEffect, useMemo, useState, useCallback } from "react";
-import { IAlertProfileItem, IApItem, IEmItem, IFeatureForHelp, IFeatureItem, IMainApp, IRefItem, IUserAuthSession, IUserInfoAndSubscription, IUserProfileRecord } from "../allinterface/IMainApp";
+import { IFeatureForHelp, IFeatureItem, IMainApp, IUserAuthSession } from "../allinterface/IMainApp";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { IStatusBar } from "../allinterface/IStatusBar";
 import { useActivities } from "@n20a/libfsdb";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
+import { fnFilterPermittedFeatures } from "../../allcommon/menu/FnFeatureNodeType";
 
 
 let featuresData: IFeatureItem[] | null = null;
@@ -15,20 +16,44 @@ const getDeploymentVars = (): Record<string, any>[] | null => deploymentVarData;
 const MainAppContext = createContext<IMainApp | undefined>(undefined);
 
 function MainAppProvider({ children }: IAppContextWrapper) {
-    const [apRecords, setApRecords] = useState<IApItem[]>([]);
-    const [featureRecords, setFeatureRecords] = useState<IFeatureItem[]>([]);
-    const [emRecords, setEmRecords] = useState<IEmItem[]>([]);
-    const [alertProfileRecords, setAlertProfileRecords] = useState<IAlertProfileItem[]>([]);
+    const [rawFeatureRecords, setRawFeatureRecords] = useState<IFeatureItem[]>([]);
     const [alertRecords, setAlertRecords] = useState<Record<string, any>[]>([]);
-    const [refTableRecords, setRefTableRecords] = useState<IRefItem[]>([]);
     const [isInternetAvailable, setIsInternetAvailable] = useState<boolean>(true);
     const [deploymentVars, setDeploymentVars] = useState<Record<string, any>[]>([]);
-    const [allFeatureRecords, setAllFeatureRecords] = useState<IFeatureItem[]>([]);
-    const [selectedFeatureForHelp, setSelectedFeatureForHelp] = useState<IFeatureForHelp>()
-    const [userProfileRecord, setUserProfileRecord] = useState<IUserProfileRecord>()
+    const [selectedFeatureForHelp, setSelectedFeatureForHelpState] = useState<IFeatureForHelp>()
     const [authSession, setAuthSession] = useState<IUserAuthSession>()
-    const [userInfoAndSubscription, setUserInfoAndSubscription] = useState<IUserInfoAndSubscription>()
     const [businessSelectedNode, setBusinessSelectedNode] = useState<ITreeNode>()
+
+    const setFeatureRecords = useCallback((value: React.SetStateAction<IFeatureItem[]>) => {
+        setRawFeatureRecords(value);
+    }, []);
+
+    const setSelectedFeatureForHelp = useCallback((value: React.SetStateAction<IFeatureForHelp | undefined>) => {
+        setSelectedFeatureForHelpState((prev) => {
+            const next = typeof value === "function" ? value(prev) : value;
+            if (prev?.featureID === next?.featureID && prev?.featureName === next?.featureName) {
+                return prev;
+            }
+            return next;
+        });
+    }, []);
+
+    const featureRecords = useMemo(() => {
+        if (!rawFeatureRecords.length) return [];
+
+        let filtered = rawFeatureRecords;
+
+        if (!isInternetAvailable) {
+            filtered = filtered.filter(item => !item.Internet);
+        }
+
+        // Filter features based on NodeType functions (fnAdmin, fnNetzoom, fnVss)
+        filtered = fnFilterPermittedFeatures(filtered, authSession, {
+            authSession,
+        });
+
+        return filtered;
+    }, [rawFeatureRecords, isInternetAvailable, authSession]);
 
     useEffect(() => {
         try {
@@ -46,29 +71,11 @@ function MainAppProvider({ children }: IAppContextWrapper) {
         }
     }, [deploymentVars]);
 
-    useEffect(() => {
-        try {
-            if (!allFeatureRecords.length) return;
-
-            let filtered = [...allFeatureRecords];
-
-            if (!isInternetAvailable) {
-                filtered = filtered.filter(item => !item.Internet);
-            }
-
-            setFeatureRecords(filtered);
-        } catch (error) {
-            console.error("Error filtering feature records:", error);
-        }
-    }, [isInternetAvailable, allFeatureRecords]);
-
     const fetchApRecords = useCallback(async (_statusBarContext?: IStatusBar) => {
         // SAMPLE DATA: AP records API not called.
     }, []);
 
-    const fetchAlertProfileRecords = useCallback((_statusBarContext: IStatusBar) => {
-        // SAMPLE DATA: Alert profile API not called.
-    }, []);
+
 
     // Derive bid from authSession for useActivities (bid maps to authSession.bid).
     const bid = String(authSession?.bid ?? "").trim();
@@ -120,55 +127,33 @@ function MainAppProvider({ children }: IAppContextWrapper) {
 
     const providers = useMemo(
         (): IMainApp => ({
-            apRecords,
-            setApRecords,
             featureRecords,
             setFeatureRecords,
-            allFeatureRecords,
-            setAllFeatureRecords,
-            emRecords,
-            setEmRecords,
-            alertProfileRecords,
-            setAlertProfileRecords,
             alertRecords,
             setAlertRecords,
-            refTableRecords,
-            setRefTableRecords,
             isInternetAvailable,
             setIsInternetAvailable,
-            userProfileRecord,
-            setUserProfileRecord,
             authSession,
             setAuthSession,
-            userInfoAndSubscription,
-            setUserInfoAndSubscription,
             deploymentVars,
             setDeploymentVars,
             selectedFeatureForHelp,
             setSelectedFeatureForHelp,
             businessSelectedNode,
             setBusinessSelectedNode,
-            fetchApRecords,
-            fetchAlertProfileRecords,
             createActivityLog,
         }),
         [
-            apRecords,
             featureRecords,
-            emRecords,
-            alertProfileRecords,
+            setFeatureRecords,
             alertRecords,
-            refTableRecords,
             isInternetAvailable,
             deploymentVars,
-            allFeatureRecords,
             selectedFeatureForHelp,
-            userProfileRecord,
+            setSelectedFeatureForHelp,
             authSession,
-            userInfoAndSubscription,
             businessSelectedNode,
             fetchApRecords,
-            fetchAlertProfileRecords,
             createActivityLog,
         ]
     );

@@ -300,7 +300,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
             isAutoSave,
             headerText,
             allowShowHeader,
-            refTableRecordsLength: mainAppContext.refTableRecords?.length,
+            refTableRecordsLength: [],
             refDataObjectLength: refDataObject?.length,
             handleChangedControlValue
         };
@@ -526,7 +526,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                 parsedProfile ?? {},
                 statusBarContext,
                 derivedGroupNames,
-                mainAppContext.refTableRecords,
+                [],
                 "usa",
                 getDiagnosticLevelData(),
                 isDisableForm,
@@ -558,7 +558,6 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
         allowShowSectionHeader,
         headerText,
         allowShowHeader,
-        mainAppContext.refTableRecords?.length,
         refDataObject?.length,
         handleChangedControlValue,
         isEditAllowedForFeature

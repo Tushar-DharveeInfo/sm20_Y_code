@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSessionContext } from '../../context/hooks/SessionHooks'
+import { useMainAppContext } from '../../context/hooks/MainAppHooks'
 import { FnGetIconForSubMenu } from '../../allcommon/menu/FnGetIconForSubMenu'
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable'
 import { FnGetMainMenus } from '../../allcommon/menu/FnGetMainMenus'
@@ -21,6 +22,7 @@ const MainMenu = (menuProps: IMainMenu) => {
   const [selectedFeatureItem, setSelectedFeatureItem] = useState<IMenuItem>();
   const [sessionValues, setSessionValues] = useState<string>();
   const sessionContext = useSessionContext();
+  const mainAppContext = useMainAppContext();
   const setSubMenuData = (menu: IMenuItem[], selectedMenu?: IMenuItem, updatedFeatures?: IMenuItem[]) => {
     if (menu && menu.length > 0) {
       if (!menuProps.isDisableSort) {
@@ -30,7 +32,7 @@ const MainMenu = (menuProps: IMainMenu) => {
         );
       }
       menu.forEach((element: IMenuItem) => {
-        const submenu = FnGetSubMenus(updatedFeatures ?? menuProps.featureData, element.MenuID, element.Label);
+        const submenu = FnGetSubMenus(updatedFeatures ?? menuProps.featureData, element.MenuID, element.Label, mainAppContext.authSession);
         if (selectedMenu) {
           const selectedId = selectedMenu.EntID ? String(selectedMenu.EntID) : "";
           const selectedFeatureId = selectedMenu._Feature != null ? String(selectedMenu._Feature) : "";
@@ -61,7 +63,7 @@ const MainMenu = (menuProps: IMainMenu) => {
 
       if (menuProps.uniqueName === "Menu") {
         const updated_feature_data = FnUpdateFeatureLabelFromSession(menuProps.featureData, sessionContext.SessionList)
-        let listOfMainMenu = FnGetMainMenus(updated_feature_data);
+        let listOfMainMenu = FnGetMainMenus(updated_feature_data, mainAppContext.authSession);
 
 
         setSubMenuData(listOfMainMenu, menuProps.selectedFeature, updated_feature_data)

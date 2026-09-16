@@ -76,7 +76,7 @@ function parseActivityDate(value: unknown, row?: Record<string, unknown>): numbe
 const Log = (logProps: ILog) => {
     const headerTitle = logProps.headerText ?? "Log";
     const mainAppContext = useMainAppContext();
-    const userInfo = mainAppContext.userInfoAndSubscription?.userInfo;
+    const userInfo = mainAppContext.authSession;
 
     const nodeType = String(logProps.selectedNode?.NodeType ?? '').trim().toLowerCase();
 

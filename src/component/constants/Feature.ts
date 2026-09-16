@@ -37,7 +37,6 @@ enum HomeEnums {
 // Client menu feature ids — match public/smFeatures.json MenuID 200
 enum ClientEnums {
     Client = "200",
-    ClientIdentityManagement = "204",
     NetZoom = "208",
     VisioStencils = "212",
     SSIAndOtherServices = "216",
@@ -48,7 +47,10 @@ enum ClientEnums {
 // Prospect menu feature ids — match public/smFeatures.json MenuID 250
 enum ProspectEnums {
     Prospect = "250",
-    Recent = "252",
+    Followup = "252",
+    Recent = "254",
+    Past = "256",
+    Delete = "258",
     All = "254",
     Verify = "256",
 }
@@ -73,9 +75,10 @@ enum ServicesEnums {
 // Settings menu feature ids — match public/smFeatures.json MenuID 900
 enum SettingsEnums {
     Settings = "900",
-    DailySchedular = "902",
-    Instance = "910",
-    Import = "920",
+    ClientIdentityManagement = "904",
+    DailySchedular = "908",
+    Instance = "912",
+    Import = "916",
 }
 
 enum deviceModelTabs {

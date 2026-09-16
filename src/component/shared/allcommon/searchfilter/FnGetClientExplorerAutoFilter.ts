@@ -1,6 +1,6 @@
 
 import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
-import { ClientEnums, LibraryEnums } from "../../../constants/Feature";
+import { ClientEnums, LibraryEnums, SettingsEnums } from "../../../constants/Feature";
 
 /**
  * Default explorer filter for Client menu features and MCS Development.
@@ -15,18 +15,18 @@ const FnGetClientExplorerAutoFilter = (
 
     switch (featureId) {
         case ClientEnums.NetZoom:
-            return { btype: "consultant", tag: "NetZoom" };
+            return { btype: "consultant" };
         case ClientEnums.VisioStencils:
-            return { btype: "enduser", tag: "VisioStencils" };
+            return { btype: "enduser" };
         case ClientEnums.SSIAndOtherServices:
-            return { btype: "Client", tag: "SSI" };
+            return { btype: "Client" };
         case ClientEnums.Reseller:
             return { btype: "reseller" };
         case ClientEnums.Mcs:
         case LibraryEnums.McsDevelopment:
         case "feature-mcsdevelopment":
             return { btype: "mcs" };
-        case ClientEnums.ClientIdentityManagement:
+        case SettingsEnums.ClientIdentityManagement:
         default:
             return {};
     }
@@ -37,7 +37,6 @@ const FnIsClientMenuFeature = (featureId?: string): boolean => {
     if (!featureId) return false;
     return (
         featureId === ClientEnums.Client
-        || featureId === ClientEnums.ClientIdentityManagement
         || featureId === ClientEnums.NetZoom
         || featureId === ClientEnums.VisioStencils
         || featureId === ClientEnums.SSIAndOtherServices

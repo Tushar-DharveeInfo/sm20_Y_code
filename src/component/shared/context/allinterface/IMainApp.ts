@@ -1,5 +1,4 @@
 
-import { IStatusBar } from "./IStatusBar";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 
 
@@ -28,55 +27,6 @@ interface IFeatureItem {
     [key: string]: string | any;
 }
 
-interface IApItem {
-    CanChange: number;
-    IsRequired: number;
-    GroupName: string;
-    GroupNameDesc: string;
-    SubGroupEntID: string;
-    SubGroupName: string;
-    SubGroupNameDesc: string;
-    _AP: string;
-    Name: string;
-    PropertyLabel: string;
-    NameDesc: string;
-    DefaultAPValue: string;
-    Value: string;
-    ValueDesc: string;
-    SortOrder: number;
-    MaxInstances: number;
-    InputMask: string;
-    RegEx: string;
-    DisplayGroupControl: string;
-    DisplayControl: string;
-    ChangeEvent: string;
-    Secured: boolean;
-    IsNZ: boolean;
-    EntID: string;
-    RecID: string;
-    LastUpdated: string;
-    EntityName: string;
-}
-
-interface IAlertProfileItem {
-    GroupName: string;
-    _AlertProfile: string;
-    UserName: string;
-    EscalationLevel: number;
-    AttemptCount: number;
-    AlertSeverity: string;
-    Duration: string;
-    HTML: string;
-    Keywords: string;
-    DateCreated: string;
-    LastUpdatedBy: string;
-    Secured: boolean;
-    IsNZ: boolean;
-    EntID: string;
-    RecID: string;
-    LastUpdated: string;
-    EntityName: string;
-}
 
 interface IFeatureForHelp {
     featureID: string;
@@ -95,60 +45,10 @@ interface IRefItem {
     LastUpdated: string;
 }
 
-interface IEmItem {
-    TableName: string;
-    PName: string;
-    RequiredToAddRecord: boolean;
-    RequiredToUpdateRecord: boolean;
-    DefaultValue: string;
-    DisplayControl: string;
-    ExcludeDataGridField?: boolean | number | string;
-    NullNotAllowed?: boolean;
-    [key: string]: unknown;
-}
 
-interface IUserProfileRecord {
-    Email: string;
-    Enabled: boolean;
-    _User: string;
-    Shortname: string;
-    EntID: string;
-    RecID: string;
-    Designation?: string;
-    TimeZone?: string;
-    DisplayTheme?: string;
-    Secured?: boolean;
-    IsNZ?: boolean;
-    EntityName?: string;
-    NodeType?: string;
-}
 
-/** Auth-facing user fields available app-wide (from Authentication AuthSession). */
-interface IUserInfo {
-    displayName: string;
-    username: string;
-    email?: string;
-    tenantNickname?: string;
-    phoneNumber?: string;
-    bid?: string,
-    cid?: string,
-}
 
-/** Subscription / license row shared via MainApp context. */
-interface IUserSubscription {
-    ProductName: string;
-    _NZLicenseKey: string;
-    StartDate: string;
-    EndDate: string;
-    UserCount: number;
-    RackCount: number;
-    Secured: boolean;
-    IsNZ: boolean;
-    EntID: string;
-    RecID: string;
-    LastUpdated: string;
-    EntityName: string;
-}
+
 interface IUserAuthSession {
     id: string;
     username: string;
@@ -159,50 +59,29 @@ interface IUserAuthSession {
     tenantNickname: string | null;
     bucketName: string;
     baseFolder: string;
-    bid?: string,
-    cid?: string,
-}
-/** Combined auth user + subscription licenses for reuse across features. */
-interface IUserInfoAndSubscription {
-    userInfo: IUserInfo;
-    subscription: IUserSubscription[];
+    bid?: string;
+    cid?: string;
+    authrole?: string;
+    role?: string;
+    toolboxRole?: string;
+    isAuthenticated?: boolean;
+    permittedapps?: string[];
+    claims?: Record<string, unknown> | null;
+    ProductName?: string;
+    licenseKey?: string;
+    licenseDetails?: Record<string, any>;
 }
 
 interface IMainApp {
     featureRecords: IFeatureItem[];
     setFeatureRecords: React.Dispatch<React.SetStateAction<IFeatureItem[]>>;
 
-    allFeatureRecords: IFeatureItem[];
-    setAllFeatureRecords: React.Dispatch<React.SetStateAction<IFeatureItem[]>>;
-
-    apRecords: IApItem[];
-    setApRecords: React.Dispatch<React.SetStateAction<IApItem[]>>;
-
-    emRecords: IEmItem[];
-    setEmRecords: React.Dispatch<React.SetStateAction<IEmItem[]>>;
-
     authSession?: IUserAuthSession;
     setAuthSession: React.Dispatch<React.SetStateAction<IUserAuthSession | undefined>>;
-
-    /** Auth user display info + subscription licenses for status bar and features. */
-    userInfoAndSubscription?: IUserInfoAndSubscription;
-    setUserInfoAndSubscription: React.Dispatch<
-        React.SetStateAction<IUserInfoAndSubscription | undefined>
-    >;
-
-    alertProfileRecords: IAlertProfileItem[];
-    setAlertProfileRecords: React.Dispatch<
-        React.SetStateAction<IAlertProfileItem[]>
-    >;
 
     alertRecords: Record<string, any>[];
     setAlertRecords: React.Dispatch<
         React.SetStateAction<Record<string, any>[]>
-    >;
-
-    refTableRecords: IRefItem[];
-    setRefTableRecords: React.Dispatch<
-        React.SetStateAction<IRefItem[]>
     >;
 
     deploymentVars: Record<string, any>[];
@@ -220,18 +99,12 @@ interface IMainApp {
         React.SetStateAction<ITreeNode | undefined>
     >;
 
-    userProfileRecord?: IUserProfileRecord;
-    setUserProfileRecord?: React.Dispatch<
-        React.SetStateAction<IUserProfileRecord | undefined>
-    >;
 
     selectedFeatureForHelp?: IFeatureForHelp;
     setSelectedFeatureForHelp: React.Dispatch<
         React.SetStateAction<IFeatureForHelp | undefined>
     >;
 
-    fetchApRecords?: (statusBarContext: IStatusBar) => Promise<void>;
-    fetchAlertProfileRecords: (statusBarContext: IStatusBar) => void;
 
     /**
      * Writes a single activity-log document to Firestore.
@@ -245,15 +118,8 @@ interface IMainApp {
 
 export type {
     IMainApp,
-    IApItem,
     IFeatureItem,
     IFeatureForHelp,
-    IAlertProfileItem,
     IRefItem,
-    IEmItem,
-    IUserProfileRecord,
-    IUserInfo,
-    IUserSubscription,
-    IUserInfoAndSubscription,
     IUserAuthSession
 };

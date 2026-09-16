@@ -43,11 +43,8 @@ const DynamicRouteComponent = () => {
 
 
     const loginStatusMessage = useMemo(
-        () => FnGetLoggedInStatusMessage(
-            mainAppContext.authSession,
-            mainAppContext.userInfoAndSubscription?.subscription
-        ),
-        [mainAppContext.authSession, mainAppContext.userInfoAndSubscription]
+        () => FnGetLoggedInStatusMessage(mainAppContext.authSession),
+        [mainAppContext.authSession]
     );
 
 
@@ -165,6 +162,8 @@ const DynamicRouteComponent = () => {
             }}
             statusBarContainer={{
                 isVisible: true,
+                uniqueName: "feature-statusbar",
+                featureId: stableFeatureId ?? "",
                 StatusBarType: StatusBarType,
                 statusBarData: statusBarData
             }}

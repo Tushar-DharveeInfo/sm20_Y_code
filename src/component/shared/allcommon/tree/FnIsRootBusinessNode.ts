@@ -35,9 +35,15 @@ export const FnIsRootBusinessNode = (node?: ITreeNode | null): boolean => {
         return true;
     }
 
-    // Node name is "businesses" or "root: businesses"
+    // Node name is "businesses" or "root: businesses" or "businesses (nnn)"
     if (
-        (nodeName === "businesses" || nodeName === "root: businesses" || description === "businesses") &&
+        (nodeName === "businesses" ||
+            nodeName === "root: businesses" ||
+            description === "businesses" ||
+            nodeName.startsWith("businesses (") ||
+            description.startsWith("businesses (") ||
+            nodeName.startsWith("businesses") ||
+            description.startsWith("businesses")) &&
         (node.parentEntID === null || node.parentEntID === undefined || node.parentEntID === "" || nodeType === "root" || key.includes("root"))
     ) {
         return true;

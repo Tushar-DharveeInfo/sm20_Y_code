@@ -20,7 +20,9 @@ interface IHelptipContainer {
 }
 
 interface IStatusBarContainer {
+    uniqueName: string,
     isVisible: boolean,
+    featureId: string,
     StatusBarType?: 'menu' | 'appqa',
     statusBarData?: Record<string, number | string>;
 }
@@ -127,9 +129,9 @@ const ComponentsWrapperContainer = (props: IComponentsWrapperContainer) => {
                     data={props.PropsComponent}
                 />}
             </div>
-            {props.statusBarContainer.isVisible && <StatusBarContainer uniqueName={`${props.uniqueName}-sidebar-container`} StatusBartype={props.statusBarContainer.StatusBarType}
+            {props.statusBarContainer.isVisible && <StatusBarContainer uniqueName={`${props.uniqueName}-sidebar-container`} StatusBarType={props.statusBarContainer.StatusBarType}
                 featureId={props.featureId}
-                statusBarData={props.statusBarContainer.statusBarData} />}
+                statusBarData={props.statusBarContainer.statusBarData} isVisible={false} />}
             {/* {props.overlayContainer && props.overlayContainer.isVisible && (
                 <div
                     className="nz-overlay-container"

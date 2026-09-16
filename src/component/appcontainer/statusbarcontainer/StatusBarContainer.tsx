@@ -6,7 +6,6 @@ import { useStatusBarContext } from '../../shared/context/hooks/StatusBarHooks';
 import { useSessionContext } from '../../shared/context/hooks/SessionHooks';
 import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks';
 import './StatusBarContainer.css';
-import { IStatusBarContainer, IStatusBarItem } from '../allinterface/IStatusBarContainer';
 import { ISession } from '../../shared/context/allinterface/ISession';
 import { IErrorData } from '../../shared/allinterface/IApiResponse';
 import { Label } from '../../shared/basic/label/Label';
@@ -16,8 +15,8 @@ import { YesNoFormContainer } from '../../shared/basic/yesnoformcontainer/YesNoF
 import { FnConvertDateToUtcOrUtcToDate } from '../allcommon/FnConvertDateToUtcOrUtcToDate';
 import { FnGetAppDateFormat } from '../../shared/allcommon/basic/FnGetAppDateFormat';
 import { FnSortStatusBarCards } from '../allcommon/FnSortStatusBarCards';
-import { IAlertProfileItem, IApItem } from '../../shared/context/allinterface/IMainApp';
 import { FnParseJsonSafely } from '../allcommon/FnParseJsonSafely';
+import { IStatusBarContainer } from '../componentswrappercontainer/ComponentsWrapperContainer';
 
 // Builds markdown content for error and log sections in status bar cards.
 const generateErrorMarkdown = (errors: IErrorData[]): string => {
@@ -62,7 +61,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
     const [statusBarTitle, setStatusBarTitle] = useState<string | string[]>();
     const [statusBarType, setStatusBarType] = useState<'error' | 'testapi' | 'useraction' | 'info'>('info');
     // new implementation for statusbar with card 
-    const [statusBarCards, setStatusBarCards] = useState<IStatusBarItem[]>([]);
+    const [statusBarCards, setStatusBarCards] = useState<Record<string, any>[]>([]);
     const [isStatusBarOpen, setIsStatusBarOpen] = useState<boolean>(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
     const [showOkButton, setShowOkButton] = useState<boolean>(false);
@@ -77,8 +76,8 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
 
     const maxResizeHeightRef = useRef<number>(0);
     const sessionVarRef = useRef<ISession[]>(undefined);
-    const alertProfileRef = useRef<IAlertProfileItem[]>(undefined);
-    const dcimStatsRef = useRef<IApItem[]>(undefined);
+    const alertProfileRef = useRef<Record<string, unknown>[]>(undefined);
+    const dcimStatsRef = useRef<Record<string, unknown>[]>(undefined);
 
     const md = new MarkdownIt({
         html: true,
@@ -112,20 +111,10 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
 
 
 
-    // Ensures alert profile records are available for notification rendering.
-    useEffect(() => {
-        if (mainAppContext.alertProfileRecords.length) {
-            alertProfileRef.current = mainAppContext.alertProfileRecords;
-        }
-        else {
-            mainAppContext.fetchAlertProfileRecords(statusBarContext);
-        }
-    }, [mainAppContext.alertProfileRecords])
-
     // Adds incoming alert records as status bar cards for current user visibility.
     useEffect(() => {
         if (mainAppContext.alertRecords.length) {
-            const statusBarCardList: IStatusBarItem[] = [];
+            const statusBarCardList: Record<string, any>[] = [];
             const currentUserName = sessionVarRef.current?.find((item) => item.VariableName === "LoginShortName");
             for (let index = 0; index < mainAppContext.alertRecords.length; index++) {
                 const element = mainAppContext.alertRecords[index];
@@ -143,7 +132,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
                 }
                 const isExists = statusBarCards.find((item) => item.titleData === element.AlertProfileName);
                 if (!isExists && currentUserName?.SessionValue && (userNames.includes(currentUserName.SessionValue) || !userNames.length)) {
-                    const statusBarCard: IStatusBarItem = {
+                    const statusBarCard: Record<string, any> = {
                         duration: element.AlertSeverity?.toLowerCase() === "critical" ? 1000 : 5000,
                         cardPurpose: element.MessageSource,
                         severity: element.AlertSeverity,
@@ -426,7 +415,9 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
          * otherwise falls back to the plain markdown body.
          */
         const buildCardContent = (profileName: string, markdownContent: string): string => {
-            const alertProfile = mainAppContext.alertProfileRecords?.find((item) => item._AlertProfile === profileName);
+            const alertProfile = {
+                HTML: "",
+            };
             if (!alertProfile?.HTML) {
                 return markdownContent;
             }
@@ -448,7 +439,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
         // Shows the error locally because the alert queue API is not called.
         const addErrorCard = (profileName: string, cardContent: string) => {
             if (!cardContent) return;
-            const statusBarCard: IStatusBarItem = {
+            const statusBarCard: Record<string, any> = {
                 duration: 10000,
                 cardPurpose: 'Error',
                 severity: 'Critical',
@@ -611,7 +602,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
         };
         if (TestApiData) {
             const statusBarContent = formatApiCallToMarkdown(TestApiData);
-            const statusBarCard: IStatusBarItem = {
+            const statusBarCard: Record<string, any> = {
                 duration: 10000,
                 cardPurpose: 'testapi',
                 severity: 'Normal',
@@ -627,7 +618,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
     // Adds user action notifications as normal severity status cards.
     useEffect(() => {
         if (UserActionData) {
-            const statusBarCard: IStatusBarItem = {
+            const statusBarCard: Record<string, any> = {
                 duration: 10000,
                 cardPurpose: 'useraction',
                 severity: 'Normal',
@@ -640,7 +631,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
     }, [UserActionData])
 
     // Closes a single card and persists close status for error alerts.
-    const handleCloseCard = (id: string, cardItem: IStatusBarItem) => {
+    const handleCloseCard = (id: string, cardItem: Record<string, any>) => {
         if (cardItem.cardPurpose === "Error") {
             setFetchDataError(null);
             setFetchError(null);
@@ -870,7 +861,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
                         />
                     </div>
                     {statusBarCards.length ? <div className='nz-statusbar-card-content'>
-                        {statusBarCards.map((cardItem: IStatusBarItem, index) => {
+                        {statusBarCards.map((cardItem: Record<string, any>, index) => {
                             return <React.Fragment key={index}> <StatusBarCard
                                 {...cardItem}
                                 uniqueName={`card-item-${index}`}

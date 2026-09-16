@@ -12,12 +12,12 @@ import { GlobalStyles } from './features/appqa/theme/GlobalStyles';
 import { IDeploymentEnv } from './shared/allinterface/IApiResponse';
 import { AppContainer } from './appcontainer/AppContainer';
 import { FnSetSessionStorageItem } from './appcontainer/allcommon/FnSetSessionStorageItem';
-import type { IFeatureItem, IUserAuthSession, IUserInfoAndSubscription } from './shared/context/allinterface/IMainApp';
-import { FnGetAuthDisplayName } from './appcontainer/allcommon/FnGetLoggedInStatusMessage';
+import type { IFeatureItem, IUserAuthSession } from './shared/context/allinterface/IMainApp';
 import { AuthSession, getFirebaseServices } from '@n20a/libauth';
 import { FirebaseStorageProvider, FirestoreProvider, IFirebaseStorageDeps } from '@n20a/libfsdb';
 import { IAxiosInterceptorDeps } from '@n20a/libaxios';
 import { useSmDataContext } from './shared/context/hooks/SmDataHooks';
+import { fnFilterPermittedFeatures } from './shared/allcommon/menu/FnFeatureNodeType';
 
 GridModuleRegistry.registerModules([GridAllCommunityModule]);
 interface INzAppSm {
@@ -183,10 +183,8 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
                 return;
             }
 
-            mainAppContext.setFeatureRecords(featureRecords);
-            mainAppContext.setAllFeatureRecords(featureRecords);
-
             let bid = user.email?.split('@')[1]?.trim().toLowerCase().split('.')[0] ?? "";
+
             let cid = user.email ?? user.id;
             const bidCid = {
                 bid: "bid_108",
@@ -194,6 +192,23 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
             };
             bid = bidCid?.bid;
             cid = bidCid?.cid;
+            debugger
+            const urlParams = new URLSearchParams(window.location.search);
+            const queryBid = urlParams.get('bid')?.trim();
+            const queryCid = urlParams.get('cid')?.trim();
+            if (queryBid) {
+                bid = queryBid;
+            }
+            if (queryCid) {
+                cid = queryCid;
+            }
+            const role =
+                (user.claims as any)?.toolboxRole || "";
+
+            const permittedapps = ['saas', 'sm', 'service', "netzoom", "visiostencils"];
+
+            // const apps = user.customClaims?.permittedapps
+
             const authSession: IUserAuthSession = {
                 id: user.id,
                 username: user.username,
@@ -206,23 +221,21 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
                 baseFolder: mainAppContext.deploymentVars[0]?.BASE_FOLDER ?? 'sm',
                 bid,
                 cid,
+                authrole: role,
+                role,
+                toolboxRole: (user.claims as any)?.toolboxRole ?? (user as any)?.toolboxRole ?? role,
+                permittedapps,
+                claims: user.claims ?? null,
+                isAuthenticated: true,
+                ProductName: (user as any)?.ProductName ?? (user as any)?.productName ?? "NetZoom",
+
             };
             mainAppContext.setAuthSession(authSession);
 
-            const displayName = FnGetAuthDisplayName(authSession);
-            const userInfoAndSubscription: IUserInfoAndSubscription = {
-                userInfo: {
-                    displayName: displayName || "User",
-                    username: user?.username ?? "",
-                    email: user?.email as string,
-                    tenantNickname: user?.tenantNickname as string,
-                    bid,
-                    cid,
-                },
-                subscription: [],
-            };
-            mainAppContext.setUserInfoAndSubscription(userInfoAndSubscription);
-
+            const initialFilteredFeatures = fnFilterPermittedFeatures(featureRecords, authSession, {
+                authSession,
+            });
+            mainAppContext.setFeatureRecords(initialFilteredFeatures);
             sessionContext.setSessionList([]);
             setIsSessionCreated(true);
 
@@ -293,6 +306,8 @@ function NzAppSm(props: INzAppSm) {
     }), [firebaseToken]);
 
     const firebaseStorageDeps = useMemo<IFirebaseStorageDeps>(() => ({
+        getBaseApiUrl: () => cfg.CLOUDRUN_URL || (import.meta.env.DEV ? 'http://localhost:8080' : ''),
+        getValidationCode: () => cfg.VALIDATION_CODE ?? '',
         getFirebaseApp: () => getFirebaseServices().app,
     }), []);
 
