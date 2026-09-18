@@ -143,6 +143,58 @@ function toIsoString(val: unknown, fallback?: string): string {
     }
 }
 
+function toBoolean(val: unknown, defaultValue: boolean = false): boolean {
+    if (val === undefined || val === null || val === '') return defaultValue;
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'number') return val !== 0;
+    const s = String(val).trim().toLowerCase();
+    if (s === 'true' || s === '1' || s === 'yes') return true;
+    if (s === 'false' || s === '0' || s === 'no') return false;
+    return defaultValue;
+}
+
+function generateAutoBid(existingBusinesses: Array<{ bid?: string }>): string {
+    let maxNum = 100;
+    for (const b of existingBusinesses) {
+        const match = b?.bid?.match(/^bid_(\d+)$/i);
+        if (match) {
+            const num = parseInt(match[1], 10);
+            if (!isNaN(num) && num > maxNum) {
+                maxNum = num;
+            }
+        }
+    }
+    let candidate = `bid_${maxNum + 1}`;
+    while (existingBusinesses.some((b) => (b.bid || '').toLowerCase() === candidate.toLowerCase())) {
+        maxNum++;
+        candidate = `bid_${maxNum + 1}`;
+    }
+    return candidate;
+}
+
+function generateAutoCid(parentBid: string, existingContacts: Array<{ cid?: string; bid?: string }>): string {
+    const cleanBid = (parentBid || 'bid_100').trim();
+    let maxIndex = 0;
+    const prefix = `cid_${cleanBid}_`.toLowerCase();
+    for (const c of existingContacts) {
+        const cidStr = (c?.cid || '').trim();
+        if (cidStr.toLowerCase().startsWith(prefix)) {
+            const suffix = cidStr.slice(prefix.length);
+            const num = parseInt(suffix, 10);
+            if (!isNaN(num) && num > maxIndex) {
+                maxIndex = num;
+            }
+        }
+    }
+    let nextIndex = maxIndex + 1;
+    let candidate = `cid_${cleanBid}_${nextIndex}`;
+    while (existingContacts.some((c) => (c.cid || '').toLowerCase() === candidate.toLowerCase())) {
+        nextIndex++;
+        candidate = `cid_${cleanBid}_${nextIndex}`;
+    }
+    return candidate;
+}
+
 function makeControl(partial: {
     name: string;
     label: string;
@@ -183,6 +235,7 @@ function makeControl(partial: {
         EntityName: 'AP',
         Name: partial.name,
         disabled: partial.disabled ?? false,
+        IsReadOnly: partial.disabled ?? false,
         Options: partial.options,
     };
 }
@@ -277,29 +330,32 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         FnHideShowSaveIconForForm('hide');
     }, [mode, isUpdate, props.selectedNode]);
 
-    // Entity IDs
-    const [businessId, setBusinessId] = useState<string>(() => {
-        if (isUpdate && selectedBusiness?.bid) return selectedBusiness.bid;
-        return '';
-    });
-
-    const [contactId, setContactId] = useState<string>(() => {
-        if (isUpdate && selectedContact?.cid) return selectedContact.cid;
-        return '';
-    });
-
+    // Selected parent business for contact
     const [selectedParentBid, setSelectedParentBid] = useState<string>(() => {
         if (isUpdate && selectedContact?.bid) return selectedContact.bid;
         return defaultParentBid;
     });
 
+    // Entity IDs
+    const [businessId, setBusinessId] = useState<string>(() => {
+        if (isUpdate && selectedBusiness?.bid) return selectedBusiness.bid;
+        if (!isUpdate) return generateAutoBid(smDataContext.datasets?.businesses ?? []);
+        return '';
+    });
+
+    const [contactId, setContactId] = useState<string>(() => {
+        if (isUpdate && selectedContact?.cid) return selectedContact.cid;
+        if (!isUpdate) return generateAutoCid(defaultParentBid, smDataContext.datasets?.contacts ?? []);
+        return '';
+    });
+
     // Draft values store
     const businessValuesRef = useRef<Record<string, unknown>>({
-        bid: isUpdate ? businessId : '',
+        bid: isUpdate ? businessId : (businessId || generateAutoBid(smDataContext.datasets?.businesses ?? [])),
         bname: '',
         btype: 'consultant',
         status: 'Active',
-        verified: true,
+        verified: false,
         salesexec: '',
         country: 'United States',
         state: 'CA',
@@ -315,12 +371,12 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
     });
 
     const contactValuesRef = useRef<Record<string, unknown>>({
-        cid: isUpdate ? contactId : '',
+        cid: isUpdate ? contactId : (contactId || generateAutoCid(selectedParentBid || defaultParentBid, smDataContext.datasets?.contacts ?? [])),
         bid: defaultParentBid,
         cname: '',
         contacttype: 'contact',
         status: 'Active',
-        monitor: true,
+        monitor: false,
         email: '',
         phone: '',
         address1: '',
@@ -333,7 +389,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         monitorupdated: todayIsoDate(),
     });
 
-    // Populate existing business data in update mode
+    // Populate existing business data in update mode, or auto-generate bid in add mode
     useEffect(() => {
         if (isUpdate && selectedBusiness) {
             const bid = selectedBusiness.bid || businessId;
@@ -343,7 +399,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 bname: selectedBusiness.bname || selectedBusiness.name || '',
                 btype: selectedBusiness.btype || 'consultant',
                 status: selectedBusiness.status || 'Active',
-                verified: Boolean(selectedBusiness.verified),
+                verified: toBoolean(selectedBusiness.verified, false),
                 salesexec: selectedBusiness.salesexec || '',
                 country: selectedBusiness.country || 'United States',
                 state: selectedBusiness.state || 'CA',
@@ -360,10 +416,11 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 onpremexpirydate: formatDateValue(selectedBusiness.onpremexpirydate, ''),
             };
         } else if (!isUpdate) {
-            setBusinessId('');
-            businessValuesRef.current.bid = '';
+            const autoBid = generateAutoBid(smDataContext.datasets?.businesses ?? []);
+            setBusinessId(autoBid);
+            businessValuesRef.current.bid = autoBid;
         }
-    }, [isUpdate, selectedBusiness]);
+    }, [isUpdate, selectedBusiness, smDataContext.datasets?.businesses]);
 
     // Populate existing contact data in update mode
     useEffect(() => {
@@ -380,7 +437,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 cname: selectedContact.cname || (selectedContact as any).contact || '',
                 contacttype: selectedContact.contacttype || (selectedContact as any).ctype || 'contact',
                 status: selectedContact.status || 'Active',
-                monitor: Boolean(selectedContact.monitor ?? (selectedContact as any).verified),
+                monitor: toBoolean(selectedContact.monitor ?? (selectedContact as any).verified, false),
                 email: selectedContact.email || '',
                 phone: selectedContact.phone || (selectedContact as any).phone1 || '',
                 address1: selectedContact.address1 || (selectedContact as any).address_street || '',
@@ -392,9 +449,6 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 dateupdated: formatDateValue(selectedContact.dateupdated, todayIsoDate()),
                 monitorupdated: formatDateValue(selectedContact.monitorupdated, todayIsoDate()),
             };
-        } else if (!isUpdate) {
-            setContactId('');
-            contactValuesRef.current.cid = '';
         }
     }, [isUpdate, selectedContact]);
 
@@ -404,6 +458,16 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             contactValuesRef.current.bid = defaultParentBid;
         }
     }, [isUpdate, defaultParentBid]);
+
+    // In Add mode, dynamically update auto CID when selectedParentBid or contacts change
+    useEffect(() => {
+        if (!isUpdate && selectedParentBid) {
+            const autoCid = generateAutoCid(selectedParentBid, smDataContext.datasets?.contacts ?? []);
+            setContactId(autoCid);
+            contactValuesRef.current.cid = autoCid;
+            contactValuesRef.current.bid = selectedParentBid;
+        }
+    }, [isUpdate, selectedParentBid, smDataContext.datasets?.contacts]);
 
     // Hooks from libfsdb
     const { createBusiness, updateBusiness } = useBusinesses();
@@ -424,9 +488,9 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 group,
                 sortOrder: 1,
                 displayControl: DisplayControlEnums.EditTextControl,
-                value: isUpdate ? businessId : String(businessValuesRef.current.bid ?? ''),
+                value: isUpdate ? businessId : String(businessValuesRef.current.bid || businessId || ''),
                 isRequired: 1,
-                disabled: isUpdate,
+                disabled: true,
             }),
             makeControl({
                 name: 'bname',
@@ -469,7 +533,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 group,
                 sortOrder: 5,
                 displayControl: DisplayControlEnums.TrueFalseControl,
-                value: businessValuesRef.current.verified ? 'true' : 'false',
+                value: toBoolean(businessValuesRef.current.verified, false) ? 'true' : 'false',
             }),
             makeControl({
                 name: 'salesexec',
@@ -582,9 +646,9 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 group,
                 sortOrder: 1,
                 displayControl: DisplayControlEnums.EditTextControl,
-                value: isUpdate ? contactId : String(contactValuesRef.current.cid ?? ''),
+                value: isUpdate ? contactId : String(contactValuesRef.current.cid || contactId || ''),
                 isRequired: 1,
-                disabled: isUpdate,
+                disabled: true,
             }),
             makeControl({
                 name: 'bid',
@@ -639,7 +703,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 group,
                 sortOrder: 6,
                 displayControl: DisplayControlEnums.TrueFalseControl,
-                value: contactValuesRef.current.monitor ? 'true' : 'false',
+                value: toBoolean(contactValuesRef.current.monitor, false) ? 'true' : 'false',
             }),
             makeControl({
                 name: 'email',
@@ -733,7 +797,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
 
     const contactProfileString = useMemo(() => {
         return JSON.stringify([contactValuesRef.current]);
-    }, [contactId, isUpdate, selectedContact]);
+    }, [contactId, isUpdate, selectedContact, selectedParentBid]);
 
     const handleBusinessValuesChangeExternal = useCallback((values: Record<string, unknown>) => {
         setIsFormChanged(true);
@@ -826,7 +890,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             name: bname,
             btype: String(merged.btype ?? 'consultant'),
             status: String(merged.status ?? 'Active'),
-            verified: Boolean(merged.verified),
+            verified: toBoolean(merged.verified, false),
             salesexec: String(merged.salesexec ?? '').trim(),
             country: String(merged.country ?? '').trim(),
             state: String(merged.state ?? '').trim(),
@@ -900,13 +964,17 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             props.handleReloadTree?.(props.featureId, effectiveBid);
 
             if (!isUpdate) {
-                setBusinessId('');
+                const nextBid = generateAutoBid([
+                    ...(smDataContext.datasets?.businesses ?? []),
+                    newDoc,
+                ]);
+                setBusinessId(nextBid);
                 businessValuesRef.current = {
-                    bid: '',
+                    bid: nextBid,
                     bname: '',
                     btype: 'consultant',
                     status: 'Active',
-                    verified: true,
+                    verified: false,
                     salesexec: '',
                     country: 'United States',
                     state: 'CA',
@@ -988,7 +1056,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             cname,
             contacttype: String(merged.contacttype ?? 'contact'),
             status: String(merged.status ?? 'Active'),
-            monitor: Boolean(merged.monitor ?? merged.verified ?? true),
+            monitor: toBoolean(merged.monitor !== undefined ? merged.monitor : merged.verified, false),
             monitorupdated: toIsoString(merged.monitorupdated, new Date().toISOString()),
             email: String(merged.email ?? '').trim(),
             phone: String(merged.phone ?? '').trim(),
@@ -1060,14 +1128,18 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             props.handleReloadTree?.(props.featureId, effectiveCid);
 
             if (!isUpdate) {
-                setContactId('');
+                const nextCid = generateAutoCid(parentBid, [
+                    ...(smDataContext.datasets?.contacts ?? []),
+                    newDoc,
+                ]);
+                setContactId(nextCid);
                 contactValuesRef.current = {
-                    cid: '',
+                    cid: nextCid,
                     bid: parentBid,
                     cname: '',
                     contacttype: 'contact',
                     status: 'Active',
-                    monitor: true,
+                    monitor: false,
                     email: '',
                     phone: '',
                     address1: '',
@@ -1097,7 +1169,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         <div className="nz-profile-add-container">
             {mode === 'business' ? (
                 <SettingsLibForm
-                    key={`profile-${isUpdate ? `update-${businessId}` : 'add-business'}`}
+                    key={`profile-${isUpdate ? `update-${businessId}` : `add-business-${businessId}`}`}
                     uniqueName={`${props.uniqueName || 'profile-add'}-business-form`}
                     id={isUpdate ? businessId : undefined}
                     controls={businessControls}
@@ -1114,7 +1186,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 />
             ) : (
                 <SettingsLibForm
-                    key={`profile-${isUpdate ? `update-${contactId}` : 'add-contact'}`}
+                    key={`profile-${isUpdate ? `update-${contactId}` : `add-contact-${selectedParentBid}-${contactId}`}`}
                     uniqueName={`${props.uniqueName || 'profile-add'}-contact-form`}
                     id={isUpdate ? contactId : undefined}
                     controls={contactControls}

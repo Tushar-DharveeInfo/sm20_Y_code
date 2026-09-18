@@ -1,7 +1,8 @@
 import { lazy, Suspense, } from 'react'
-import { LibraryEnums, SettingsEnums, ServicesEnums, ClientEnums, HomeEnums, } from '../../constants/Feature.ts'
+import { LibraryEnums, SettingsEnums, ServicesEnums, ClientEnums, HomeEnums, ProspectEnums } from '../../constants/Feature.ts'
 import ErrorBoundary from '../../shared/errorboundary/ErrorBoundary.tsx'
 import { Loader } from '../../shared/loader/Loader.tsx'
+import { Label } from '../../shared/basic/label/Label.tsx'
 import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu.ts'
 import { ITreeNode } from '../../shared/allinterface/tree/ITreeControl.ts'
 
@@ -12,15 +13,7 @@ import { DownloadXlsxImportTemplates } from '../../features/services/downloadxls
 import ClientIdentityManagement from '../../features/settings/clientidentitymanagement/ClientIdentityManagement.tsx'
 
 const DashboardChartsContainer = lazy(() => import('../../features/home/dashboardchartscontainer/DashboardChartsContainer.tsx'))
-
-
-// Client Features
-// const ClientIdentity = lazy(() => import('../../features/settings/clientidentity/ClientIdentity.tsx'))
-const NetZoom = lazy(() => import('../../features/client/netzoom/NetZoom.tsx'))
-const VisioStencils = lazy(() => import('../../features/client/visiostencils/VisioStencils.tsx'))
-const SSIAndOtherServices = lazy(() => import('../../features/client/ssiandotherservices/SSIAndOtherServices.tsx'))
-const Reseller = lazy(() => import('../../features/client/reseller/Reseller.tsx'))
-// const Mcs = lazy(() => import('../../features/client/mcs/Mcs.tsx'))
+const FqaNotes = lazy(() => import('../../shared/sidebar/notes/FqaNotes.tsx'))
 
 // Library Features
 const DeviceLibrary = lazy(() => import('../../features/library/devicelibrary/DeviceLibrary.tsx'))
@@ -78,6 +71,20 @@ const getAuthToken = async (): Promise<string> => {
     return user.getIdToken();
 };
 
+/**
+ * Determines whether a selected tree node represents a valid business item,
+ * excluding the Root node (e.g. "Businesses (0)") and unselected state.
+ */
+const isBusinessNode = (node?: ITreeNode): boolean => {
+    if (!node) return false;
+    const nodeType = String(node.NodeType ?? node.treetype ?? node.Type ?? '').toLowerCase();
+    const key = String(node.key ?? node.NodeEntID ?? '').toLowerCase();
+    if (nodeType === 'root' || key.startsWith('root') || key === 'root-businesses' || !node.bid) {
+        return false;
+    }
+    return true;
+};
+
 
 /* Renders feature modules dynamically based on featureId.
    Returns null if no matching feature module exists. */
@@ -119,62 +126,33 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
             );
 
 
+        case ClientEnums.Client:
         case ClientEnums.NetZoom:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <NetZoom
-                            uniqueName={'feature-client-netzoom'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            featureData={undefined}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
         case ClientEnums.VisioStencils:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <VisioStencils
-                            uniqueName={'feature-client-visiostencils'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            featureData={undefined}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
         case ClientEnums.SSIAndOtherServices:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <SSIAndOtherServices
-                            uniqueName={'feature-client-ssi-and-other-services'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            featureData={undefined}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
         case ClientEnums.Reseller:
+        case ProspectEnums.Prospect:
+        case ProspectEnums.Followup:
+        case ProspectEnums.Recent:
+        case ProspectEnums.Past:
+        case ProspectEnums.Delete:
+        case ProspectEnums.Verify:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
-                        <Reseller
-                            uniqueName={'feature-client-reseller'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            featureData={undefined}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
+                        {isBusinessNode(selectedNode) ? (
+                            <FqaNotes
+                                key={`feature-notes-${featureContainerProps.featureId}-${selectedNode?.key ?? selectedNode?.NodeEntID ?? ''}`}
+                                uniqueName={`feature-notes-${featureContainerProps.featureId}`}
+                                hideSearchControl={false}
+                                hideSubHeader={true}
+                                selectedNode={selectedNode!}
+                            />
+                        ) : (
+                            <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-center" style={{ padding: '20px', textAlign: 'center' }}>
+                                <Label uniqueName="no-business-selected" label="Select a Business to view notes" />
+                            </div>
+                        )}
                     </Suspense>
                 </ErrorBoundary>
             );
@@ -189,6 +167,8 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             headerText={featureContainerProps.headerText}
                             featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
+                            selectedNode={selectedNode}
+                            treeData={treeData}
                         />
                     </Suspense>
                 </ErrorBoundary>
@@ -328,8 +308,34 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
         //         </ErrorBoundary>
         //     );
 
-        default:
+        default: {
+            const parentName = featureContainerProps.selectedFeatureData?.parentName?.toLowerCase();
+            const isClientExceptMcs = (parentName === 'client' || parentName === 'clients') && featureContainerProps.featureId !== ClientEnums.Mcs;
+            const isProspect = parentName === 'prospect' || parentName === 'prospects';
+
+            if (isClientExceptMcs || isProspect) {
+                return (
+                    <ErrorBoundary>
+                        <Suspense fallback={<Loader />}>
+                            {isBusinessNode(selectedNode) ? (
+                                <FqaNotes
+                                    key={`feature-notes-${featureContainerProps.featureId}-${selectedNode?.key ?? selectedNode?.NodeEntID ?? ''}`}
+                                    uniqueName={`feature-notes-${featureContainerProps.featureId}`}
+                                    hideSearchControl={false}
+                                    hideSubHeader={true}
+                                    selectedNode={selectedNode!}
+                                />
+                            ) : (
+                                <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-center" style={{ padding: '20px', textAlign: 'center' }}>
+                                    <Label uniqueName="no-business-selected" label="Select a Business to view notes" />
+                                </div>
+                            )}
+                        </Suspense>
+                    </ErrorBoundary>
+                );
+            }
             return null;
+        }
     }
 }
 

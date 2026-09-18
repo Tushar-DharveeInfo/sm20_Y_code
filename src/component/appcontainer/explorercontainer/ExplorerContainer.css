@@ -113,3 +113,12 @@
 .nz-explorer-container .nz-layout-without-tree .nz-layout-container {
     padding: var(--spacing-1);
 }
+
+.nz-feature-explorer-right-pane {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0 !important;
+}

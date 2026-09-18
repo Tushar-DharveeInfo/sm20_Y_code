@@ -27,6 +27,7 @@ interface IFqaNotes {
 	uniqueName: string; // A unique identifier for notes
 	hideSearchControl: boolean;
 	selectedNode: ITreeNode;
+	hideSubHeader?: boolean;
 }
 
 interface INoteItems {
@@ -192,8 +193,15 @@ const FqaNotes = (props: IFqaNotes) => {
 	const mainAppContext = useMainAppContext();
 
 	const authSession = mainAppContext?.authSession;
-	const businessId = String(props.selectedNode?.bid ?? authSession?.bid ?? props.selectedNode?.NodeEntID ?? '').trim();
-	const cid = String(props.selectedNode?.cid ?? authSession?.cid ?? '').trim();
+	const isRootNode = Boolean(
+		!props.selectedNode ||
+		props.selectedNode?.NodeType?.toLowerCase() === 'root' ||
+		String(props.selectedNode?.key ?? '').toLowerCase().startsWith('root') ||
+		props.selectedNode?.key === 'root-businesses' ||
+		!props.selectedNode?.bid
+	);
+	const businessId = isRootNode ? '' : String(props.selectedNode?.bid ?? '').trim();
+	const cid = isRootNode ? '' : String(props.selectedNode?.cid ?? authSession?.cid ?? '').trim();
 	const bucketName = authSession?.bucketName ?? 'n20-bucket-01';
 	const baseFolder = authSession?.baseFolder ?? 'sm';
 
@@ -213,22 +221,7 @@ const FqaNotes = (props: IFqaNotes) => {
 	const { downloadSingleFile, downloading } = useFileDownload();
 	const { deleteFiles, deleting } = useFileDelete();
 
-	const isHideAVNotes = useMemo(() => {
-		const avNotesRecord = mainAppContext?.apRecords?.find(
-			(item) =>
-				item?.Name?.toLowerCase() === 'avnotes' ||
-				item?._AP?.toLowerCase() === 'avnotes'
-		);
-		if (!avNotesRecord) return false;
-		const value =
-			avNotesRecord.Value !== undefined &&
-				avNotesRecord.Value !== null &&
-				avNotesRecord.Value !== ''
-				? avNotesRecord.Value
-				: avNotesRecord.DefaultAPValue;
-		const strValue = String(value ?? '').trim().toLowerCase();
-		return strValue === '1' || strValue === 'true';
-	}, [mainAppContext?.apRecords]);
+	const isHideAVNotes = true;
 
 	// Auto-scroll to bottom of list when notes change
 	useEffect(() => {
@@ -249,7 +242,6 @@ const FqaNotes = (props: IFqaNotes) => {
 			notefile: undefined,
 			notefileName: undefined,
 			noteaudio: undefined,
-			notevideo: undefined,
 			noteCreatedAt: new Date(),
 		});
 		setRefreshToken((v) => v + 1);
@@ -924,13 +916,39 @@ const FqaNotes = (props: IFqaNotes) => {
 		type: 'svg',
 		tooltip: 'Click to Clear',
 	};
+
+	if (isRootNode || !businessId) {
+		return (
+			<div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-center" style={{ padding: '20px', textAlign: 'center' }}>
+				<Label uniqueName="no-business-selected" label="Select a Business to view notes" />
+			</div>
+		);
+	}
+
 	return (
 		<div className="nz-node-list-Container" key={props.uniqueName}>
 			<div className="nz-notes-list-main-div">
 				<div className="nz-notes-list-with-msg-box">
-					<div className="nz-sub-header">
-						<Label uniqueName="Notes-header" label="Notes" />
-						{editingItem && (
+					{!props.hideSubHeader ? (
+						<div className="nz-sub-header">
+							<Label uniqueName="Notes-header" label="Notes" />
+							{editingItem && (
+								<ActionImage
+									image={clearImage}
+									w="var(--node_height)"
+									h="var(--node_height)"
+									uniqueName={`deleteicon`}
+									actionCode="delete"
+									disabled={false}
+									handleMouse={(e) => {
+										resetEditor();
+									}}
+								/>
+							)}
+						</div>
+					) : editingItem ? (
+						<div className="nz-sub-header nz-d-flex-row nz-align-center nz-justify-between" style={{ height: '28px', padding: '0 8px' }}>
+							<Label uniqueName="Editing-note-header" label="Editing Note" />
 							<ActionImage
 								image={clearImage}
 								w="var(--node_height)"
@@ -942,9 +960,8 @@ const FqaNotes = (props: IFqaNotes) => {
 									resetEditor();
 								}}
 							/>
-
-						)}
-					</div>
+						</div>
+					) : null}
 					{!props.hideSearchControl && searchControlProps && (
 						<div className="nz-notes-search">
 							<FilterKeywordControl
@@ -1058,4 +1075,5 @@ const FqaNotes = (props: IFqaNotes) => {
 };
 
 export { FqaNotes };
+export default FqaNotes;
 export type { IFqaNotes, INoteItems };
