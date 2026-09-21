@@ -221,9 +221,10 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId);
     const mergedForm: IDCFilterControlValues = { ...autoFilter, ...filterFormDataRef.current };
 
-    const sourceBusinesses = (apiBusinesses?.length ? FnMapToBusinessDocs(apiBusinesses) : null)
-      ?? (smDataContext.datasets.businesses?.length ? smDataContext.datasets.businesses : null)
-      ?? [];
+    const sourceBusinesses = [
+      ...(smDataContext.datasets.businesses ?? []),
+      ...(apiBusinesses?.length ? FnMapToBusinessDocs(apiBusinesses) : []),
+    ];
 
     const seenBids = new Set<string>();
     const uniqueBusinesses: IBusinessDoc[] = [];
@@ -248,32 +249,41 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     }
     const businessNodes = FnMapBusinessesToTreeNodes(businesses, featureProps, treeExplorerContainerProps.featureId);
 
-    // Resolve parent business ID
     let parentBid = hintParentBid ? String(hintParentBid).trim() : '';
 
-    if (!parentBid && targetEntId) {
+    const cleanTargetId = (targetEntId ?? '').trim();
+    const isBusinessTarget = Boolean(
+      cleanTargetId &&
+      (
+        cleanTargetId.toLowerCase().startsWith('bid_') ||
+        uniqueBusinesses.some(
+          (b) => String(b.bid || (b as any).EntID || (b as any).id || '').trim().toLowerCase() === cleanTargetId.toLowerCase()
+        )
+      )
+    );
+
+    let targetBusinessId = '';
+    if (isBusinessTarget) {
+      targetBusinessId = cleanTargetId;
+    } else if (parentBid) {
+      targetBusinessId = parentBid;
+    } else if (cleanTargetId) {
       const allKnownContacts = smDataContext.datasets.contacts ?? [];
       const foundContact = allKnownContacts.find(
-        (c) => String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase() === targetEntId.trim().toLowerCase()
+        (c) => String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase() === cleanTargetId.toLowerCase()
       );
-      if (foundContact?.bid) {
-        parentBid = String(foundContact.bid);
+      if (foundContact?.bid && foundContact.bid.toLowerCase() !== cleanTargetId.toLowerCase()) {
+        targetBusinessId = String(foundContact.bid);
+      } else if (cleanTargetId.toLowerCase().startsWith('cid_')) {
+        const parts = cleanTargetId.split('_');
+        if (parts.length >= 3) {
+          targetBusinessId = `${parts[1]}_${parts[2]}`;
+        }
       }
     }
 
-    if (!parentBid && smDataContext.selectedNode?.bid) {
-      parentBid = String(smDataContext.selectedNode.bid);
-    }
-
-    if (!parentBid && targetEntId && targetEntId.startsWith('cid_')) {
-      const parts = targetEntId.split('_');
-      if (parts.length >= 3) {
-        parentBid = `${parts[1]}_${parts[2]}`;
-      }
-    }
-
-    // If parent business is resolved, fetch its contacts from API and bind
-    if (parentBid) {
+    // If target business ID is identified and not in businessesOnly mode, load contacts and bind subnodes
+    if (targetBusinessId && !treeExplorerContainerProps.businessesOnly) {
       const rawRootLabel = treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses';
       const baseLabel = rawRootLabel.replace(/\s*\(\d+\)$/, '').trim() || 'Businesses';
       const rootLabel = `${baseLabel} (${businessNodes.length})`;
@@ -300,12 +310,12 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       }];
 
       // Call contact API for the selected business node
-      const apiRecords = await fetchContactsFromApi(parentBid);
-      const apiContacts = FnMapToContactDocs(apiRecords, parentBid);
+      const apiRecords = await fetchContactsFromApi(targetBusinessId);
+      const apiContacts = FnMapToContactDocs(apiRecords, targetBusinessId);
 
       // Merge API contacts with any in-memory contacts for this bid, deduplicating by cid
       const contextContacts = (smDataContext.datasets.contacts ?? []).filter(
-        (c) => String(c.bid).trim().toLowerCase() === parentBid.trim().toLowerCase()
+        (c) => String(c.bid).trim().toLowerCase() === targetBusinessId.toLowerCase()
       );
 
       const combinedRaw = [...apiContacts, ...contextContacts];
@@ -327,7 +337,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         ...prev,
         contacts: [
           ...(prev.contacts ?? []).filter(
-            (c) => String(c.bid).trim().toLowerCase() !== parentBid.trim().toLowerCase()
+            (c) => String(c.bid).trim().toLowerCase() !== targetBusinessId.toLowerCase()
           ),
           ...uniqueContactsForBid,
         ],
@@ -336,13 +346,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       const filteredContacts = filterContactRecords(
         uniqueContactsForBid,
         filterFormDataRef.current,
-        parentBid
+        targetBusinessId
       );
       const contactNodes = FnMapContactsToTreeNodes(
         filteredContacts,
         featureProps,
         treeExplorerContainerProps.featureId,
-        parentBid
+        targetBusinessId
       );
       const seenNodeKeys = new Set<string>();
       const uniqueContactNodes = contactNodes.filter((cn) => {
@@ -354,7 +364,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
       const updatedTreeData = await FnAddSubNode(
         treeNodes,
-        parentBid,
+        targetBusinessId,
         uniqueContactNodes,
         featureProps,
         treeExplorerContainerProps.featureId,
@@ -363,7 +373,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       );
       const updatedOriginalData = await FnAddSubNode(
         treeNodes,
-        parentBid,
+        targetBusinessId,
         uniqueContactNodes,
         featureProps,
         treeExplorerContainerProps.featureId,
@@ -371,24 +381,37 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         0
       );
 
-      const nextExpandedKeys = ['root-businesses', parentBid];
+      const nextExpandedKeys = ['root-businesses', targetBusinessId];
       setTreeData(updatedTreeData);
       setOriginalTreeData(updatedOriginalData);
       setDefaultExpandedKeys(nextExpandedKeys);
 
-      const targetCidClean = (targetEntId ?? '').trim().toLowerCase();
-      const selectedContactNode = uniqueContactNodes.find(
-        (cn) => {
+      const targetCidClean = cleanTargetId.toLowerCase();
+      let nodeToSelect: ITreeNode | undefined;
+
+      if (!isBusinessTarget) {
+        nodeToSelect = uniqueContactNodes.find((cn) => {
           const nodeKey = String(cn.key ?? cn.NodeEntID ?? (cn as any).cid ?? '').trim().toLowerCase();
           return nodeKey === targetCidClean;
-        }
-      ) ?? uniqueContactNodes[uniqueContactNodes.length - 1] ?? uniqueContactNodes[0];
+        });
+      }
 
-      if (selectedContactNode) {
-        selectNode(selectedContactNode, nextExpandedKeys, updatedTreeData, 'select');
+      if (!nodeToSelect && uniqueContactNodes.length > 0) {
+        nodeToSelect = uniqueContactNodes[0];
+      }
+
+      if (!nodeToSelect) {
+        // Fallback to selecting the Business node if no contacts exist
+        nodeToSelect = businessNodes.find(
+          (n) => n.NodeEntID === targetBusinessId || n.key === targetBusinessId || (n as any).bid === targetBusinessId
+        );
+      }
+
+      if (nodeToSelect) {
+        selectNode(nodeToSelect, nextExpandedKeys, updatedTreeData, 'select');
       }
     } else {
-      setBusinessTree(businessNodes, targetEntId);
+      setBusinessTree(businessNodes, cleanTargetId);
     }
   };
 

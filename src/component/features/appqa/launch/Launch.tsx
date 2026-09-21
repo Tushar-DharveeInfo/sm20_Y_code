@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 
 interface IAppqaLaunch {
   uniqueName: string;
+  featureId?: string;
   handleLaunchFailed?: (error: Error) => void;
 }
 const SM_TAB_PREFIX = 'SM-';
@@ -47,7 +48,7 @@ const getSmTabLabels = async (): Promise<string[]> => {
  * Real apps read userSessionId from StatusBar; sample-data mode uses AuthorizationSampleData.
  * Tab label is SM-{existingSMTabs.length + 1}.
  */
-const AppqaLaunch = (_props: IAppqaLaunch) => {
+const AppqaLaunch = (props: IAppqaLaunch) => {
   useEffect(() => {
     const launchNewTab = async () => {
       const sessionVar =
@@ -63,7 +64,8 @@ const AppqaLaunch = (_props: IAppqaLaunch) => {
       const existingSMTabs = await getSmTabLabels();
       const newTabLabel = `SM-${existingSMTabs.length + 1}`;
 
-      const currentUrl = new URL(window.location.origin);
+      const featurePath = props.featureId ? `/feature/${props.featureId}` : '/';
+      const currentUrl = new URL(featurePath, window.location.origin);
       currentUrl.searchParams.set('isnew', 'true');
       currentUrl.searchParams.set('id', sessionVar);
       currentUrl.searchParams.set('tablabel', newTabLabel);
@@ -76,7 +78,7 @@ const AppqaLaunch = (_props: IAppqaLaunch) => {
     };
 
     void launchNewTab();
-  }, []);
+  }, [props.featureId]);
 
   return null;
 };

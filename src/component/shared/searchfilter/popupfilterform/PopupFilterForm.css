@@ -1,0 +1,68 @@
+.nz-popup-filter-dialog .MuiDialog-paper {
+    border-radius: var(--border-radius-2, 6px);
+    background-color: var(--theme-bg-color, #ffffff);
+    color: var(--theme-text-color, #333333);
+    box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.nz-popup-filter-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    max-height: 80vh;
+    overflow: hidden;
+}
+
+.nz-popup-filter-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
+    border-bottom: 1px solid var(--theme-border-color, #e0e0e0);
+    background-color: var(--theme-header-bg, #f5f5f5);
+    min-height: var(--node_height, 36px);
+}
+
+.nz-popup-filter-header-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2, 8px);
+}
+
+.nz-popup-filter-header-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-1, 4px);
+}
+
+.nz-popup-filter-body {
+    padding: var(--spacing-2, 8px);
+    overflow-y: auto;
+    flex: 1;
+}
+
+.nz-popup-filter-body .nz-form-action-header,
+.nz-popup-filter-body .nz-form-header-action,
+.nz-popup-filter-body [class*="form-header"],
+.nz-popup-filter-body [class*="section-header"],
+.nz-popup-filter-body [class*="nz-form-header"],
+.nz-popup-filter-body h2,
+.nz-popup-filter-body h3,
+.nz-popup-filter-body legend {
+    display: none !important;
+}
+
+.nz-popup-filter-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-2, 8px);
+    padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
+    border-top: 1px solid var(--theme-border-color, #e0e0e0);
+    background-color: var(--theme-header-bg, #f5f5f5);
+}

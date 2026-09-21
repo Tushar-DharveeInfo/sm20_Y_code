@@ -21,7 +21,18 @@ const FnMapBusinessesToTreeNodes = (
         return [];
     }
 
-    return businesses.map((business) => {
+    // Deduplicate by bid (case-insensitive) to ensure unique tree keys
+    const seenBids = new Set<string>();
+    const uniqueBusinesses: IBusinessDoc[] = [];
+    for (const b of businesses) {
+        const cleanBid = (b.bid || (b as any).EntID || (b as any).id || '').toLowerCase();
+        if (cleanBid && !seenBids.has(cleanBid)) {
+            seenBids.add(cleanBid);
+            uniqueBusinesses.push(b);
+        }
+    }
+
+    return uniqueBusinesses.map((business) => {
         const treeNode: ITreeNode = {
             key: business.bid,
             NodeEntID: business.bid,

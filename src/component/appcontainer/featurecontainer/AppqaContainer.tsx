@@ -51,7 +51,10 @@ function AppQaContainer(appQaContainerProps: IAppqaContainer) {
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
-                        <AppqaLaunch uniqueName={'app-qa-launch'} />
+                        <AppqaLaunch
+                            uniqueName={'app-qa-launch'}
+                            featureId={featureContainerProps.featureId}
+                        />
                     </Suspense>
                 </ErrorBoundary>
             );

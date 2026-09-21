@@ -37,6 +37,7 @@ interface INoteItems {
 	NotesMAX: string;
 	NotesType?: string | null;
 	UserName?: string | null;
+	important?: boolean;
 	audio?: unknown;
 	file?: unknown;
 	fileObj?: any;
@@ -185,6 +186,8 @@ const FqaNotes = (props: IFqaNotes) => {
 	const [showOkButton, setShowOkButton] = useState<boolean>(false);
 	const [refreshToken, setRefreshToken] = useState<number>(0);
 	const [fileUploading, setFileUploading] = useState<boolean>(false);
+	const [dialogAction, setDialogAction] = useState<'delete' | 'important_prompt' | 'validation' | null>(null);
+	const [pendingNote, setPendingNote] = useState<INote | null>(null);
 
 	const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -428,7 +431,14 @@ const FqaNotes = (props: IFqaNotes) => {
 	// Sync local list with Firestore notes hook (sorted ascending by date)
 	useEffect(() => {
 		if (Array.isArray(notes)) {
-			const mappedNotes: INoteItems[] = notes.filter(Boolean).map((item: any) => {
+			const filteredRawNotes = notes.filter(Boolean).filter((item: any) => {
+				if (cid && props.selectedNode?.NodeType?.toLowerCase() === 'contact') {
+					const itemCid = String(item.cid ?? '').trim();
+					return !itemCid || itemCid === cid;
+				}
+				return true;
+			});
+			const mappedNotes: INoteItems[] = filteredRawNotes.map((item: any) => {
 				const rawFileName = String(item.filename ?? item.FileUID ?? '').trim();
 				let inferredType = 'Message';
 				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
@@ -472,12 +482,18 @@ const FqaNotes = (props: IFqaNotes) => {
 					NotesType: resolvedType,
 					UserName: item.UserName ?? item.noteby ?? item.createdby ?? '',
 					LastUpdated: FnParseTimestampToISO(item.LastUpdated ?? item.datecreated ?? item.monitorupdated),
+					important: item.important === true || item.important === 'true' || item.important === 1 || Boolean(item.important),
 					FileUID: rawFileName,
 					filename: rawFileName,
 				};
 			});
-			// Sort ascending by date so new notes appear at the bottom/end of the list
-			const sortedNotes = [...mappedNotes].sort((a, b) => parseNoteDate(a) - parseNoteDate(b));
+			// Sort ascending (A-Z) by LastUpdated date timestamp
+			const sortedNotes = [...mappedNotes].sort((a, b) => {
+				const dateA = parseNoteDate(a);
+				const dateB = parseNoteDate(b);
+				if (dateA !== dateB) return dateA - dateB;
+				return String(a.noteid ?? '').localeCompare(String(b.noteid ?? ''));
+			});
 			setOriginalNotesItems(sortedNotes);
 			if (searchText) {
 				const q = searchText.toLowerCase();
@@ -496,7 +512,7 @@ const FqaNotes = (props: IFqaNotes) => {
 			setNoteItems([]);
 			setOriginalNotesItems([]);
 		}
-	}, [notes, searchText]);
+	}, [notes, searchText, cid, props.selectedNode?.NodeType]);
 
 	// Sync loading state with status bar
 	useEffect(() => {
@@ -510,20 +526,9 @@ const FqaNotes = (props: IFqaNotes) => {
 		}
 	}, [error, statusBarContext]);
 
-	// Create or Update note
-	const sendNotes = useCallback(async (message: INote) => {
+	// Process note creation / update after user answers the Important popup prompt
+	const processSaveNote = useCallback(async (message: INote, isNoteImportant: boolean) => {
 		const noteText = message.notecontent?.trim() ?? '';
-
-		if (!noteText) {
-			setNoteDetails(message);
-			setConfirmMessage(
-				'Please enter a note before saving. If you attach a file, audio, or video, include a note describing it.'
-			);
-			setShowOkButton(true);
-			setDeleteOpen(true);
-			return;
-		}
-
 		const now = new Date().toISOString();
 
 		let LoginUserName: ISession[] | null = FnGetSessionVariableFromStorage('RequestedBy', 'LoginShortName', sessionContext.SessionList);
@@ -618,6 +623,7 @@ const FqaNotes = (props: IFqaNotes) => {
 							NotesType: updatedNotesType,
 							LastUpdated: now,
 							monitorupdated: now,
+							important: isNoteImportant,
 							FileUID: finalFileName,
 							filename: finalFileName,
 						};
@@ -635,6 +641,7 @@ const FqaNotes = (props: IFqaNotes) => {
 					monitorupdated: now,
 					filename: finalFileName,
 					noteby: userName,
+					important: isNoteImportant,
 				};
 				const result = await updateNote(noteIdToUpdate, updatePayload);
 				if (result && result.success !== false) {
@@ -669,6 +676,7 @@ const FqaNotes = (props: IFqaNotes) => {
 			datecreated: now,
 			monitorupdated: now,
 			monitor: false,
+			important: isNoteImportant,
 		};
 
 		const optimisticRow: INoteItems = {
@@ -680,12 +688,13 @@ const FqaNotes = (props: IFqaNotes) => {
 			UserName: userName,
 			noteid,
 			_noteid: noteid,
+			important: isNoteImportant,
 			filename: finalFilename,
 			FileUID: finalFilename,
 		};
 
-		setNoteItems((prev) => [...prev, optimisticRow]);
-		setOriginalNotesItems((prev) => [...prev, optimisticRow]);
+		setNoteItems((prev) => [...prev, optimisticRow].sort((a, b) => parseNoteDate(a) - parseNoteDate(b)));
+		setOriginalNotesItems((prev) => [...prev, optimisticRow].sort((a, b) => parseNoteDate(a) - parseNoteDate(b)));
 		resetEditor();
 
 		if (businessId && createNote) {
@@ -702,6 +711,28 @@ const FqaNotes = (props: IFqaNotes) => {
 			}
 		}
 	}, [editingItem, resetEditor, updateNote, businessId, cid, sessionContext.SessionList, authSession, props.selectedNode, createNote, uploadRemoteFile, bucketName, baseFolder, getStoragePath, deleteFiles, statusBarContext, mainAppContext]);
+
+	// When user sends a note, display a popup asking if the note is important
+	const sendNotes = useCallback((message: INote) => {
+		const noteText = message.notecontent?.trim() ?? '';
+
+		if (!noteText) {
+			setNoteDetails(message);
+			setConfirmMessage(
+				'Please enter a note before saving. If you attach a file, audio, or video, include a note describing it.'
+			);
+			setShowOkButton(true);
+			setDialogAction('validation');
+			setDeleteOpen(true);
+			return;
+		}
+
+		setPendingNote(message);
+		setConfirmMessage('Is this an important note?');
+		setShowOkButton(false);
+		setDialogAction('important_prompt');
+		setDeleteOpen(true);
+	}, []);
 
 	// Search filter
 	const searchValueChange = (value: string): void => {
@@ -728,60 +759,86 @@ const FqaNotes = (props: IFqaNotes) => {
 	const handleDelete = (item: INoteItems) => {
 		setShowOkButton(false);
 		setConfirmMessage('Are you sure you want to delete this note?');
+		setDialogAction('delete');
 		setDeleteOpen(true);
 		setDeleteItem(item);
 	};
 
 	const handleConfirmYesClick = async () => {
-		const itemToDelete = deleteItem;
-		setDeleteItem(null);
-		setDeleteOpen(false);
+		if (dialogAction === 'important_prompt' && pendingNote) {
+			const msgToSave = pendingNote;
+			setPendingNote(null);
+			setDeleteOpen(false);
+			setDialogAction(null);
+			await processSaveNote(msgToSave, true);
+			return;
+		}
 
-		if (itemToDelete) {
-			const rawFileName = String(itemToDelete.filename || itemToDelete.FileUID || '').trim();
-			const noteid = String(itemToDelete.noteid ?? itemToDelete.id ?? itemToDelete._noteid ?? '');
+		if (dialogAction === 'delete') {
+			const itemToDelete = deleteItem;
+			setDeleteItem(null);
+			setDeleteOpen(false);
+			setDialogAction(null);
 
-			if (editingItem === itemToDelete) {
-				resetEditor();
-			}
-			setNoteItems((prev) => prev.filter((i) => i !== itemToDelete));
-			setOriginalNotesItems((prev) => prev.filter((i) => i !== itemToDelete));
+			if (itemToDelete) {
+				const rawFileName = String(itemToDelete.filename || itemToDelete.FileUID || '').trim();
+				const noteid = String(itemToDelete.noteid ?? itemToDelete.id ?? itemToDelete._noteid ?? '');
 
-			statusBarContext?.setIsLoading?.(true);
-			statusBarContext?.setLoadingLabel?.('Deleting note...');
-			try {
-				// 1. If file exists, delete the file FIRST from Cloud Storage
-				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
-					try {
-						statusBarContext?.setLoadingLabel?.('Deleting file...');
-						const storagePath = getStoragePath(rawFileName);
-						await deleteFiles([storagePath]);
-					} catch (storageErr) {
-						console.warn('FqaNotes: Cloud storage file deletion failed or file already removed', storageErr);
-					}
+				if (editingItem === itemToDelete) {
+					resetEditor();
 				}
+				setNoteItems((prev) => prev.filter((i) => i !== itemToDelete));
+				setOriginalNotesItems((prev) => prev.filter((i) => i !== itemToDelete));
 
-				// 2. Then delete the note document from Firestore
-				if (noteid && businessId && deleteNote) {
-					statusBarContext?.setLoadingLabel?.('Deleting note...');
-					const result = await deleteNote(noteid);
-					if (result && result.success !== false) {
+				statusBarContext?.setIsLoading?.(true);
+				statusBarContext?.setLoadingLabel?.('Deleting note...');
+				try {
+					if (rawFileName && !rawFileName.startsWith('sample-file-')) {
 						try {
-							await createActivityLogRef.current?.(`${cid} of ${businessId} deleted note ${noteid} successfully.`);
-						} catch (logErr) {
-							console.error('FqaNotes: createActivityLog failed', logErr);
+							statusBarContext?.setLoadingLabel?.('Deleting file...');
+							const storagePath = getStoragePath(rawFileName);
+							await deleteFiles([storagePath]);
+						} catch (storageErr) {
+							console.warn('FqaNotes: Cloud storage file deletion failed or file already removed', storageErr);
 						}
-					} else {
-						console.error('FqaNotes: deleteNote failed', result?.error);
 					}
+
+					if (noteid && businessId && deleteNote) {
+						statusBarContext?.setLoadingLabel?.('Deleting note...');
+						const result = await deleteNote(noteid);
+						if (result && result.success !== false) {
+							try {
+								await createActivityLogRef.current?.(`${cid} of ${businessId} deleted note ${noteid} successfully.`);
+							} catch (logErr) {
+								console.error('FqaNotes: createActivityLog failed', logErr);
+							}
+						} else {
+							console.error('FqaNotes: deleteNote failed', result?.error);
+						}
+					}
+				} catch (err) {
+					console.error('FqaNotes: delete operation failed', err);
+				} finally {
+					statusBarContext?.setIsLoading?.(false);
+					statusBarContext?.setLoadingLabel?.('');
 				}
-			} catch (err) {
-				console.error('FqaNotes: delete operation failed', err);
-			} finally {
-				statusBarContext?.setIsLoading?.(false);
-				statusBarContext?.setLoadingLabel?.('');
 			}
 		}
+	};
+
+	const handleConfirmNoClick = async () => {
+		if (dialogAction === 'important_prompt' && pendingNote) {
+			const msgToSave = pendingNote;
+			setPendingNote(null);
+			setDeleteOpen(false);
+			setDialogAction(null);
+			await processSaveNote(msgToSave, false);
+			return;
+		}
+		setDeleteOpen(false);
+		setDialogAction(null);
+		setDeleteItem(null);
+		setPendingNote(null);
 	};
 
 	const renderNoteCardIcon = (item: INoteItems, index: number) => {
@@ -994,30 +1051,19 @@ const FqaNotes = (props: IFqaNotes) => {
 							const isSelected = editingItem
 								? editingItem === item || (editingItem.noteid && item.noteid === editingItem.noteid)
 								: false;
+							const isImportantNote = Boolean(item.important);
 
 							const rawFileName = String(item.filename || item.FileUID || '').trim();
 							const hasFile = Boolean(rawFileName && !rawFileName.startsWith('sample-file-'));
 
 							return (
 								<div
-									className={`nz-node-list-box ${isSelected ? 'nz-node-list-box-selected' : ''}`}
+									className={`nz-node-list-box ${isImportantNote ? 'nz-note-important' : ''} ${isSelected ? 'nz-node-list-box-selected' : ''}`}
 									key={item.noteid || index}
 									onClick={() => handleSelectCardToEdit(item)}
 									style={{ cursor: 'pointer' }}
 								>
 									<div className="nz-node-list-delete">
-										<ActionImage
-											image={deleteImage}
-											w="var(--node_height)"
-											h="var(--node_height)"
-											uniqueName={`deleteicon-${index}`}
-											actionCode="delete"
-											disabled={false}
-											handleMouse={(e) => {
-												e?.stopPropagation?.();
-												handleDelete(item);
-											}}
-										/>
 										<div className="nz-note-date">
 											<Label
 												uniqueName={`date-${index}`}
@@ -1042,7 +1088,6 @@ const FqaNotes = (props: IFqaNotes) => {
 						})}
 					</div>
 					<div className="nz-notes-container">
-
 						{noteDetails && (
 							<Notes
 								{...noteDetails}
@@ -1063,11 +1108,10 @@ const FqaNotes = (props: IFqaNotes) => {
 				message={confirmMessage}
 				showOkButton={showOkButton}
 				handleYesButtonClick={handleConfirmYesClick}
-				handleNoButtonClick={() => {
-					setDeleteOpen(false);
-				}}
+				handleNoButtonClick={handleConfirmNoClick}
 				handleOkButtonClick={() => {
 					setDeleteOpen(false);
+					setDialogAction(null);
 				}}
 			/>
 		</div>

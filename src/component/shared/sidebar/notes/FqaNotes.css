@@ -148,3 +148,41 @@
 .nz-notes-container div {
     max-height: 100%;
 }
+
+.nz-notes-important-option {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    gap: 6px;
+    border-bottom: 1px solid var(--borderandscrollbar, rgba(255, 255, 255, 0.1));
+}
+
+.nz-notes-important-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    user-select: none;
+    color: var(--selection-text, inherit);
+}
+
+.nz-notes-important-label input[type="checkbox"] {
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+    accent-color: #f59e0b;
+}
+
+.nz-node-list-box.nz-note-important {
+    background-color: color-mix(in srgb, #f59e0b 22%, var(--bgfeaturepane1)) !important;
+    border-color: #f59e0b !important;
+    border-left: 4px solid #f59e0b !important;
+}
+
+.nz-node-list-box.nz-note-important:hover {
+    background-color: color-mix(in srgb, #f59e0b 32%, var(--bgfeaturepane1)) !important;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.4) !important;
+}
+

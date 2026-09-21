@@ -57,7 +57,7 @@ const DynamicCard = (dynamiccardprops: IDynamicCard) => {
                 <div className="nz-dynamic-card-main-content">{dynamiccardprops.Content}</div>
             </div>
             {hasAction && <div className="nz-dynamic-card-action">
-                <div style={{ display: 'flex', width: '40px' }}>
+                <div style={{ display: 'flex' }}>
                     {dynamiccardprops.allowEditButton &&
                         <ActionImage
                             image={{

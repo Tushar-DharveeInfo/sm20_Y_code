@@ -2,6 +2,27 @@
     width: 100%;
     height: 100%;
     display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    background-color: var(--bgfeaturepane1);
+    box-sizing: border-box;
+}
+
+.nz-sidebar-contact-left-pane {
+    width: 50%;
+    min-width: 260px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--borderandscrollbar);
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.nz-sidebar-contact-right-pane {
+    flex: 1 1 50%;
+    height: 100%;
+    display: flex;
     flex-direction: column;
     overflow: hidden;
     background-color: var(--bgfeaturepane1);
@@ -46,4 +67,4 @@
 
 .nz-contact-card:hover {
     border-color: var(--textprimary);
-}
+}

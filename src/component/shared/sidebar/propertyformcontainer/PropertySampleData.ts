@@ -173,18 +173,61 @@ const buildEditTextPropertyFormFromRecord = (
     const properties = keys.map((key, index) => {
         const val = record[key];
         const lowerKey = key.toLowerCase();
-        const isIdField = lowerKey === "bid" || lowerKey === "cid";
-        const isAuditDateField = lowerKey === "datecreated" || lowerKey === "dateupdated";
-        const isBoolean =
-            typeof val === "boolean" ||
+
+        const isReadonlyField =
+            lowerKey === "bid" ||
+            lowerKey === "cid" ||
+            lowerKey === "email" ||
+            lowerKey === "country" ||
+            lowerKey === "address_country" ||
+            lowerKey === "datecreated" ||
+            lowerKey === "dateupdated";
+
+        let displayControl: string = DisplayControlEnums.EditTextControl;
+        let options: { label: string; value: string }[] | undefined = undefined;
+
+        if (lowerKey === "btype") {
+            displayControl = DisplayControlEnums.ComboBoxControl;
+            options = [
+                { label: "Consultant", value: "consultant" },
+                { label: "End User", value: "enduser" },
+                { label: "Partner", value: "partner" },
+                { label: "Vendor", value: "vendor" },
+            ];
+        } else if (lowerKey === "status") {
+            displayControl = DisplayControlEnums.ComboBoxControl;
+            options = [
+                { label: "Active", value: "Active" },
+                { label: "Inactive", value: "Inactive" },
+            ];
+        } else if (lowerKey === "contacttype" || lowerKey === "ctype") {
+            displayControl = DisplayControlEnums.ComboBoxControl;
+            options = [
+                { label: "Contact", value: "contact" },
+                { label: "Representative", value: "representative" },
+                { label: "Admin", value: "admin" },
+                { label: "Billing", value: "billing" },
+                { label: "Technical", value: "technical" },
+            ];
+        } else if (
             lowerKey === "verified" ||
             lowerKey === "monitor" ||
-            (typeof val === "string" && (val.toLowerCase() === "true" || val.toLowerCase() === "false"));
-        const isDateField =
+            lowerKey === "donotcallme" ||
+            lowerKey === "removemefrommailinglist" ||
+            lowerKey === "smsoptin" ||
+            typeof val === "boolean"
+        ) {
+            displayControl = DisplayControlEnums.TrueFalseControl;
+        } else if (lowerKey === "daysnoticeperiod" || lowerKey === "mmfinyear") {
+            displayControl = DisplayControlEnums.SpinControl;
+        } else if (
             lowerKey.startsWith("date") ||
             lowerKey.endsWith("date") ||
             lowerKey.endsWith("updated") ||
-            lowerKey.includes("date");
+            lowerKey.includes("date")
+        ) {
+            displayControl = DisplayControlEnums.DateControl;
+        }
 
         return {
             TableName: tableName,
@@ -194,14 +237,11 @@ const buildEditTextPropertyFormFromRecord = (
             SortOrder: index + 1,
             RequiredToAddRecord: false,
             RequiredToUpdateRecord: false,
-            DisplayControl: isBoolean
-                ? DisplayControlEnums.TrueFalseControl
-                : isDateField
-                ? DisplayControlEnums.DateControl
-                : DisplayControlEnums.EditTextControl,
-            Disabled: isIdField || isAuditDateField,
-            disabled: isIdField || isAuditDateField,
+            DisplayControl: displayControl,
+            Disabled: isReadonlyField,
+            disabled: isReadonlyField,
             InputMask: "",
+            options,
             PropertyLabel: toPropertyLabel(key),
             NullNotAllowed: false,
         };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useActivities, useBusinesses, useContacts } from '@n20a/libfsdb';
+import { useActivities, useBusinesses, useContacts, useFirestore } from '@n20a/libfsdb';
 import { SettingsLibForm, IControl } from '../../settingsform/settingslibform/SettingsLibForm';
 import { DisplayControlEnums } from '../../alldefaultprops/basic/DefaultPropsFormContainer';
 import { useSmDataContext } from '../../context/hooks/SmDataHooks';
@@ -24,20 +24,120 @@ interface IProfileAddFormContainerProps {
     onClose?: () => void;
 }
 
+/**
+ * Checks if a contact is the primary contact created with a company (cid === bid or cid = bid).
+ * Such primary contacts can only be deleted when the business record itself is deleted.
+ */
+export function isPrimaryCompanyContact(cid?: string, bid?: string): boolean {
+    if (!cid || !bid) return false;
+    const cleanCid = String(cid).trim().toLowerCase();
+    const cleanBid = String(bid).trim().toLowerCase();
+    return cleanCid === cleanBid || cleanCid === `cid_${cleanBid}` || cleanCid.startsWith(`cid_${cleanBid}_1`);
+}
+
+function flattenFormData(profileDataStr: string): Record<string, unknown> {
+    let parsedData: Record<string, unknown> = {};
+    try {
+        const parsed = JSON.parse(profileDataStr);
+        if (parsed && typeof parsed === 'object' && 'TableSections' in parsed) {
+            const sections = parsed.TableSections as Record<string, Record<string, unknown>>;
+            for (const sec of Object.values(sections)) {
+                if (sec && typeof sec === 'object') {
+                    Object.assign(parsedData, sec);
+                }
+            }
+        } else if (Array.isArray(parsed)) {
+            parsedData = parsed[0] || {};
+        } else {
+            parsedData = parsed || {};
+        }
+    } catch {
+        parsedData = {};
+    }
+
+    // Normalize keys from libcountry AddressForm (Address1 -> address1, etc.)
+    if (parsedData.Address1 && !parsedData.address1) parsedData.address1 = parsedData.Address1;
+    if (parsedData.Address2 && !parsedData.address2) parsedData.address2 = parsedData.Address2;
+    if (parsedData.City && !parsedData.city) parsedData.city = parsedData.City;
+    if (parsedData.State && !parsedData.state) parsedData.state = parsedData.State;
+    if (parsedData.Country && !parsedData.country) parsedData.country = parsedData.Country;
+    if (parsedData.Zip && !parsedData.zip) parsedData.zip = parsedData.Zip;
+
+    return parsedData;
+}
+
+function normalizeFormKey(k: string): string {
+    return k.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function unwrapControlValue(val: unknown): unknown {
+    if (val !== null && typeof val === 'object' && 'value' in (val as Record<string, unknown>)) {
+        return (val as Record<string, unknown>).value;
+    }
+    return val;
+}
+
 function extractValuesFromForm(values: Record<string, unknown>, controls: IControl[]): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     if (!values) return result;
+    const valueEntries = Object.entries(values);
+
     for (const col of controls) {
-        if (values[col.Name] !== undefined) {
-            result[col.Name] = values[col.Name];
+        const colName = col.Name;
+        const colNameLower = colName.toLowerCase();
+        const normColName = normalizeFormKey(colName);
+        const groupClean = normalizeFormKey(col.DisplayGroupControl ?? 'Default');
+
+        // 1. Direct exact key match
+        if (values[colName] !== undefined) {
+            result[colName] = unwrapControlValue(values[colName]);
             continue;
         }
-        const prefix = `${col.DisplayGroupControl ?? 'Default'}_${col.Name}_`;
-        const matchingKey = Object.keys(values).find((k) => k.startsWith(prefix));
-        if (matchingKey !== undefined && values[matchingKey] !== undefined) {
-            result[col.Name] = values[matchingKey];
+
+        // 2. Search entries in values
+        let foundValue: unknown = undefined;
+        for (const [k, v] of valueEntries) {
+            if (v === undefined) continue;
+            const kLower = k.toLowerCase();
+            const normK = normalizeFormKey(k);
+
+            // Case-insensitive direct match
+            if (kLower === colNameLower || normK === normColName) {
+                foundValue = v;
+                break;
+            }
+
+            // Key starts with normalized group + colName (e.g. contactdetails_cname)
+            if (normK.startsWith(`${groupClean}${normColName}`)) {
+                foundValue = v;
+                break;
+            }
+
+            // Key ends with _colname or contains _colname_
+            if (kLower.endsWith(`_${colNameLower}`) || kLower.includes(`_${colNameLower}_`) || normK.endsWith(normColName)) {
+                foundValue = v;
+                break;
+            }
+        }
+
+        if (foundValue !== undefined) {
+            result[colName] = unwrapControlValue(foundValue);
         }
     }
+
+    // Also extract standard address keys if provided in values
+    const addrKeys = ['country', 'state', 'city', 'address1', 'address2', 'zip'];
+    for (const addrKey of addrKeys) {
+        if (result[addrKey] === undefined) {
+            for (const [k, v] of valueEntries) {
+                if (v !== undefined && (k.toLowerCase() === addrKey || normalizeFormKey(k) === addrKey)) {
+                    result[addrKey] = unwrapControlValue(v);
+                    break;
+                }
+            }
+        }
+    }
+
     return result;
 }
 
@@ -153,10 +253,11 @@ function toBoolean(val: unknown, defaultValue: boolean = false): boolean {
     return defaultValue;
 }
 
-function generateAutoBid(existingBusinesses: Array<{ bid?: string }>): string {
+function generateAutoBid(existingBusinesses: Array<{ bid?: string; EntID?: string; id?: string }>): string {
     let maxNum = 100;
     for (const b of existingBusinesses) {
-        const match = b?.bid?.match(/^bid_(\d+)$/i);
+        const idVal = b?.bid || b?.EntID || b?.id || '';
+        const match = idVal.match(/^bid_(\d+)$/i);
         if (match) {
             const num = parseInt(match[1], 10);
             if (!isNaN(num) && num > maxNum) {
@@ -165,19 +266,22 @@ function generateAutoBid(existingBusinesses: Array<{ bid?: string }>): string {
         }
     }
     let candidate = `bid_${maxNum + 1}`;
-    while (existingBusinesses.some((b) => (b.bid || '').toLowerCase() === candidate.toLowerCase())) {
+    while (existingBusinesses.some((b) => {
+        const idVal = (b.bid || b.EntID || b.id || '').toLowerCase();
+        return idVal === candidate.toLowerCase();
+    })) {
         maxNum++;
         candidate = `bid_${maxNum + 1}`;
     }
     return candidate;
 }
 
-function generateAutoCid(parentBid: string, existingContacts: Array<{ cid?: string; bid?: string }>): string {
+function generateAutoCid(parentBid: string, existingContacts: Array<{ cid?: string; bid?: string; EntID?: string; id?: string }>): string {
     const cleanBid = (parentBid || 'bid_100').trim();
     let maxIndex = 0;
     const prefix = `cid_${cleanBid}_`.toLowerCase();
     for (const c of existingContacts) {
-        const cidStr = (c?.cid || '').trim();
+        const cidStr = (c?.cid || c?.EntID || c?.id || '').trim();
         if (cidStr.toLowerCase().startsWith(prefix)) {
             const suffix = cidStr.slice(prefix.length);
             const num = parseInt(suffix, 10);
@@ -188,7 +292,10 @@ function generateAutoCid(parentBid: string, existingContacts: Array<{ cid?: stri
     }
     let nextIndex = maxIndex + 1;
     let candidate = `cid_${cleanBid}_${nextIndex}`;
-    while (existingContacts.some((c) => (c.cid || '').toLowerCase() === candidate.toLowerCase())) {
+    while (existingContacts.some((c) => {
+        const cidStr = (c.cid || c.EntID || c.id || '').toLowerCase();
+        return cidStr === candidate.toLowerCase();
+    })) {
         nextIndex++;
         candidate = `cid_${cleanBid}_${nextIndex}`;
     }
@@ -359,6 +466,10 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         salesexec: '',
         country: 'United States',
         state: 'CA',
+        address1: '',
+        address2: '',
+        city: '',
+        zip: '',
         daysnoticeperiod: 30,
         mmfinyear: 12,
         relatedbids: '',
@@ -368,6 +479,11 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         mcsexpirydate: '',
         saasexpirydate: '',
         onpremexpirydate: '',
+        // First contact fields (used when adding a company)
+        first_contact_cname: '',
+        first_contact_email: '',
+        first_contact_phone: '',
+        first_contact_type: 'primary',
     });
 
     const contactValuesRef = useRef<Record<string, unknown>>({
@@ -380,10 +496,11 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         email: '',
         phone: '',
         address1: '',
+        address2: '',
         city: '',
         state: '',
         zip: '',
-        country: '',
+        country: 'United States',
         datecreated: todayIsoDate(),
         dateupdated: todayIsoDate(),
         monitorupdated: todayIsoDate(),
@@ -403,6 +520,10 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 salesexec: selectedBusiness.salesexec || '',
                 country: selectedBusiness.country || 'United States',
                 state: selectedBusiness.state || 'CA',
+                address1: selectedBusiness.address1 || (selectedBusiness as any).address_street || '',
+                address2: selectedBusiness.address2 || (selectedBusiness as any).address_line2 || '',
+                city: selectedBusiness.city || (selectedBusiness as any).address_city || '',
+                zip: selectedBusiness.zip || (selectedBusiness as any).address_zip || '',
                 daysnoticeperiod: selectedBusiness.daysnoticeperiod ?? 30,
                 mmfinyear: selectedBusiness.mmfinyear ?? 12,
                 relatedbids: Array.isArray(selectedBusiness.relatedbids)
@@ -417,10 +538,16 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             };
         } else if (!isUpdate) {
             const autoBid = generateAutoBid(smDataContext.datasets?.businesses ?? []);
-            setBusinessId(autoBid);
-            businessValuesRef.current.bid = autoBid;
+            const currentBid = String(businessValuesRef.current.bid || businessId || '').trim();
+            const isTaken = (smDataContext.datasets?.businesses ?? []).some(
+                (b) => String(b.bid || (b as any).EntID || (b as any).id || '').trim().toLowerCase() === currentBid.toLowerCase()
+            );
+            if (!currentBid || currentBid === 'bid_101' || !currentBid.startsWith('bid_') || isTaken || businessId !== autoBid) {
+                setBusinessId(autoBid);
+                businessValuesRef.current.bid = autoBid;
+            }
         }
-    }, [isUpdate, selectedBusiness, smDataContext.datasets?.businesses]);
+    }, [isUpdate, selectedBusiness, smDataContext.datasets?.businesses, mode, props.selectedNode]);
 
     // Populate existing contact data in update mode
     useEffect(() => {
@@ -441,10 +568,11 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 email: selectedContact.email || '',
                 phone: selectedContact.phone || (selectedContact as any).phone1 || '',
                 address1: selectedContact.address1 || (selectedContact as any).address_street || '',
+                address2: selectedContact.address2 || '',
                 city: selectedContact.city || (selectedContact as any).address_city || '',
                 state: selectedContact.state || (selectedContact as any).address_state || '',
                 zip: selectedContact.zip || (selectedContact as any).address_zip || '',
-                country: selectedContact.country || (selectedContact as any).address_country || '',
+                country: selectedContact.country || (selectedContact as any).address_country || 'United States',
                 datecreated: formatDateValue(selectedContact.datecreated, todayIsoDate()),
                 dateupdated: formatDateValue(selectedContact.dateupdated, todayIsoDate()),
                 monitorupdated: formatDateValue(selectedContact.monitorupdated, todayIsoDate()),
@@ -470,6 +598,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
     }, [isUpdate, selectedParentBid, smDataContext.datasets?.contacts]);
 
     // Hooks from libfsdb
+    const firestore = useFirestore();
     const { createBusiness, updateBusiness } = useBusinesses();
     const { createContact, updateContact } = useContacts(selectedParentBid || 'bid_100');
     const { createActivity } = useActivities(
@@ -480,12 +609,14 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
 
     // Business Controls for SettingsLibForm
     const businessControls: IControl[] = useMemo(() => {
-        const group = 'Business Details';
-        return [
+        const groupCompany = 'Company Details';
+        const groupFirstContact = 'First Contact Details';
+
+        const controls: IControl[] = [
             makeControl({
                 name: 'bid',
                 label: 'Business ID',
-                group,
+                group: groupCompany,
                 sortOrder: 1,
                 displayControl: DisplayControlEnums.EditTextControl,
                 value: isUpdate ? businessId : String(businessValuesRef.current.bid || businessId || ''),
@@ -495,7 +626,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             makeControl({
                 name: 'bname',
                 label: 'Company Name',
-                group,
+                group: groupCompany,
                 sortOrder: 2,
                 displayControl: DisplayControlEnums.EditTextControl,
                 isRequired: 1,
@@ -504,7 +635,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             makeControl({
                 name: 'btype',
                 label: 'Business Type',
-                group,
+                group: groupCompany,
                 sortOrder: 3,
                 displayControl: DisplayControlEnums.ComboBoxControl,
                 options: [
@@ -518,7 +649,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             makeControl({
                 name: 'status',
                 label: 'Status',
-                group,
+                group: groupCompany,
                 sortOrder: 4,
                 displayControl: DisplayControlEnums.ComboBoxControl,
                 options: [
@@ -530,7 +661,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             makeControl({
                 name: 'verified',
                 label: 'Verified',
-                group,
+                group: groupCompany,
                 sortOrder: 5,
                 displayControl: DisplayControlEnums.TrueFalseControl,
                 value: toBoolean(businessValuesRef.current.verified, false) ? 'true' : 'false',
@@ -538,105 +669,144 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             makeControl({
                 name: 'salesexec',
                 label: 'Sales Executive',
-                group,
+                group: groupCompany,
                 sortOrder: 6,
                 displayControl: DisplayControlEnums.EditTextControl,
                 value: String(businessValuesRef.current.salesexec ?? ''),
             }),
             makeControl({
-                name: 'country',
-                label: 'Country',
-                group,
-                sortOrder: 7,
-                displayControl: DisplayControlEnums.EditTextControl,
-                value: String(businessValuesRef.current.country ?? 'United States'),
-            }),
-            makeControl({
-                name: 'state',
-                label: 'State',
-                group,
-                sortOrder: 8,
-                displayControl: DisplayControlEnums.EditTextControl,
-                value: String(businessValuesRef.current.state ?? 'CA'),
-            }),
-            makeControl({
                 name: 'daysnoticeperiod',
                 label: 'Notice Period (Days)',
-                group,
-                sortOrder: 9,
+                group: groupCompany,
+                sortOrder: 7,
                 displayControl: DisplayControlEnums.SpinControl,
                 value: String(businessValuesRef.current.daysnoticeperiod ?? '30'),
             }),
             makeControl({
                 name: 'mmfinyear',
                 label: 'Financial Year Month',
-                group,
-                sortOrder: 10,
+                group: groupCompany,
+                sortOrder: 8,
                 displayControl: DisplayControlEnums.SpinControl,
                 value: String(businessValuesRef.current.mmfinyear ?? '12'),
             }),
             makeControl({
                 name: 'relatedbids',
                 label: 'Related BIDs',
-                group,
-                sortOrder: 11,
+                group: groupCompany,
+                sortOrder: 9,
                 displayControl: DisplayControlEnums.EditTextControl,
                 value: String(businessValuesRef.current.relatedbids ?? ''),
             }),
-            makeControl({
-                name: 'datecreated',
-                label: 'Date Created',
-                group,
-                sortOrder: 12,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(businessValuesRef.current.datecreated ?? todayIsoDate()),
-                disabled: true,
-            }),
-            makeControl({
-                name: 'dateupdated',
-                label: 'Date Updated',
-                group,
-                sortOrder: 13,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(businessValuesRef.current.dateupdated ?? todayIsoDate()),
-                disabled: true,
-            }),
-            makeControl({
-                name: 'amcexpirydate',
-                label: 'AMC Expiry Date',
-                group,
-                sortOrder: 14,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(businessValuesRef.current.amcexpirydate ?? ''),
-            }),
-            makeControl({
-                name: 'mcsexpirydate',
-                label: 'MCS Expiry Date',
-                group,
-                sortOrder: 15,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(businessValuesRef.current.mcsexpirydate ?? ''),
-            }),
-            makeControl({
-                name: 'saasexpirydate',
-                label: 'SaaS Expiry Date',
-                group,
-                sortOrder: 16,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(businessValuesRef.current.saasexpirydate ?? ''),
-            }),
-            makeControl({
-                name: 'onpremexpirydate',
-                label: 'On-Prem Expiry Date',
-                group,
-                sortOrder: 17,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(businessValuesRef.current.onpremexpirydate ?? ''),
-            }),
         ];
+
+        // When adding a new company, also collect First Contact info in the same form
+        if (!isUpdate) {
+            controls.push(
+                makeControl({
+                    name: 'first_contact_cname',
+                    label: 'First Contact Name',
+                    group: groupFirstContact,
+                    sortOrder: 10,
+                    displayControl: DisplayControlEnums.EditTextControl,
+                    isRequired: 1,
+                    value: String(businessValuesRef.current.first_contact_cname ?? ''),
+                }),
+                makeControl({
+                    name: 'first_contact_email',
+                    label: 'First Contact Email',
+                    group: groupFirstContact,
+                    sortOrder: 11,
+                    displayControl: DisplayControlEnums.EmailControl,
+                    isRequired: 1,
+                    value: String(businessValuesRef.current.first_contact_email ?? ''),
+                }),
+                makeControl({
+                    name: 'first_contact_phone',
+                    label: 'First Contact Phone',
+                    group: groupFirstContact,
+                    sortOrder: 12,
+                    displayControl: DisplayControlEnums.EditTextControl,
+                    isRequired: 1,
+                    value: String(businessValuesRef.current.first_contact_phone ?? ''),
+                }),
+                makeControl({
+                    name: 'first_contact_type',
+                    label: 'Contact Type',
+                    group: groupFirstContact,
+                    sortOrder: 13,
+                    displayControl: DisplayControlEnums.ComboBoxControl,
+                    options: [
+                        { label: 'Primary Contact', value: 'primary' },
+                        { label: 'Representative', value: 'representative' },
+                        { label: 'Admin', value: 'admin' },
+                        { label: 'Billing', value: 'billing' },
+                        { label: 'Technical', value: 'technical' },
+                    ],
+                    value: String(businessValuesRef.current.first_contact_type ?? 'primary'),
+                })
+            );
+        }
+
+        // Address controls (processed by SettingsLibForm via libcountry AddressForm)
+        const groupAddress = 'Address Details';
+        controls.push(
+            makeControl({
+                name: 'address1',
+                label: 'Street Address',
+                group: groupAddress,
+                sortOrder: 20,
+                displayControl: DisplayControlEnums.EditTextControl,
+                value: String(businessValuesRef.current.address1 ?? ''),
+            }),
+            makeControl({
+                name: 'address2',
+                label: 'Suite / Apt',
+                group: groupAddress,
+                sortOrder: 21,
+                displayControl: DisplayControlEnums.EditTextControl,
+                value: String(businessValuesRef.current.address2 ?? ''),
+            }),
+            makeControl({
+                name: 'city',
+                label: 'City',
+                group: groupAddress,
+                sortOrder: 22,
+                displayControl: DisplayControlEnums.EditTextControl,
+                value: String(businessValuesRef.current.city ?? ''),
+            }),
+            makeControl({
+                name: 'state',
+                label: 'State',
+                group: groupAddress,
+                sortOrder: 23,
+                displayControl: DisplayControlEnums.EditTextControl,
+                value: String(businessValuesRef.current.state ?? 'CA'),
+            }),
+            makeControl({
+                name: 'country',
+                label: 'Country',
+                group: groupAddress,
+                sortOrder: 24,
+                displayControl: DisplayControlEnums.EditTextControl,
+                isRequired: 1,
+                value: String(businessValuesRef.current.country ?? 'United States'),
+            }),
+            makeControl({
+                name: 'zip',
+                label: 'Zip Code',
+                group: groupAddress,
+                sortOrder: 25,
+                displayControl: DisplayControlEnums.EditTextControl,
+                value: String(businessValuesRef.current.zip ?? ''),
+            })
+        );
+
+        return controls;
     }, [isUpdate, businessId]);
 
-    // Contact Controls for SettingsLibForm
+    // Contact Controls for SettingsLibForm:
+    // Requires 5 fields when adding/updating contact: business (bid), name (cname), email, phone, country
     const contactControls: IControl[] = useMemo(() => {
         const group = 'Contact Details';
         return [
@@ -656,7 +826,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 group,
                 sortOrder: 2,
                 displayControl: DisplayControlEnums.ComboBoxControl,
-                isRequired: 1,
+                isRequired: 1, // 1. Business required
                 options: availableBusinesses,
                 value: selectedParentBid,
                 disabled: isUpdate,
@@ -667,14 +837,41 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 group,
                 sortOrder: 3,
                 displayControl: DisplayControlEnums.EditTextControl,
-                isRequired: 1,
+                isRequired: 1, // 2. Name required
                 value: String(contactValuesRef.current.cname ?? ''),
+            }),
+            makeControl({
+                name: 'email',
+                label: 'Email',
+                group,
+                sortOrder: 4,
+                displayControl: DisplayControlEnums.EmailControl,
+                isRequired: 1, // 3. Email required
+                value: String(contactValuesRef.current.email ?? ''),
+            }),
+            makeControl({
+                name: 'phone',
+                label: 'Phone',
+                group,
+                sortOrder: 5,
+                displayControl: DisplayControlEnums.EditTextControl,
+                isRequired: 1, // 4. Phone required
+                value: String(contactValuesRef.current.phone ?? ''),
+            }),
+            makeControl({
+                name: 'country',
+                label: 'Country',
+                group,
+                sortOrder: 6,
+                displayControl: DisplayControlEnums.EditTextControl,
+                isRequired: 1, // 5. Country required
+                value: String(contactValuesRef.current.country ?? 'United States'),
             }),
             makeControl({
                 name: 'contacttype',
                 label: 'Contact Type',
                 group,
-                sortOrder: 4,
+                sortOrder: 7,
                 displayControl: DisplayControlEnums.ComboBoxControl,
                 options: [
                     { label: 'Contact', value: 'contact' },
@@ -689,7 +886,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 name: 'status',
                 label: 'Status',
                 group,
-                sortOrder: 5,
+                sortOrder: 8,
                 displayControl: DisplayControlEnums.ComboBoxControl,
                 options: [
                     { label: 'Active', value: 'Active' },
@@ -701,39 +898,31 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 name: 'monitor',
                 label: 'Verified / Monitor',
                 group,
-                sortOrder: 6,
+                sortOrder: 9,
                 displayControl: DisplayControlEnums.TrueFalseControl,
                 value: toBoolean(contactValuesRef.current.monitor, false) ? 'true' : 'false',
-            }),
-            makeControl({
-                name: 'email',
-                label: 'Email',
-                group,
-                sortOrder: 7,
-                displayControl: DisplayControlEnums.EmailControl,
-                value: String(contactValuesRef.current.email ?? ''),
-            }),
-            makeControl({
-                name: 'phone',
-                label: 'Phone',
-                group,
-                sortOrder: 8,
-                displayControl: DisplayControlEnums.EditTextControl,
-                value: String(contactValuesRef.current.phone ?? ''),
             }),
             makeControl({
                 name: 'address1',
                 label: 'Street Address',
                 group,
-                sortOrder: 9,
+                sortOrder: 10,
                 displayControl: DisplayControlEnums.EditTextControl,
                 value: String(contactValuesRef.current.address1 ?? ''),
+            }),
+            makeControl({
+                name: 'address2',
+                label: 'Suite / Apt',
+                group,
+                sortOrder: 11,
+                displayControl: DisplayControlEnums.EditTextControl,
+                value: String(contactValuesRef.current.address2 ?? ''),
             }),
             makeControl({
                 name: 'city',
                 label: 'City',
                 group,
-                sortOrder: 10,
+                sortOrder: 12,
                 displayControl: DisplayControlEnums.EditTextControl,
                 value: String(contactValuesRef.current.city ?? ''),
             }),
@@ -741,7 +930,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 name: 'state',
                 label: 'State',
                 group,
-                sortOrder: 11,
+                sortOrder: 13,
                 displayControl: DisplayControlEnums.EditTextControl,
                 value: String(contactValuesRef.current.state ?? ''),
             }),
@@ -749,43 +938,9 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 name: 'zip',
                 label: 'Zip Code',
                 group,
-                sortOrder: 12,
+                sortOrder: 14,
                 displayControl: DisplayControlEnums.EditTextControl,
                 value: String(contactValuesRef.current.zip ?? ''),
-            }),
-            makeControl({
-                name: 'country',
-                label: 'Country',
-                group,
-                sortOrder: 13,
-                displayControl: DisplayControlEnums.EditTextControl,
-                value: String(contactValuesRef.current.country ?? ''),
-            }),
-            makeControl({
-                name: 'datecreated',
-                label: 'Date Created',
-                group,
-                sortOrder: 14,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(contactValuesRef.current.datecreated ?? todayIsoDate()),
-                disabled: true,
-            }),
-            makeControl({
-                name: 'dateupdated',
-                label: 'Date Updated',
-                group,
-                sortOrder: 15,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(contactValuesRef.current.dateupdated ?? todayIsoDate()),
-                disabled: true,
-            }),
-            makeControl({
-                name: 'monitorupdated',
-                label: 'Monitor Updated Date',
-                group,
-                sortOrder: 16,
-                displayControl: DisplayControlEnums.DateControl,
-                value: String(contactValuesRef.current.monitorupdated ?? ''),
             }),
         ];
     }, [contactId, availableBusinesses, selectedParentBid, isUpdate]);
@@ -799,58 +954,115 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         return JSON.stringify([contactValuesRef.current]);
     }, [contactId, isUpdate, selectedContact, selectedParentBid]);
 
+    const checkIsBusinessValid = useCallback(() => {
+        const bid = String(businessValuesRef.current.bid ?? businessId ?? '').trim();
+        const bname = String(businessValuesRef.current.bname ?? '').trim();
+        const country = String(businessValuesRef.current.country ?? businessValuesRef.current.Country ?? 'United States').trim();
+
+        if (!bid || !bname) return false;
+
+        const existingBusinesses = smDataContext.datasets?.businesses ?? [];
+        if (!isUpdate) {
+            const duplicateBid = existingBusinesses.some(
+                (b) => (b.bid || (b as any).EntID || (b as any).id || '').toLowerCase() === bid.toLowerCase()
+            );
+            if (duplicateBid) return false;
+        }
+
+        if (!isUpdate) {
+            const firstContactName = String(businessValuesRef.current.first_contact_cname ?? '').trim();
+            const firstContactEmail = String(businessValuesRef.current.first_contact_email ?? '').trim();
+            const firstContactPhone = String(businessValuesRef.current.first_contact_phone ?? '').trim();
+            if (!firstContactName || !firstContactEmail || !firstContactPhone || !country) {
+                return false;
+            }
+        }
+        return true;
+    }, [businessId, isUpdate, smDataContext.datasets?.businesses]);
+
+    const checkIsContactValid = useCallback(() => {
+        const parentBid = String(contactValuesRef.current.bid ?? selectedParentBid ?? '').trim();
+        const cname = String(contactValuesRef.current.cname ?? '').trim();
+        const email = String(contactValuesRef.current.email ?? '').trim();
+        const phone = String(contactValuesRef.current.phone ?? '').trim();
+        const country = String(contactValuesRef.current.country ?? contactValuesRef.current.Country ?? 'United States').trim();
+
+        if (!parentBid || !cname || !email || !phone || !country) {
+            return false;
+        }
+
+        const existingContacts = smDataContext.datasets?.contacts ?? [];
+        if (!isUpdate) {
+            const cid = String(contactValuesRef.current.cid ?? contactId ?? '').trim();
+            if (cid) {
+                const duplicateCid = existingContacts.some(
+                    (c: any) => (c.cid || c.EntID || c.id || '').toLowerCase() === cid.toLowerCase()
+                );
+                if (duplicateCid) return false;
+            }
+        }
+        return true;
+    }, [contactId, isUpdate, selectedParentBid, smDataContext.datasets?.contacts]);
+
     const handleBusinessValuesChangeExternal = useCallback((values: Record<string, unknown>) => {
-        setIsFormChanged(true);
         const extracted = extractValuesFromForm(values, businessControls);
         Object.assign(businessValuesRef.current, extracted);
-    }, [businessControls]);
+        const valid = checkIsBusinessValid();
+        setIsFormChanged(valid);
+        FnHideShowSaveIconForForm(valid ? 'show' : 'hide');
+    }, [businessControls, checkIsBusinessValid]);
 
     const handleContactValuesChangeExternal = useCallback((values: Record<string, unknown>) => {
-        setIsFormChanged(true);
         const extracted = extractValuesFromForm(values, contactControls);
         Object.assign(contactValuesRef.current, extracted);
         if (extracted.bid) {
             setSelectedParentBid(String(extracted.bid));
         }
-    }, [contactControls]);
+        const valid = checkIsContactValid();
+        setIsFormChanged(valid);
+        FnHideShowSaveIconForForm(valid ? 'show' : 'hide');
+    }, [contactControls, checkIsContactValid]);
 
     const handleBusinessValueChange = useCallback((value: any, name: string | undefined) => {
         if (!name) return;
-        setIsFormChanged(true);
         let normalizedValue = value;
         if (value === 'true' || value === true || value === 1 || value === '1') {
             normalizedValue = true;
         } else if (value === 'false' || value === false || value === 0 || value === '0') {
             normalizedValue = false;
+        } else if (value !== null && typeof value === 'object' && 'value' in value) {
+            normalizedValue = value.value;
         }
         businessValuesRef.current[name] = normalizedValue;
-    }, []);
+        const valid = checkIsBusinessValid();
+        setIsFormChanged(valid);
+        FnHideShowSaveIconForForm(valid ? 'show' : 'hide');
+    }, [checkIsBusinessValid]);
 
     const handleContactValueChange = useCallback((value: any, name: string | undefined) => {
         if (!name) return;
-        setIsFormChanged(true);
         let normalizedValue = value;
         if (value === 'true' || value === true || value === 1 || value === '1') {
             normalizedValue = true;
         } else if (value === 'false' || value === false || value === 0 || value === '0') {
             normalizedValue = false;
+        } else if (value !== null && typeof value === 'object' && 'value' in value) {
+            normalizedValue = value.value;
         }
         contactValuesRef.current[name] = normalizedValue;
 
-        if (name === 'bid' && value) {
-            setSelectedParentBid(String(value));
+        if (name === 'bid' && normalizedValue) {
+            setSelectedParentBid(String(normalizedValue));
         }
-    }, []);
+        const valid = checkIsContactValid();
+        setIsFormChanged(valid);
+        FnHideShowSaveIconForForm(valid ? 'show' : 'hide');
+    }, [checkIsContactValid]);
 
     // Save Business (Add or Update)
+    // When a company is added, also creates the first contact in the same form with cid = bid (contacted = bid)
     const handleSaveBusiness = useCallback(async (profileDataStr: string) => {
-        let parsedData: Record<string, unknown> = {};
-        try {
-            const parsed = JSON.parse(profileDataStr);
-            parsedData = Array.isArray(parsed) ? parsed[0] || {} : parsed || {};
-        } catch {
-            parsedData = {};
-        }
+        const parsedData = flattenFormData(profileDataStr);
 
         const effectiveBid = isUpdate
             ? (businessId || String(selectedBusiness?.bid ?? ''))
@@ -861,20 +1073,54 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             return;
         }
 
-        if (!isUpdate) {
-            const existing = (smDataContext.datasets?.businesses ?? []).some(
-                (b) => (b.bid || '').toLowerCase() === effectiveBid.toLowerCase()
-            );
-            if (existing) {
-                statusBarContext.setFetchError([`Business ID "${effectiveBid}" already exists`]);
-                return;
-            }
-        }
-
         const bname = String(parsedData.bname ?? businessValuesRef.current.bname ?? '').trim();
         if (!bname) {
             statusBarContext.setFetchError(['Company Name is required']);
             return;
+        }
+
+        const existingBusinesses = smDataContext.datasets?.businesses ?? [];
+        if (!isUpdate) {
+            const existingBid = existingBusinesses.some(
+                (b) => (b.bid || (b as any).EntID || (b as any).id || '').toLowerCase() === effectiveBid.toLowerCase()
+            );
+            if (existingBid) {
+                statusBarContext.setFetchError([`Business ID "${effectiveBid}" already exists. Please enter a unique Business ID.`]);
+                return;
+            }
+        }
+
+        // When adding a new company, validate required first contact fields
+        const firstContactName = String(
+            parsedData.first_contact_cname ?? businessValuesRef.current.first_contact_cname ?? ''
+        ).trim();
+        const firstContactEmail = String(
+            parsedData.first_contact_email ?? businessValuesRef.current.first_contact_email ?? ''
+        ).trim();
+        const firstContactPhone = String(
+            parsedData.first_contact_phone ?? businessValuesRef.current.first_contact_phone ?? ''
+        ).trim();
+        const country = String(
+            parsedData.country ?? businessValuesRef.current.country ?? ''
+        ).trim();
+
+        if (!isUpdate) {
+            if (!firstContactName) {
+                statusBarContext.setFetchError(['First Contact Name is required']);
+                return;
+            }
+            if (!firstContactEmail) {
+                statusBarContext.setFetchError(['First Contact Email is required']);
+                return;
+            }
+            if (!firstContactPhone) {
+                statusBarContext.setFetchError(['First Contact Phone is required']);
+                return;
+            }
+            if (!country) {
+                statusBarContext.setFetchError(['Country is required']);
+                return;
+            }
         }
 
         const merged: Record<string, unknown> = {
@@ -892,8 +1138,12 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             status: String(merged.status ?? 'Active'),
             verified: toBoolean(merged.verified, false),
             salesexec: String(merged.salesexec ?? '').trim(),
-            country: String(merged.country ?? '').trim(),
+            country: country || 'United States',
             state: String(merged.state ?? '').trim(),
+            address1: String(merged.address1 ?? '').trim(),
+            address2: String(merged.address2 ?? '').trim(),
+            city: String(merged.city ?? '').trim(),
+            zip: String(merged.zip ?? '').trim(),
             daysnoticeperiod: Number(merged.daysnoticeperiod) || 0,
             mmfinyear: Number(merged.mmfinyear) || 0,
             relatedbids: merged.relatedbids
@@ -933,6 +1183,57 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 ...(rawData as unknown as IBusinessDoc),
             };
 
+            let updatedContacts = smDataContext.datasets?.contacts ?? [];
+
+            // In Add Company mode, create the first contact with cid = cid_bid_uniq_1 and bid = bid
+            if (!isUpdate) {
+                const primaryCid = generateAutoCid(effectiveBid, smDataContext.datasets?.contacts ?? []);
+                const firstContactType = String(
+                    parsedData.first_contact_type ?? businessValuesRef.current.first_contact_type ?? 'primary'
+                ).trim();
+
+                const firstContactDoc: IContactDoc = {
+                    bid: effectiveBid,
+                    cid: primaryCid, // Unique primary contact ID, e.g. cid_bid_544_1
+                    cname: firstContactName,
+                    email: firstContactEmail,
+                    phone: firstContactPhone,
+                    contacttype: firstContactType,
+                    status: 'Active',
+                    monitor: true,
+                    ctag: 'primary',
+                    address1: String(merged.address1 ?? '').trim(),
+                    address2: String(merged.address2 ?? '').trim(),
+                    city: String(merged.city ?? '').trim(),
+                    state: String(merged.state ?? '').trim(),
+                    country: country || 'United States',
+                    zip: String(merged.zip ?? '').trim(),
+                    datecreated: new Date().toISOString(),
+                    dateupdated: new Date().toISOString(),
+                    monitorupdated: new Date().toISOString(),
+                    role: '',
+                    countrycode: '',
+                    timezoneoffset: 0,
+                    donotcallme: false,
+                    removemefrommailinglist: false,
+                    smsoptin: false
+                };
+
+                try {
+                    await firestore.createDocument({
+                        pathSegments: ['businesses', effectiveBid, 'contacts'],
+                        data: filterAllowedFields(firstContactDoc as unknown as Record<string, unknown>, ALLOWED_CONTACT_FIELDS),
+                    });
+                } catch (cErr) {
+                    console.warn('createDocument for primary contact in add company:', cErr);
+                }
+
+                updatedContacts = [
+                    ...updatedContacts.filter((c) => c.cid !== effectiveBid),
+                    firstContactDoc,
+                ];
+            }
+
             if (smDataContext?.updateDataset) {
                 const existingBusinesses = (smDataContext.datasets?.businesses ?? []).filter(
                     (b) => (b.bid || (b as any).EntID || (b as any).id) !== newDoc.bid
@@ -941,6 +1242,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     ...existingBusinesses,
                     newDoc,
                 ]);
+                smDataContext.updateDataset('contacts', updatedContacts);
             }
 
             const userCid = String(
@@ -949,7 +1251,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 'User'
             ).trim();
             const logAction = isUpdate ? 'updated' : 'created';
-            const logMsg = `${userCid} of ${effectiveBid} ${logAction} business ${effectiveBid} successfully.`;
+            const logMsg = `${userCid} of ${effectiveBid} ${logAction} business ${effectiveBid} with primary contact successfully.`;
             void FnLogActivity({
                 bid: effectiveBid,
                 cid: userCid,
@@ -978,6 +1280,10 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     salesexec: '',
                     country: 'United States',
                     state: 'CA',
+                    address1: '',
+                    address2: '',
+                    city: '',
+                    zip: '',
                     daysnoticeperiod: 30,
                     mmfinyear: 12,
                     relatedbids: '',
@@ -987,6 +1293,10 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     mcsexpirydate: '',
                     saasexpirydate: '',
                     onpremexpirydate: '',
+                    first_contact_cname: '',
+                    first_contact_email: '',
+                    first_contact_phone: '',
+                    first_contact_type: 'primary',
                 };
             }
 
@@ -1000,17 +1310,12 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             statusBarContext.setIsLoading(false);
             statusBarContext.setLoadingLabel(undefined);
         }
-    }, [businessId, isUpdate, selectedBusiness, createBusiness, updateBusiness, createActivity, mainAppContext, smDataContext, statusBarContext, commonVariableContext, props]);
+    }, [businessId, isUpdate, selectedBusiness, createBusiness, updateBusiness, createContact, createActivity, mainAppContext, smDataContext, statusBarContext, commonVariableContext, props]);
 
     // Save Contact (Add or Update)
+    // Enforces the 5 required fields: business, name, email, phone, country
     const handleSaveContact = useCallback(async (profileDataStr: string) => {
-        let parsedData: Record<string, unknown> = {};
-        try {
-            const parsed = JSON.parse(profileDataStr);
-            parsedData = Array.isArray(parsed) ? parsed[0] || {} : parsed || {};
-        } catch {
-            parsedData = {};
-        }
+        const parsedData = flattenFormData(profileDataStr);
 
         const effectiveCid = isUpdate
             ? (contactId || String(selectedContact?.cid ?? ''))
@@ -1023,23 +1328,39 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
 
         if (!isUpdate) {
             const existing = (smDataContext.datasets?.contacts ?? []).some(
-                (c: any) => (c.cid || '').toLowerCase() === effectiveCid.toLowerCase()
+                (c: any) => (c.cid || c.EntID || c.id || '').toLowerCase() === effectiveCid.toLowerCase()
             );
             if (existing) {
-                statusBarContext.setFetchError([`Contact ID "${effectiveCid}" already exists`]);
+                statusBarContext.setFetchError([`Contact ID "${effectiveCid}" already exists. Please enter a unique Contact ID.`]);
                 return;
             }
         }
 
         const parentBid = String(parsedData.bid ?? contactValuesRef.current.bid ?? selectedParentBid ?? '').trim();
         const cname = String(parsedData.cname ?? contactValuesRef.current.cname ?? '').trim();
+        const email = String(parsedData.email ?? contactValuesRef.current.email ?? '').trim();
+        const phone = String(parsedData.phone ?? contactValuesRef.current.phone ?? '').trim();
+        const country = String(parsedData.country ?? contactValuesRef.current.country ?? '').trim();
 
+        // Enforce 5 required fields for contact: business, name, email, phone, country
         if (!parentBid) {
-            statusBarContext.setFetchError(['Parent Business is required']);
+            statusBarContext.setFetchError(['Business is required']);
             return;
         }
         if (!cname) {
             statusBarContext.setFetchError(['Contact Name is required']);
+            return;
+        }
+        if (!email) {
+            statusBarContext.setFetchError(['Email is required']);
+            return;
+        }
+        if (!phone) {
+            statusBarContext.setFetchError(['Phone is required']);
+            return;
+        }
+        if (!country) {
+            statusBarContext.setFetchError(['Country is required']);
             return;
         }
 
@@ -1048,6 +1369,10 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             ...parsedData,
             bid: parentBid,
             cid: effectiveCid,
+            cname,
+            email,
+            phone,
+            country,
         };
 
         const rawData: Record<string, unknown> = {
@@ -1058,13 +1383,14 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             status: String(merged.status ?? 'Active'),
             monitor: toBoolean(merged.monitor !== undefined ? merged.monitor : merged.verified, false),
             monitorupdated: toIsoString(merged.monitorupdated, new Date().toISOString()),
-            email: String(merged.email ?? '').trim(),
-            phone: String(merged.phone ?? '').trim(),
+            email,
+            phone,
             address1: String(merged.address1 ?? '').trim(),
+            address2: String(merged.address2 ?? '').trim(),
             city: String(merged.city ?? '').trim(),
             state: String(merged.state ?? '').trim(),
             zip: String(merged.zip ?? '').trim(),
-            country: String(merged.country ?? '').trim(),
+            country,
             datecreated: toIsoString(merged.datecreated, new Date().toISOString()),
             dateupdated: new Date().toISOString(),
         };
@@ -1143,10 +1469,11 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     email: '',
                     phone: '',
                     address1: '',
+                    address2: '',
                     city: '',
                     state: '',
                     zip: '',
-                    country: '',
+                    country: 'United States',
                     datecreated: todayIsoDate(),
                     dateupdated: todayIsoDate(),
                     monitorupdated: todayIsoDate(),
@@ -1169,7 +1496,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         <div className="nz-profile-add-container">
             {mode === 'business' ? (
                 <SettingsLibForm
-                    key={`profile-${isUpdate ? `update-${businessId}` : `add-business-${businessId}`}`}
+                    key={`profile-${isUpdate ? `update-${businessId}` : 'add-business'}`}
                     uniqueName={`${props.uniqueName || 'profile-add'}-business-form`}
                     id={isUpdate ? businessId : undefined}
                     controls={businessControls}
@@ -1179,6 +1506,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     headerText={isUpdate ? 'Update Business' : 'Add Business'}
                     isDisableForm={false}
                     isAutoSave={false}
+                    isAddressFormRequired={true}
                     isFormValueChangedExternal={isFormChanged}
                     handleValueChange={handleBusinessValueChange}
                     handleValueChangeExternal={handleBusinessValuesChangeExternal}
@@ -1186,7 +1514,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 />
             ) : (
                 <SettingsLibForm
-                    key={`profile-${isUpdate ? `update-${contactId}` : `add-contact-${selectedParentBid}-${contactId}`}`}
+                    key={`profile-${isUpdate ? `update-${contactId}` : 'add-contact'}`}
                     uniqueName={`${props.uniqueName || 'profile-add'}-contact-form`}
                     id={isUpdate ? contactId : undefined}
                     controls={contactControls}
@@ -1196,6 +1524,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     headerText={isUpdate ? 'Update Contact' : 'Add Contact'}
                     isDisableForm={false}
                     isAutoSave={false}
+                    isAddressFormRequired={true}
                     isFormValueChangedExternal={isFormChanged}
                     handleValueChange={handleContactValueChange}
                     handleValueChangeExternal={handleContactValuesChangeExternal}

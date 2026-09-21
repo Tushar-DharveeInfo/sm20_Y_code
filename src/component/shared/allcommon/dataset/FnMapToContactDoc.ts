@@ -25,7 +25,7 @@ function asNumber(value: unknown): number {
 
 function FnMapToContactDoc(record: Record<string, unknown>, bid?: string): IContactDoc {
     return {
-        bid: asString(record.bid || bid),
+        bid: asString(bid || record.bid),
         cid: asString(record.cid || record.id || (record as any).EntID),
         monitorupdated: asString(record.monitorupdated),
         monitor: asBoolean(record.monitor ?? (record as any).verified),

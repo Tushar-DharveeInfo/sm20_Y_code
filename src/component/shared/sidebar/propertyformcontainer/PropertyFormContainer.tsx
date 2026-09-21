@@ -279,6 +279,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
     const [updatedAddress, setUpdatedAddress] = useState<IAddress>();
     const [isAddressFormShow, setIsAddressFormShow] = useState<boolean>(false);
     const [loading, setLoading] = useState(true);
+    const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const statusBarContext = useStatusBarContext();
     const selectedNodeContext = useSelectedNodeContext();
     const sessionContext = useSessionContext();
@@ -455,11 +456,24 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                 ? parsePropertyColumns(String(pgTable.properties))
                 : [];
 
-            const addressControls = pgColumns.filter(control =>
+            const classAddressControls = columns.filter(control =>
                 addressFieldNames.has(control.PName?.toLowerCase() ?? "")
             );
+            const pgAddressControls = pgColumns.filter(control =>
+                addressFieldNames.has(control.PName?.toLowerCase() ?? "")
+            );
+            const allAddressControls = [...classAddressControls, ...pgAddressControls];
 
-            // Remove address controls from normal controls
+            const entityType = String(
+                selectedNodeKey.entityName || selectedNodeKey.type || selectedNodeKey.nodeType || selectedNode?.NodeType || selectedNode?.treetype || ""
+            ).toLowerCase();
+            const isBusinessOrContact = entityType.includes("business") || entityType.includes("contact");
+            const hasAddressControls = allAddressControls.length > 0 || isBusinessOrContact;
+
+            // Remove address controls from normal controls so they render in AddressForm instead of textboxes
+            const columnsForForm = columns.filter(control =>
+                !addressFieldNames.has(control.PName?.toLowerCase() ?? "")
+            );
             const pgControlsForForm = pgColumns.filter(control =>
                 !addressFieldNames.has(control.PName?.toLowerCase() ?? "")
             );
@@ -517,57 +531,43 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                 setIsOneToManyPgTable(false);
                 setOneToManyTableData(undefined);
             }
-            if (addressControls.length) {
+
+            if (hasAddressControls) {
                 const getProfileValue = (fieldName: string): string => {
-                    if (!pgTable) return "";
-                    const tableData =
-                        kebabData[String(pgTable.tableName)];
-
-                    if (!tableData) return "";
-
-                    // Handle both formats:
-                    // 1. [{ Address1: "...", GPS: "..." }]
-                    // 2. { Address1: "...", GPS: "..." }
-                    const parsedAddressData = Array.isArray(tableData)
-                        ? tableData[0]
-                        : tableData;
-
-                    if (!parsedAddressData) return "";
-
-                    // Exact key first
-                    if (parsedAddressData[fieldName] != null) {
-                        return String(parsedAddressData[fieldName]);
+                    const lowerField = fieldName.toLowerCase();
+                    // 1. Search in kebabData tables
+                    const tableKeys = Object.keys(kebabData || {});
+                    for (const key of tableKeys) {
+                        const tableData = kebabData[key];
+                        const parsed = Array.isArray(tableData) ? tableData[0] : tableData;
+                        if (parsed && typeof parsed === "object") {
+                            const row = parsed as Record<string, unknown>;
+                            if (row[fieldName] != null && row[fieldName] !== "") return String(row[fieldName]);
+                            if (row[lowerField] != null && row[lowerField] !== "") return String(row[lowerField]);
+                            const matchedKey = Object.keys(row).find(k => k.toLowerCase().endsWith(`_${lowerField}`));
+                            if (matchedKey && row[matchedKey] != null && row[matchedKey] !== "") return String(row[matchedKey]);
+                        }
                     }
-
-                    // Find dynamic/prefixed key
-                    // e.g. ContactDetails_Address1
-                    const matchedKey = Object.keys(parsedAddressData).find(
-                        key =>
-                            key.toLowerCase().endsWith(
-                                `_${fieldName.toLowerCase()}`
-                            )
-                    );
-
-                    return matchedKey
-                        ? String(parsedAddressData[matchedKey] ?? "")
-                        : "";
+                    // 2. Search in selectedNode
+                    if (selectedNode) {
+                        const nodeRec = selectedNode as Record<string, unknown>;
+                        if (nodeRec[lowerField] != null && nodeRec[lowerField] !== "") return String(nodeRec[lowerField]);
+                        if (nodeRec[fieldName] != null && nodeRec[fieldName] !== "") return String(nodeRec[fieldName]);
+                    }
+                    return "";
                 };
-                let addressValue: IAddress;
 
                 const gps = getProfileValue("GPS");
+                const [latitude = "", longitude = ""] = gps.split(",").map(value => value.trim());
 
-                const [latitude = "", longitude = ""] = gps
-                    .split(",")
-                    .map(value => value.trim());
-
-                addressValue = {
-                    Address1: getProfileValue("Address1"),
-                    Address2: getProfileValue("Address2"),
-                    City: getProfileValue("City"),
-                    State: getProfileValue("State"),
-                    Country: getProfileValue("Country"),
-                    Zip: getProfileValue("Zip"),
-                    CountryCode: getProfileValue("CountryCode"),
+                const addressValue: IAddress = {
+                    Address1: getProfileValue("Address1") || getProfileValue("address1") || getProfileValue("address_street"),
+                    Address2: getProfileValue("Address2") || getProfileValue("address2"),
+                    City: getProfileValue("City") || getProfileValue("city") || getProfileValue("address_city"),
+                    State: getProfileValue("State") || getProfileValue("state") || getProfileValue("address_state"),
+                    Country: getProfileValue("Country") || getProfileValue("country") || getProfileValue("address_country") || "United States",
+                    Zip: getProfileValue("Zip") || getProfileValue("zip") || getProfileValue("address_zip"),
+                    CountryCode: getProfileValue("CountryCode") || getProfileValue("countrycode"),
                     Latitude: latitude,
                     Longitude: longitude,
                     TimezoneOffset: getProfileValue("TimezoneOffset")
@@ -579,11 +579,11 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
             setPgRecord(pgTable);
             setKebabMenuData(kebabData);
             const form = FnBuildFormElementsFromDataset(
-                isShowMainHeader || addressControls.length ? "" : "Properties",
+                isShowMainHeader || hasAddressControls ? "" : "Properties",
                 {
                     [String(pgClassTable.tableName)]: {
                         label: String(pgClassTable.tableLabel || pgClassTable.tableName),
-                        columns
+                        columns: columnsForForm
                     },
                     ...(pgTable?.tableName && (!pgTable.isOneToManyRelation || showPgTableOneToOne)
                         ? {
@@ -1031,6 +1031,10 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
     const handleSaveProperties = (
         _event: React.MouseEvent<HTMLDivElement>
     ) => {
+        if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+        }
         void saveEntityProperties();
     };
 
@@ -1074,16 +1078,33 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
         }
     };
 
-    // Injects save and close handlers into form elements for the renderer.
+    // Auto-saves property changes after 2 seconds of inactivity when the form is dirty.
+    useEffect(() => {
+        if (isDirty) {
+            if (autoSaveTimerRef.current) {
+                clearTimeout(autoSaveTimerRef.current);
+            }
+            autoSaveTimerRef.current = setTimeout(() => {
+                void saveEntityProperties();
+            }, 2000);
+        }
+        return () => {
+            if (autoSaveTimerRef.current) {
+                clearTimeout(autoSaveTimerRef.current);
+            }
+        };
+    }, [isDirty, updatedProperties, updatedAddress]);
+
+    // Injects close handler into form elements for the renderer; onSave is omitted to use top header save button.
     const renderedFormElements = useMemo(() => {
         if (!formElements) return undefined;
         return {
             ...formElements,
             Formisdirty: isDirty,
-            onSave: propertyFormContainerProps.isReadOnly ? undefined : handleSavePropertyForm,
+            onSave: undefined,
             onX: propertyFormContainerProps.allowCloseButton ? handleClickX : undefined
         };
-    }, [formElements, isDirty, propertyFormContainerProps.isReadOnly, propertyFormContainerProps.allowCloseButton]);
+    }, [formElements, isDirty, propertyFormContainerProps.allowCloseButton]);
 
     const saveImageData: IImage = {
         source: <Save24x24

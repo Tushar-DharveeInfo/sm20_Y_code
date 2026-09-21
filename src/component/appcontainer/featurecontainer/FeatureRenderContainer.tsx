@@ -1,5 +1,5 @@
-import { lazy, Suspense, } from 'react'
-import { LibraryEnums, SettingsEnums, ServicesEnums, ClientEnums, HomeEnums, ProspectEnums } from '../../constants/Feature.ts'
+import { lazy, Suspense } from 'react'
+import { LibraryEnums, SettingsEnums, ServicesEnums, ClientEnums, HomeEnums, ProspectEnums, KnowledgeBaseEnums, AboutEnums } from '../../constants/Feature.ts'
 import ErrorBoundary from '../../shared/errorboundary/ErrorBoundary.tsx'
 import { Loader } from '../../shared/loader/Loader.tsx'
 import { Label } from '../../shared/basic/label/Label.tsx'
@@ -13,6 +13,8 @@ import { DownloadXlsxImportTemplates } from '../../features/services/downloadxls
 import ClientIdentityManagement from '../../features/settings/clientidentitymanagement/ClientIdentityManagement.tsx'
 
 const DashboardChartsContainer = lazy(() => import('../../features/home/dashboardchartscontainer/DashboardChartsContainer.tsx'))
+const MyProfile = lazy(() => import('../../features/profile/myprofile/MyProfile.tsx'))
+const MyActivities = lazy(() => import('../../features/profile/myactivities/MyActivities.tsx'))
 const FqaNotes = lazy(() => import('../../shared/sidebar/notes/FqaNotes.tsx'))
 
 // Library Features
@@ -25,6 +27,15 @@ const DailySchedular = lazy(() => import('../../features/settings/dailyschedular
 const SaasInstance = lazy(() => import('../../features/settings/saasinstance/SaasInstance.tsx'))
 // const ImportCollections = lazy(() => import('../../features/settings/importcollections/ImportCollections.tsx'))
 const ImpersonateService = lazy(() => import('../../features/services/impersonateservice/ImpersonateService.tsx'))
+
+// Knowledge Base & About Features
+const Faq = lazy(() => import('../../features/knowledgebase/faq/Faq.tsx'))
+const Eula = lazy(() => import('../../features/knowledgebase/eula/Eula.tsx'))
+const NetZoomBrochure = lazy(() => import('../../features/knowledgebase/netzoombrochure/NetZoomBrochure.tsx'))
+const VisioStencilsBrochure = lazy(() => import('../../features/knowledgebase/visiostencilsbrochure/VisioStencilsBrochure.tsx'))
+const AboutNetZoom = lazy(() => import('../../features/about/aboutnetzoom/AboutNetZoom.tsx'))
+
+import { OrderList } from '../../shared/sidebar/orderlist/OrderList.tsx'
 
 interface IFeatureRenderTarget {
     uniqueName: string;
@@ -52,11 +63,18 @@ interface IFeatureRenderContainer {
 const FeaturesWithOwnLayout: string[] = [
     HomeEnums.Home,
     HomeEnums.HomeDashboard,
+    HomeEnums.MyProfile,
+    HomeEnums.MyActivities,
     LibraryEnums.DeviceLibrary,
     SettingsEnums.DailySchedular,
     SettingsEnums.Import,
     ServicesEnums.CatalogAndDiscounts,
-    ServicesEnums.DownloadExcelTempates
+    ServicesEnums.DownloadExcelTempates,
+    KnowledgeBaseEnums.FAQ,
+    KnowledgeBaseEnums.EULA,
+    KnowledgeBaseEnums.NetZoomBrochure,
+    KnowledgeBaseEnums.VisioStencilsBrochure,
+    AboutEnums.AboutNetZoom,
 ];
 
 
@@ -107,6 +125,34 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText ?? 'Home'}
                             handleShowUserMessage={handleShowUserMessage} />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case HomeEnums.MyProfile:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <MyProfile
+                            uniqueName={'feature-my-profile'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'My Profile'}
+                            handleShowUserMessage={handleShowUserMessage}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case HomeEnums.MyActivities:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <MyActivities
+                            uniqueName={'feature-my-activities'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'My Activities'}
+                            handleShowUserMessage={handleShowUserMessage}
+                        />
                     </Suspense>
                 </ErrorBoundary>
             );
@@ -308,10 +354,92 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
         //         </ErrorBoundary>
         //     );
 
+        case KnowledgeBaseEnums.FAQ:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <Faq
+                            uniqueName={'feature-knowledgebase-faq'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'FAQ'}
+                            handleShowUserMessage={handleShowUserMessage} />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case KnowledgeBaseEnums.EULA:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <Eula
+                            uniqueName={'feature-knowledgebase-eula'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'EULA'}
+                            handleShowUserMessage={handleShowUserMessage} />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case KnowledgeBaseEnums.NetZoomBrochure:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <NetZoomBrochure
+                            uniqueName={'feature-knowledgebase-netzoom-brochure'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'NetZoom Brochure'}
+                            handleShowUserMessage={handleShowUserMessage} />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case KnowledgeBaseEnums.VisioStencilsBrochure:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <VisioStencilsBrochure
+                            uniqueName={'feature-knowledgebase-visio-stencils-brochure'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'Visio Stencils Brochure'}
+                            handleShowUserMessage={handleShowUserMessage} />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case AboutEnums.AboutNetZoom:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <AboutNetZoom
+                            uniqueName={'feature-about-about-netzoom'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'About NetZoom'}
+                            handleShowUserMessage={handleShowUserMessage} />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
         default: {
             const parentName = featureContainerProps.selectedFeatureData?.parentName?.toLowerCase();
+            const featureName = featureContainerProps.selectedFeatureData?.featureName?.toLowerCase();
+            const label = featureContainerProps.selectedFeatureData?.Label?.toLowerCase();
             const isClientExceptMcs = (parentName === 'client' || parentName === 'clients') && featureContainerProps.featureId !== ClientEnums.Mcs;
             const isProspect = parentName === 'prospect' || parentName === 'prospects';
+
+            if (featureName === 'orders' || featureName === 'order' || label === 'orders' || label === 'order') {
+                return (
+                    <ErrorBoundary>
+                        <Suspense fallback={<Loader />}>
+                            <OrderList
+                                uniqueName={`feature-orders-${featureContainerProps.featureId}`}
+                                headerText="Orders"
+                                selectedNode={selectedNode}
+                                featureId={featureContainerProps.featureId}
+                            />
+                        </Suspense>
+                    </ErrorBoundary>
+                );
+            }
 
             if (isClientExceptMcs || isProspect) {
                 return (

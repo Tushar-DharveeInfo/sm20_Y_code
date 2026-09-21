@@ -23,8 +23,11 @@ const FnMapContactsToTreeNodes = (
     }
 
     return contacts.map((contact) => {
+        const uniqueKey = (contact.cid && contact.cid.toLowerCase() !== contact.bid?.toLowerCase())
+            ? contact.cid
+            : `contact_${contact.cid || contact.bid}`;
         const treeNode: ITreeNode = {
-            key: contact.cid,
+            key: uniqueKey,
             NodeEntID: contact.cid,
             EntID: contact.cid,
             NodeEntityname: "Contact",

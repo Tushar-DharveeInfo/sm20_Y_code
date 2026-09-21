@@ -1,0 +1,83 @@
+.nz-my-activities-container {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.nz-my-activities-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-1);
+    overflow: hidden;
+    height: 100%;
+    overflow: hidden;
+}
+
+.nz-my-activities-content>* {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.nz-activities-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.nz-activities-status {
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    display: flex;
+}
+
+.nz-activities-grid .nz-grid-container-div,
+.nz-activities-grid .nz-OnetoOne-Grid,
+.nz-activities-grid .nz-grid-dialog-container-div,
+.nz-activities-grid .nz-grid-dialog-container-div .nz-grid-main-container-div {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    position: relative;
+}
+
+.nz-activities-grid .nz-grid-container-div {
+    padding: 0;
+}
+
+.nz-activities-grid .nz-ag-container {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100% !important;
+}
+
+.nz-activities-grid .ag-body-viewport {
+    overflow: auto !important;
+}
+
+.nz-activities-grid .ag-body-vertical-scroll {
+    display: block !important;
+}
+
+.nz-filter-activity {
+    display: flex;
+    position: absolute;
+    z-index: 99;
+    left: 30px;
+    top: 3px
+}
+
+.nz-my-activities-container .nz-grid-container-div .nz-copy-to-clipboard-only {
+    left: 5px !important
+}

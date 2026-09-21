@@ -16,6 +16,10 @@ export interface IBusinessDoc {
   bname: string;
   country: string;
   state: string;
+  address1?: string;
+  address2?: string;
+  city?: string;
+  zip?: string;
   daysnoticeperiod?: number;
   mmfinyear: number;
   relatedbids: string[];

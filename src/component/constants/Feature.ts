@@ -32,6 +32,8 @@ enum AppQA {
 enum HomeEnums {
     Home = "100",
     HomeDashboard = "102",
+    MyProfile = "104",
+    MyActivities = "106",
 }
 
 // Client menu feature ids — match public/smFeatures.json MenuID 200
@@ -72,6 +74,15 @@ enum ServicesEnums {
     DownloadExcelTempates = "506",
 }
 
+// Knowledge base menu feature ids — match public/smFeatures.json MenuID 600
+enum KnowledgeBaseEnums {
+    KnowledgeBase = "600",
+    FAQ = "602",
+    EULA = "604",
+    NetZoomBrochure = "606",
+    VisioStencilsBrochure = "608",
+}
+
 // Settings menu feature ids — match public/smFeatures.json MenuID 900
 enum SettingsEnums {
     Settings = "900",
@@ -79,6 +90,12 @@ enum SettingsEnums {
     DailySchedular = "908",
     Instance = "912",
     Import = "916",
+}
+
+// About menu feature ids — match public/smFeatures.json MenuID 990
+enum AboutEnums {
+    About = "990",
+    AboutNetZoom = "992",
 }
 
 enum deviceModelTabs {
@@ -107,7 +124,9 @@ export {
     , ProspectEnums
     , ServicesEnums
     , LibraryEnums
+    , KnowledgeBaseEnums
     , SettingsEnums
+    , AboutEnums
     , deviceModelTabs
     , FeatureQARange
     , SidebarEnum

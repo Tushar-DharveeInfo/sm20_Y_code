@@ -8,10 +8,14 @@ import { CardLayout } from "../../cardlayout/CardLayout";
 import { ICardLayoutField } from "../../cardlayout/CardLayout";
 import type { IContactDoc } from "../../allinterface/IDatasets";
 import { useSmDataContext } from "../../context/hooks/SmDataHooks";
+import { useCommonVariableContext } from "../../context/hooks/CommonVariableHooks";
+import { YesNoFormContainer } from "../../basic/yesnoformcontainer/YesNoFormContainer";
 import "./ContactList.css";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { useContacts } from "@n20a/libfsdb";
 import { FnMapToContactDocs } from "../../allcommon/dataset/FnMapToContactDoc";
+import { isPrimaryCompanyContact } from "../propertyformcontainer/ProfileAddFormContainer";
+import { FqaNotes } from "../notes/FqaNotes";
 
 interface IContactList {
     uniqueName: string;
@@ -22,7 +26,6 @@ interface IContactList {
 }
 
 function isBusinessExplorerNode(node?: ITreeNode): boolean {
-    debugger
     const nodeType = node?.NodeType?.toLowerCase() ?? "";
     return nodeType === "business" || nodeType === "contact";
 }
@@ -120,15 +123,20 @@ const buildContactCardFields = (contact: IContactDoc): ICardLayoutField[] => {
 
 const ContactList = (props: IContactList) => {
     const smDataContext = useSmDataContext();
+    const commonVariableContext = useCommonVariableContext();
     const [selectedContactId, setSelectedContactId] = useState<string>("");
     const [filterKeyword, setFilterKeyword] = useState<string>("");
+
+    const [contactToDelete, setContactToDelete] = useState<IContactDoc | null>(null);
+    const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+    const [confirmMessage, setConfirmMessage] = useState<string>("");
 
     const { bid, cid } = resolveBidCid(
         smDataContext.selection,
         smDataContext.selectedNode ?? (isBusinessExplorerNode(props.selectedNode) ? props.selectedNode : undefined)
     );
 
-    const { loading, error, getContacts, contacts } = useContacts(bid);
+    const { loading, error, getContacts, contacts, deleteContact } = useContacts(bid);
 
     useEffect(() => {
         if (bid) {
@@ -136,12 +144,69 @@ const ContactList = (props: IContactList) => {
         }
     }, [bid, getContacts]);
 
+    const handleDeleteContact = (contact: IContactDoc) => {
+        if (isPrimaryCompanyContact(contact.cid, contact.bid)) {
+            const msg = "Primary contact created with company cannot be deleted individually. It can be deleted only when the business record is deleted.";
+            if (props.handleShowUserMessage) {
+                props.handleShowUserMessage(msg);
+            } else {
+                alert(msg);
+            }
+            return;
+        }
+
+        const name = contact.cname || contact.cid;
+        setContactToDelete(contact);
+        setConfirmMessage(`Are you sure you want to delete contact "${name}"?`);
+        setIsConfirmOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!contactToDelete) return;
+        const targetContact = contactToDelete;
+        setIsConfirmOpen(false);
+        setContactToDelete(null);
+
+        try {
+            if (deleteContact) {
+                await deleteContact(targetContact.cid);
+            }
+            if (smDataContext?.updateDataset && smDataContext.datasets?.contacts) {
+                const remaining = smDataContext.datasets.contacts.filter((c) => c.cid !== targetContact.cid);
+                smDataContext.updateDataset("contacts", remaining);
+            }
+            if (bid) {
+                void getContacts();
+            }
+            if (props.featureId) {
+                commonVariableContext.setReloadTreeFor({
+                    featureId: props.featureId,
+                    entId: targetContact.bid || bid,
+                });
+            }
+        } catch (err) {
+            console.error("Failed to delete contact:", err);
+        }
+    };
+
     const businessContacts = useMemo<IContactDoc[]>(() => {
-        if (!bid || !Array.isArray(contacts)) {
+        if (!bid) {
             return [];
         }
-        return FnMapToContactDocs(contacts, bid);
-    }, [bid, contacts]);
+        const fsContacts = Array.isArray(contacts) ? FnMapToContactDocs(contacts, bid) : [];
+        const localContacts = (smDataContext?.datasets?.contacts ?? []).filter(
+            (c) => String(c.bid ?? "").trim().toLowerCase() === bid.toLowerCase()
+        );
+
+        const map = new Map<string, IContactDoc>();
+        for (const c of localContacts) {
+            if (c.cid) map.set(c.cid.toLowerCase(), c);
+        }
+        for (const c of fsContacts) {
+            if (c.cid) map.set(c.cid.toLowerCase(), c);
+        }
+        return Array.from(map.values());
+    }, [bid, contacts, smDataContext?.datasets?.contacts]);
 
     useEffect(() => {
         if (cid) {
@@ -185,6 +250,25 @@ const ContactList = (props: IContactList) => {
         });
     }, [businessContacts, filterKeyword]);
 
+    const selectedContact = useMemo(() => {
+        return businessContacts.find((c) => c.cid === selectedContactId) || (businessContacts.length > 0 ? businessContacts[0] : null);
+    }, [businessContacts, selectedContactId]);
+
+    const selectedContactNode = useMemo<ITreeNode | undefined>(() => {
+        if (!selectedContact) {
+            return undefined;
+        }
+        return {
+            key: selectedContact.cid,
+            bid: selectedContact.bid || bid,
+            cid: selectedContact.cid,
+            NodeType: "contact",
+            treetype: "contact",
+            NodeEntityname: selectedContact.cname || selectedContact.cid,
+            Name: selectedContact.cname || selectedContact.cid,
+        };
+    }, [selectedContact, bid]);
+
     return (
         <div
             className="nz-sidebar-contact-list-container"
@@ -192,76 +276,109 @@ const ContactList = (props: IContactList) => {
             onKeyDown={handleNestedZoneContainerKeyDown}
             key={props.uniqueName}
         >
-            <div className="nz-sub-header">
-                <Label
-                    uniqueName={`${props.uniqueName}-task-header`}
-                    label={`${props.headerText ?? "Contacts"}${businessContacts.length > 0 ? ` (${filteredContacts.length})` : ""
-                        }`}
-                />
-            </div>
-
-            {businessContacts.length > 0 && (
-                <div className="nz-sidebar-contact-list-search">
-                    <EditTextXControl
-                        name={`${props.uniqueName}-filter`}
-                        label=""
-                        placeholder="Filter contacts..."
-                        value={filterKeyword}
-                        onChange={(val) => setFilterKeyword(String(val ?? ""))}
+            {/* Left Pane: Contacts List */}
+            <div className="nz-sidebar-contact-left-pane">
+                <div className="nz-sub-header">
+                    <Label
+                        uniqueName={`${props.uniqueName}-task-header`}
+                        label={`${props.headerText ?? "Contacts"}${businessContacts.length > 0 ? ` (${filteredContacts.length})` : ""}`}
                     />
                 </div>
-            )}
 
-            <div className="nz-sidebar-contact-list-content">
-                {loading ? (
-                    <div className="nz-sidebar-contact-list-empty">
-                        Loading contacts...
-                    </div>
-                ) : error ? (
-                    <div className="nz-sidebar-contact-list-empty">
-                        {error}
-                    </div>
-                ) : businessContacts.length === 0 ? (
-                    <div className="nz-sidebar-contact-list-empty">
-                        {bid
-                            ? "No contacts found for selected business"
-                            : "Select a business node to view contacts"}
-                    </div>
-                ) : filteredContacts.length === 0 ? (
-                    <div className="nz-sidebar-contact-list-empty">
-                        No contacts matching filter
-                    </div>
-                ) : (
-                    filteredContacts.map((contact, index) => (
-                        <CardLayout
-                            key={contact.cid || `${props.uniqueName}-card-${index}`}
-                            uniqueName={`${props.uniqueName}-contact-card-${contact.cid}`}
-                            className="nz-contact-card"
-                            data={contact}
-                            fields={buildContactCardFields(contact)}
-                            isSelected={selectedContactId === contact.cid}
-                            hideRightMouseMenu={true}
-                            onClick={() => setSelectedContactId(contact.cid)}
-                            ContentImage={{
-                                uniqueName: `${props.uniqueName}-contact-avatar-${contact.cid}`,
-                                source: (
-                                    <User24x24
-                                        size={FnGetCssVariable("--image-size-2")}
-                                        fill="none"
-                                        strokeWidth={1}
-                                    />
-                                ),
-                                w: "var(--image-size-2)",
-                                h: "var(--image-size-2)",
-                                type: "svg",
-                                tooltip: contact.cname || "Contact",
-                            }}
+                {businessContacts.length > 0 && (
+                    <div className="nz-sidebar-contact-list-search">
+                        <EditTextXControl
+                            name={`${props.uniqueName}-filter`}
+                            label=""
+                            placeholder="Filter contacts..."
+                            value={filterKeyword}
+                            onChange={(val) => setFilterKeyword(String(val ?? ""))}
                         />
-                    ))
+                    </div>
+                )}
+
+                <div className="nz-sidebar-contact-list-content">
+                    {loading ? (
+                        <div className="nz-sidebar-contact-list-empty">
+                            Loading contacts...
+                        </div>
+                    ) : error ? (
+                        <div className="nz-sidebar-contact-list-empty">
+                            {error}
+                        </div>
+                    ) : businessContacts.length === 0 ? (
+                        <div className="nz-sidebar-contact-list-empty">
+                            {bid
+                                ? "No contacts found for selected business"
+                                : "Select a business node to view contacts"}
+                        </div>
+                    ) : filteredContacts.length === 0 ? (
+                        <div className="nz-sidebar-contact-list-empty">
+                            No contacts matching filter
+                        </div>
+                    ) : (
+                        filteredContacts.map((contact, index) => (
+                            <CardLayout
+                                key={contact.cid || `${props.uniqueName}-card-${index}`}
+                                uniqueName={`${props.uniqueName}-contact-card-${contact.cid}`}
+                                className="nz-contact-card"
+                                data={contact}
+                                fields={buildContactCardFields(contact)}
+                                isSelected={selectedContactId === contact.cid}
+                                hideRightMouseMenu={true}
+                                allowDeleteButton={true}
+                                isDeleteDisabled={isPrimaryCompanyContact(contact.cid, contact.bid)}
+                                handleMouseForDelete={() => handleDeleteContact(contact)}
+                                onClick={() => setSelectedContactId(contact.cid)}
+                                ContentImage={{
+                                    uniqueName: `${props.uniqueName}-contact-avatar-${contact.cid}`,
+                                    source: (
+                                        <User24x24
+                                            size={FnGetCssVariable("--image-size-2")}
+                                            fill="none"
+                                            strokeWidth={1}
+                                        />
+                                    ),
+                                    w: "var(--image-size-2)",
+                                    h: "var(--image-size-2)",
+                                    type: "svg",
+                                    tooltip: contact.cname || "Contact",
+                                }}
+                            />
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* Right Pane: Notes for Selected Contact */}
+            <div className="nz-sidebar-contact-right-pane">
+                {selectedContactNode ? (
+                    <FqaNotes
+                        uniqueName={`notes-contact-${selectedContactId}`}
+                        hideSearchControl={false}
+                        selectedNode={selectedContactNode}
+                    />
+                ) : (
+                    <div className="nz-sidebar-contact-list-empty">
+                        Select a contact card to view notes
+                    </div>
                 )}
             </div>
+
+            <YesNoFormContainer
+                uniqueName={`${props.uniqueName}-delete-confirm`}
+                isOpen={isConfirmOpen}
+                dialogTitle="Confirm Delete"
+                message={confirmMessage}
+                handleYesButtonClick={handleConfirmDelete}
+                handleNoButtonClick={() => {
+                    setIsConfirmOpen(false);
+                    setContactToDelete(null);
+                }}
+            />
         </div>
     );
 };
 
 export { ContactList };
+

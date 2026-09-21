@@ -25,6 +25,18 @@ import { Label } from '../../basic/label/Label'
 import { useSessionContext } from '../../context/hooks/SessionHooks'
 import { FnCheckPermissionToEditName, IFeaturePermission } from '../../allcommon/FnCheckPermissionToEditName'
 
+const ADDRESS_FIELD_NAMES = new Set([
+    "address1",
+    "address2",
+    "city",
+    "state",
+    "country",
+    "zip",
+    "countrycode",
+    "gps",
+    "timezoneoffset"
+]);
+
 interface IControlProperties {
     uniqueName: string;
     isEditMode?: boolean;
@@ -315,32 +327,20 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
         if (!controls) return;
 
         try {
-            const addressFieldNames = new Set([
-                "address1",
-                "address2",
-                "city",
-                "state",
-                "country",
-                "zip",
-                "countrycode",
-                "gps",
-                "timezoneoffset"
-            ]);
-
             const shouldExtractAddressFields = Boolean(isAddressFormRequired)
                 || controls.some((control) => control.DisplayControl === DisplayControlEnums.AddressForm)
                 || controls.some((control) => (control.Name ?? "").toLowerCase() === "address1");
 
             const addressControls = shouldExtractAddressFields
                 ? controls.filter(control =>
-                    addressFieldNames.has(control.Name?.toLowerCase() ?? "")
+                    ADDRESS_FIELD_NAMES.has(control.Name?.toLowerCase() ?? "")
                 )
                 : [];
 
             // Remove address controls from normal controls
             const controlsForForm = shouldExtractAddressFields
                 ? controls.filter(control =>
-                    !addressFieldNames.has(control.Name?.toLowerCase() ?? "")
+                    !ADDRESS_FIELD_NAMES.has(control.Name?.toLowerCase() ?? "")
                 )
                 : controls;
 
@@ -388,7 +388,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                         fieldName.toLowerCase()
                 );
 
-                return String(control?.DefaultValue ?? "");
+                return String(control?.DefaultValue ?? control?.DefaultAPValue ?? control?.Value ?? "");
             };
 
             let addressValue: IAddress;
@@ -776,30 +776,30 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
             );
 
             const addressSectionName =
-                addressFormControl?.DisplayGroupControl;
+                addressFormControl?.DisplayGroupControl || "Address Details";
 
-            if (addressSectionName) {
-                const formData = profileData as unknown as IFormData;
+            const formData = (typeof profileData === "object" && profileData !== null && "TableSections" in profileData)
+                ? (profileData as unknown as IFormData)
+                : ({ TableSections: {} } as unknown as IFormData);
 
-                formData.TableSections = {
-                    ...(formData.TableSections ?? {}),
-                    [addressSectionName]: {
-                        ...(formData.TableSections?.[addressSectionName] ?? {}),
-                        Address1: updatedAddress.Address1 ?? "",
-                        Address2: updatedAddress.Address2 ?? "",
-                        City: updatedAddress.City ?? "",
-                        State: updatedAddress.State ?? "",
-                        Country: updatedAddress.Country ?? "",
-                        Zip: updatedAddress.Zip ?? "",
-                        GPS:
-                            updatedAddress.Latitude && updatedAddress.Longitude
-                                ? `${updatedAddress.Latitude},${updatedAddress.Longitude}`
-                                : ""
-                    }
-                };
+            formData.TableSections = {
+                ...(formData.TableSections ?? {}),
+                [addressSectionName]: {
+                    ...(formData.TableSections?.[addressSectionName] ?? {}),
+                    Address1: updatedAddress.Address1 ?? "",
+                    Address2: updatedAddress.Address2 ?? "",
+                    City: updatedAddress.City ?? "",
+                    State: updatedAddress.State ?? "",
+                    Country: updatedAddress.Country ?? "",
+                    Zip: updatedAddress.Zip ?? "",
+                    GPS:
+                        updatedAddress.Latitude && updatedAddress.Longitude
+                            ? `${updatedAddress.Latitude},${updatedAddress.Longitude}`
+                            : ""
+                }
+            };
 
-                profileData = formData;
-            }
+            profileData = formData;
         }
         handleSaveForm?.(
             JSON.stringify(isAddressFormRequired ? profileData : [profileData]),
@@ -807,16 +807,48 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
         );
     };
 
-    // Validates required controls against current form values.
+    // Validates required controls against current form values and address values.
     const isValidForm = (values: Record<string, unknown>) => {
-        if (!values) return false;
+        if (!values || !controls || controls.length === 0) return false;
         const updatedKeys = Object.keys(values);
-        const hasInvalidRequired = controls?.some((col) => {
-            const classKeyPrefix = `${col.DisplayGroupControl ?? "Default"}_${col.Name}_`;
-            const classKey = updatedKeys.find(k => k.startsWith(classKeyPrefix));
-            if (!classKey) return false;
-            const value = values[classKey];
-            return col.IsRequired && (value === "" || value === null || value === undefined);
+        const shouldExtractAddressFields = Boolean(isAddressFormRequired)
+            || controls.some((control) => control.DisplayControl === DisplayControlEnums.AddressForm)
+            || controls.some((control) => (control.Name ?? "").toLowerCase() === "address1");
+
+        const hasInvalidRequired = controls.some((col) => {
+            if (!col.IsRequired || col.disabled) return false;
+            const colName = col.Name ?? "";
+            const colNameLower = colName.toLowerCase();
+
+            // Address fields are handled by AddressForm when address fields are extracted
+            if (shouldExtractAddressFields && ADDRESS_FIELD_NAMES.has(colNameLower)) {
+                const addr = (updatedAddress ?? {}) as Record<string, any>;
+                const addrVal = addr[colName] ?? addr[colNameLower] ?? addr[colName.charAt(0).toUpperCase() + colName.slice(1)] ?? values[colName] ?? values[colNameLower];
+                if (addrVal === null || addrVal === undefined) return true;
+                if (typeof addrVal === "string" && addrVal.trim() === "") return true;
+                return false;
+            }
+
+            const cleanColName = colNameLower.replace(/[^a-z0-9]/g, "");
+            const classKeyPrefix = `${col.DisplayGroupControl ?? "Default"}_${colName}_`.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const classKey = updatedKeys.find(k => {
+                const kLower = k.toLowerCase();
+                const normK = kLower.replace(/[^a-z0-9]/g, "");
+                return kLower === colNameLower ||
+                       normK === cleanColName ||
+                       normK.startsWith(classKeyPrefix) ||
+                       kLower.endsWith(`_${colNameLower}`) ||
+                       kLower.includes(`_${colNameLower}_`);
+            });
+            const rawVal = classKey ? values[classKey] : (values[colName] ?? (selectedProfile ? (selectedProfile[colName] ?? selectedProfile[colNameLower]) : undefined));
+            if (rawVal === null || rawVal === undefined) return true;
+            if (typeof rawVal === "object" && rawVal !== null && "value" in (rawVal as any)) {
+                const inner = (rawVal as any).value;
+                if (inner === null || inner === undefined || (typeof inner === "string" && inner.trim() === "")) return true;
+                return false;
+            }
+            if (typeof rawVal === "string" && rawVal.trim() === "") return true;
+            return false;
         });
         return !hasInvalidRequired;
     };
@@ -856,21 +888,48 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
 
         setUpdatedAddress(address);
 
+        // Forward address changes to external handler and field change callback
+        const addressFields: Record<string, unknown> = {
+            address1: address.Address1 ?? "",
+            address2: address.Address2 ?? "",
+            city: address.City ?? "",
+            state: address.State ?? "",
+            country: address.Country ?? "",
+            zip: address.Zip ?? "",
+            Country: address.Country ?? "",
+            State: address.State ?? "",
+            City: address.City ?? "",
+            Address1: address.Address1 ?? "",
+            Address2: address.Address2 ?? "",
+            Zip: address.Zip ?? ""
+        };
+
+        const mergedValues = {
+            ...(updatedValuesRef.current ?? {}),
+            ...addressFields
+        };
+
+        handleValueChangeExternal?.(mergedValues);
+        handleValueChange?.(address.Country, 'country');
+        handleValueChange?.(address.State, 'state');
+        handleValueChange?.(address.City, 'city');
+        handleValueChange?.(address.Address1, 'address1');
+        handleValueChange?.(address.Address2, 'address2');
+        handleValueChange?.(address.Zip, 'zip');
+
         if (
             isAddressFormRequired &&
             allowShowHeader &&
             !isAutoSave
         ) {
             const valuesToValidate =
-                updatedValuesRef.current ?? selectedProfile;
+                updatedValuesRef.current ?? selectedProfile ?? {};
 
-            if (valuesToValidate) {
-                FnHideShowSaveIconForForm(
-                    isValidForm(valuesToValidate)
-                        ? "show"
-                        : "hide"
-                );
-            }
+            FnHideShowSaveIconForForm(
+                isValidForm(valuesToValidate)
+                    ? "show"
+                    : "hide"
+            );
         }
     };
 
@@ -935,7 +994,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                             h={'var(--node_height)'}
                             handleMouse={handleActionClick} actionCode={'help'} />}
                     {(!isAutoSave || isAddressFormRequired) &&
-                        <div className='nz-form-header-action-save nz-save-yellow-background' style={{ display: isFormValueChangedExternal ? 'block' : 'none' }}>
+                        <div className='nz-form-header-action-save nz-save-yellow-background' style={{ display: isFormValueChangedExternal === true ? 'block' : isFormValueChangedExternal === false ? 'none' : undefined }}>
                             <ActionImage uniqueName={`${uniqueName}-ai`} image={saveImageData} w={'var(--node_height)'} h={'var(--node_height)'} handleMouse={handleSaveClick} actionCode={''} />
                         </div>}
                     {allowTestIcon

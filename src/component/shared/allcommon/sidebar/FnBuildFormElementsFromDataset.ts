@@ -266,7 +266,13 @@ const FnBuildFormElementsFromDataset = (
                         col.Disabled ||
                         col.disabled ||
                         col.PName.toLowerCase() === "isnz" ||
-                        (col.disabled !== false && col.Disabled !== false && (col.PName.toLowerCase() === "bid" || col.PName.toLowerCase() === "cid"));
+                        (col.disabled !== false && col.Disabled !== false && (
+                            col.PName.toLowerCase() === "bid" ||
+                            col.PName.toLowerCase() === "cid" ||
+                            col.PName.toLowerCase() === "email" ||
+                            col.PName.toLowerCase() === "country" ||
+                            col.PName.toLowerCase() === "address_country"
+                        ));
                     if (col.PName.toLowerCase() === "secured" && userBasicRole?.toLowerCase() !== "admin") {
                         isReadOnlyControl = true;
                     }
@@ -343,7 +349,18 @@ const FnBuildFormElementsFromDataset = (
                         nullAllowed: col.NullNotAllowed ? false : true,
                         disabled: isReadOnlyControl || isDisabled,
                         onChangedValue: isReadOnlyControl ? undefined : handleControlValueChange,
-                        fndisplaycontrolValues: col.InputMask ? async () => {
+                        fndisplaycontrolValues: (col.options || col.InputMask) ? async () => {
+                            if (Array.isArray(col.options) && col.options.length) {
+                                const mapped = col.options.map((option: any): IOptionItem => ({
+                                    label: String(option.label ?? option.value ?? ""),
+                                    value: String(option.value ?? ""),
+                                    disabled: Boolean(option.disabled),
+                                }));
+                                return {
+                                    value: row ? (row[col.PName] ?? "") : "",
+                                    options: mapped,
+                                };
+                            }
                             if (
                                 col.InputMask?.length &&
                                 !col.InputMask.includes('{')

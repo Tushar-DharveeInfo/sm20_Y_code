@@ -18,6 +18,7 @@ import { useHelpTipContext } from '../context/hooks/HelptipHooks'
 // import { Assign } from './assign/Assign'
 import { AlertLog } from './alertlog/AlertLog'
 import { ContactList } from './contactlist/ContactList'
+import { OrderList } from './orderlist/OrderList'
 import { buildPropertyFormDataFromSelectedNode } from './propertyformcontainer/PropertySampleData'
 import { IMenuItem } from '../allinterface/menu/IMainMenu'
 import { FnIsRootBusinessNode } from '../allcommon/tree/FnIsRootBusinessNode'
@@ -314,6 +315,19 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                     <ContactList
                         uniqueName="sidebar-contact-list"
                         headerText="Contacts"
+                        selectedNode={selectedNode}
+                        featureId={sidebarProps.featureId}
+                    />
+                );
+
+            case "Order":
+            case "Orders":
+            case "order":
+            case "orders":
+                return (
+                    <OrderList
+                        uniqueName="sidebar-order-list"
+                        headerText="Orders"
                         selectedNode={selectedNode}
                         featureId={sidebarProps.featureId}
                     />
