@@ -54,3 +54,16 @@
     color: var(--textsecondary);
     font-size: var(--default_font_size);
 }
+
+.nz-filter-log {
+    display: flex;
+    position: absolute;
+    z-index: 99;
+    left: 30px;
+    top: 3px;
+}
+
+.nz-appqa-log-container .nz-grid-container-div .nz-copy-to-clipboard-only {
+    left: 5px !important;
+}
+

@@ -73,6 +73,7 @@ interface ITreeControl {
     allowInternalDrag?: boolean | DraggableFn | DraggableConfig | undefined; // Enable drag-and-drop within the tree
     allowCheckStrictly?: boolean; // Strict checking for parent-child nodes
     allowAdd?: boolean;// To show Add button 
+    addLabel?: string;// Custom label for Add button
     addTooltip?: string;// Custom tooltip for Add button
     addActionCode?: string;// Custom action code for Add button
     allowAddBusiness?: boolean;// To show Add Business button

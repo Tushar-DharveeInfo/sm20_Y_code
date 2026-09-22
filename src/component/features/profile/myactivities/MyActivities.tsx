@@ -19,17 +19,15 @@ import type { IControl } from '../../../shared/settingsform/settingslibform/Sett
 import './MyActivities.css'
 
 interface IMyActivities {
-    uniqueName: string;//uniqueName for the control and required
-    featureId: string;// feature id
-    headerText?: string;// header text coming from the selected menu item
-    allowSort?: boolean;// allow grid column sort, defaults to true
+    uniqueName: string;
+    featureId: string;
+    headerText?: string;
+    allowSort?: boolean;
     handleShowUserMessage?: (messageText: string) => void;
 }
 
 function formatActivityDate(value: unknown): string {
-    if (value == null || value === '') {
-        return '';
-    }
+    if (value == null || value === '') return '';
     if (typeof value === 'string') {
         return FnConvertDateToUtcOrUtcToDate(value, false, true) || value;
     }
@@ -44,12 +42,8 @@ function formatActivityDate(value: unknown): string {
 
 function parseActivityDate(value: unknown, row?: Record<string, unknown>): number {
     if (value != null && value !== '') {
-        if (typeof value === 'number') {
-            return value;
-        }
-        if (value instanceof Date) {
-            return value.getTime();
-        }
+        if (typeof value === 'number') return value;
+        if (value instanceof Date) return value.getTime();
         if (typeof value === 'object') {
             if ('toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
                 return (value as { toDate: () => Date }).toDate().getTime();
@@ -60,22 +54,66 @@ function parseActivityDate(value: unknown, row?: Record<string, unknown>): numbe
         }
         if (typeof value === 'string') {
             const parsed = Date.parse(value);
-            if (!isNaN(parsed)) {
-                return parsed;
-            }
+            if (!isNaN(parsed)) return parsed;
         }
     }
-    // Fallback: extract timestamp if activityid ends with numeric timestamp (e.g. activity_cid_1788857795000)
     if (row && typeof row.activityid === 'string') {
         const match = row.activityid.match(/_(\d{10,13})$/);
         if (match) {
             const ts = Number(match[1]);
-            if (!isNaN(ts)) {
-                return ts;
-            }
+            if (!isNaN(ts)) return ts;
         }
     }
     return 0;
+}
+
+/**
+ * Parse a filter date string to start/end of that calendar day (local time)
+ * using the common FnConvertDateToUtcOrUtcToDate function.
+ */
+function parseFilterDateRange(raw: string): { start: number; end: number } | null {
+    if (!raw?.trim()) return null;
+    const str = raw.trim();
+
+    try {
+        let utcIsoString = '';
+        // If input is in ISO format (YYYY-MM-DD), convert to local date format first
+        if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(str)) {
+            const localFormatted = FnConvertDateToUtcOrUtcToDate(str, false, false);
+            if (localFormatted) {
+                utcIsoString = FnConvertDateToUtcOrUtcToDate(localFormatted, true, true);
+            }
+        } else {
+            // Local date input (e.g. 21-09-2026 or 09/21/2026) -> convert using common function
+            utcIsoString = FnConvertDateToUtcOrUtcToDate(str, true, true);
+        }
+
+        if (utcIsoString) {
+            const dateObj = new Date(utcIsoString);
+            if (!isNaN(dateObj.getTime())) {
+                const year = dateObj.getFullYear();
+                const month = dateObj.getMonth();
+                const day = dateObj.getDate();
+                return {
+                    start: new Date(year, month, day, 0, 0, 0, 0).getTime(),
+                    end: new Date(year, month, day, 23, 59, 59, 999).getTime(),
+                };
+            }
+        }
+    } catch (err) {
+        console.error('Error in parseFilterDateRange using FnConvertDateToUtcOrUtcToDate:', err);
+    }
+
+    // Direct fallback if conversion did not produce a valid date
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+        return {
+            start: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0).getTime(),
+            end: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime(),
+        };
+    }
+
+    return null;
 }
 
 const MyActivities = (myActivitiesProps: IMyActivities) => {
@@ -98,34 +136,21 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
     const [isPopupOpen, setIsPopupOpen] = useState<boolean>(false);
 
     const hasCheckedInitialLoadRef = useRef(false);
-
-    const triggerOver500Popup = useCallback(() => {
-        const msg = "More than 500 records exist. Please use filter to refine your search.";
-        if (myActivitiesProps.handleShowUserMessage) {
-            myActivitiesProps.handleShowUserMessage(msg);
-        }
-        setPopupMessage(msg);
-        setIsPopupOpen(true);
-    }, [myActivitiesProps]);
+    const latestFilterValuesRef = useRef<Record<string, unknown>>({});
 
     const fetchActivitiesData = useCallback(async () => {
-        if (!bid) {
-            setActivities([]);
-            return;
-        }
+        if (!bid) { setActivities([]); return; }
         setLoading(true);
         setError(null);
         try {
             const filters: IFirestoreQueryFilter[] | undefined = cid
                 ? [{ field: 'cid', op: '==', value: cid }]
                 : undefined;
-
             const res = await queryDocuments({
                 pathSegments: ['businesses', bid, 'activities'],
                 filters,
                 limit: 501,
             });
-
             if (res && res.success === false) {
                 setError(res.error || res.details || 'Failed to fetch activities');
                 setActivities([]);
@@ -140,95 +165,77 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
         }
     }, [bid, cid, queryDocuments]);
 
-    useEffect(() => {
-        void fetchActivitiesData();
-    }, [fetchActivitiesData]);
+    useEffect(() => { void fetchActivitiesData(); }, [fetchActivitiesData]);
 
     useEffect(() => {
-        if (!loading && activities) {
+        if (!loading && activities !== null) {
             if (!hasCheckedInitialLoadRef.current) {
                 hasCheckedInitialLoadRef.current = true;
                 if (activities.length >= 501) {
+                    debugger
                     setIsFilterIconVisible(true);
-                    triggerOver500Popup();
+                    setPopupMessage("More than 500 records exist. Please use filter to refine your search.");
+                    setIsPopupOpen(true);
                 } else {
                     setIsFilterIconVisible(false);
                 }
             }
         }
-    }, [loading, activities, triggerOver500Popup]);
+    }, [loading, activities]);
+
+    // profileString built from appliedFilter — used to pre-populate the filter form on reopen.
+    // Because PopupFilterForm is conditionally rendered (truly unmounts/remounts), this value
+    // is read fresh from appliedFilter every time the dialog opens.
+    const filterProfileString = useMemo(() => {
+        if (!appliedFilter.datecreated && !appliedFilter.message) return '';
+        return JSON.stringify([{
+            datecreated: appliedFilter.datecreated ?? '',
+            message: appliedFilter.message ?? '',
+        }]);
+    }, [appliedFilter]);
 
     const filterFormControls = useMemo<IControl[]>(() => [
         {
-            CanChange: 1,
-            IsRequired: 0,
-            GroupName: 'FilterDetails',
-            GroupNameDesc: 'Filter Activities',
-            SubGroupEntID: '',
-            SubGroupName: 'FormControl',
-            SubGroupNameDesc: '',
-            _AP: 'datecreated',
-            PropertyLabel: 'Date Created',
+            CanChange: 1, IsRequired: 0,
+            GroupName: 'FilterDetails', GroupNameDesc: 'Filter Activities',
+            SubGroupEntID: '', SubGroupName: 'FormControl', SubGroupNameDesc: '',
+            _AP: 'datecreated', PropertyLabel: 'Date Created',
             NameDesc: 'Filter by date created',
-            DefaultAPValue: '',
+            DefaultAPValue: appliedFilter.datecreated ?? '',
             Value: appliedFilter.datecreated || null,
-            ValueDesc: '',
-            SortOrder: 1,
-            MaxInstances: 0,
-            InputMask: null,
-            RegEx: null,
+            ValueDesc: '', SortOrder: 1, MaxInstances: 0,
+            InputMask: null, RegEx: null,
             DisplayGroupControl: 'Filter Activities',
-            DisplayControl: 'DateControl',
-            ChangeEvent: '',
-            Secured: false,
-            IsNZ: true,
-            EntID: 'datecreated',
-            RecID: 'datecreated',
-            LastUpdated: '',
-            EntityName: 'Activity',
-            Name: 'datecreated',
-            disabled: false,
+            DisplayControl: 'DateControl', ChangeEvent: '',
+            Secured: false, IsNZ: true,
+            EntID: 'datecreated', RecID: 'datecreated',
+            LastUpdated: '', EntityName: 'Activity',
+            Name: 'datecreated', disabled: false,
         },
         {
-            CanChange: 1,
-            IsRequired: 0,
-            GroupName: 'FilterDetails',
-            GroupNameDesc: 'Filter Activities',
-            SubGroupEntID: '',
-            SubGroupName: 'FormControl',
-            SubGroupNameDesc: '',
-            _AP: 'message',
-            PropertyLabel: 'Message',
+            CanChange: 1, IsRequired: 0,
+            GroupName: 'FilterDetails', GroupNameDesc: 'Filter Activities',
+            SubGroupEntID: '', SubGroupName: 'FormControl', SubGroupNameDesc: '',
+            _AP: 'message', PropertyLabel: 'Message',
             NameDesc: 'Filter by message content',
-            DefaultAPValue: '',
+            DefaultAPValue: appliedFilter.message ?? '',
             Value: appliedFilter.message || null,
-            ValueDesc: '',
-            SortOrder: 2,
-            MaxInstances: 0,
-            InputMask: null,
-            RegEx: null,
+            ValueDesc: '', SortOrder: 2, MaxInstances: 0,
+            InputMask: null, RegEx: null,
             DisplayGroupControl: 'Filter Activities',
-            DisplayControl: 'EditTextControl',
-            ChangeEvent: '',
-            Secured: false,
-            IsNZ: true,
-            EntID: 'message',
-            RecID: 'message',
-            LastUpdated: '',
-            EntityName: 'Activity',
-            Name: 'message',
-            disabled: false,
+            DisplayControl: 'EditTextControl', ChangeEvent: '',
+            Secured: false, IsNZ: true,
+            EntID: 'message', RecID: 'message',
+            LastUpdated: '', EntityName: 'Activity',
+            Name: 'message', disabled: false,
         },
     ], [appliedFilter]);
 
     const columnDefs = useMemo<IBasicGridColDef[]>(() => [
         {
-            headerName: 'Date Created',
-            field: 'datecreated',
-            width: 180,
-            resizable: true,
-            sortable: myActivitiesProps.allowSort ?? true,
-            sort: 'desc',
+            headerName: 'Date Created', field: 'datecreated',
+            width: 180, resizable: true,
+            sortable: myActivitiesProps.allowSort ?? true, sort: 'desc',
             comparator: (valueA: unknown, valueB: unknown, nodeA, nodeB) => {
                 const timeA = parseActivityDate(valueA, nodeA?.data as Record<string, unknown> | undefined);
                 const timeB = parseActivityDate(valueB, nodeB?.data as Record<string, unknown> | undefined);
@@ -239,11 +246,8 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
             ),
         },
         {
-            headerName: 'Message',
-            field: 'message',
-            flex: 1,
-            minWidth: 220,
-            resizable: true,
+            headerName: 'Message', field: 'message',
+            flex: 1, minWidth: 220, resizable: true,
             sortable: myActivitiesProps.allowSort ?? true,
         },
     ], [myActivitiesProps.allowSort]);
@@ -253,74 +257,155 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
         let list = [...activities];
 
         if (appliedFilter.datecreated?.trim()) {
-            const filterDateStr = appliedFilter.datecreated.trim().toLowerCase();
+            const filterDateRaw = appliedFilter.datecreated.trim();
+            const dateRange = parseFilterDateRange(filterDateRaw);
+            const normalizedFilterDate = (/^\d{4}[-/]/.test(filterDateRaw)
+                ? FnConvertDateToUtcOrUtcToDate(filterDateRaw, false, false)
+                : filterDateRaw
+            ).replace(/[-]/g, '/').toLowerCase();
+
             list = list.filter((row) => {
-                const formatted = formatActivityDate(row.datecreated).toLowerCase();
-                const rawStr = String(row.datecreated || '').toLowerCase();
-                return formatted.includes(filterDateStr) || rawStr.includes(filterDateStr);
+                // 1. Check timestamp range from parseFilterDateRange
+                if (dateRange) {
+                    const ts = parseActivityDate(row.datecreated, row as Record<string, unknown>);
+                    if (ts >= dateRange.start && ts <= dateRange.end) {
+                        return true;
+                    }
+                }
+
+                // 2. Direct day comparison using FnConvertDateToUtcOrUtcToDate
+                if (row.datecreated) {
+                    const rowLocalDate = FnConvertDateToUtcOrUtcToDate(
+                        String(row.datecreated),
+                        false,
+                        false
+                    ).replace(/[-]/g, '/').toLowerCase();
+                    if (rowLocalDate && rowLocalDate === normalizedFilterDate) {
+                        return true;
+                    }
+                }
+
+                // 3. Fallback: formatted display string or raw string includes filter text
+                const fmt = formatActivityDate(row.datecreated).toLowerCase();
+                const raw = String(row.datecreated || '').toLowerCase();
+                return fmt.includes(filterDateRaw.toLowerCase()) || raw.includes(filterDateRaw.toLowerCase());
             });
         }
 
         if (appliedFilter.message?.trim()) {
-            const filterMsgStr = appliedFilter.message.trim().toLowerCase();
-            list = list.filter((row) => {
-                const msg = String(row.message || '').toLowerCase();
-                return msg.includes(filterMsgStr);
-            });
+            const fMsg = appliedFilter.message.trim().toLowerCase();
+            list = list.filter((row) => String(row.message || '').toLowerCase().includes(fMsg));
         }
 
         return list.sort((a, b) => {
-            const timeA = parseActivityDate(a?.datecreated, a as Record<string, unknown>);
-            const timeB = parseActivityDate(b?.datecreated, b as Record<string, unknown>);
-            return timeB - timeA; // Descending: newest record on top
+            const tA = parseActivityDate(a?.datecreated, a as Record<string, unknown>);
+            const tB = parseActivityDate(b?.datecreated, b as Record<string, unknown>);
+            return tB - tA;
         });
     }, [activities, appliedFilter]);
 
-    // Slice to display max 500 records on grid
-    const rowData = useMemo(() => {
-        return allFilteredRows.slice(0, 500);
-    }, [allFilteredRows]);
+    const rowData = useMemo(() => allFilteredRows.slice(0, 500), [allFilteredRows]);
 
     const handleDownloadExcel = useCallback(() => {
         const api = gridRef.current?.api;
-        const rows: (string | number)[][] = [
-            ['Date Created', 'Message']
-        ];
-
+        const rows: (string | number)[][] = [['Date Created', 'Message']];
         if (api) {
             api.forEachNodeAfterFilterAndSort((node) => {
                 if (node.group) return;
-                const dateVal = formatActivityDate(node.data?.datecreated);
-                const msgVal = node.data?.message != null ? String(node.data.message) : '';
-                rows.push([dateVal, msgVal]);
+                rows.push([formatActivityDate(node.data?.datecreated), node.data?.message != null ? String(node.data.message) : '']);
             });
-        } else if (rowData.length > 0) {
-            rowData.forEach((row) => {
-                const dateVal = formatActivityDate(row.datecreated);
-                const msgVal = row.message != null ? String(row.message) : '';
-                rows.push([dateVal, msgVal]);
-            });
+        } else {
+            rowData.forEach((row) => rows.push([formatActivityDate(row.datecreated), row.message != null ? String(row.message) : '']));
         }
-
-        if (rows.length <= 1) {
-            return;
-        }
-
+        if (rows.length <= 1) return;
         try {
-            const workbook = XLSX.utils.book_new();
-            const worksheet = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'MyActivities');
-
-            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-            const blob = new Blob([wbout], {
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'MyActivities');
+            saveAs(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], {
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            });
-            saveAs(blob, 'myactivities.xlsx');
-        } catch (error) {
-            console.error('MyActivities: failed to export Excel', error);
+            }), 'myactivities.xlsx');
+        } catch (err) {
+            console.error('MyActivities: failed to export Excel', err);
             myActivitiesProps.handleShowUserMessage?.('Unable to export activities. Please try again.');
         }
     }, [rowData, myActivitiesProps]);
+
+    function extractFieldValue(data: Record<string, unknown>, fieldName: string): string {
+        if (!data || typeof data !== 'object') return '';
+
+        if (data[fieldName] !== undefined && data[fieldName] !== null && String(data[fieldName]).trim() !== '') {
+            return String(data[fieldName]);
+        }
+
+        const target = fieldName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        for (const [key, value] of Object.entries(data)) {
+            if (value === undefined || value === null || String(value).trim() === '') continue;
+
+            const kLower = key.toLowerCase();
+            const cleanK = kLower.replace(/[^a-z0-9]/g, '');
+
+            if (cleanK === target || kLower.endsWith(`_${fieldName.toLowerCase()}`) || kLower.includes(`_${fieldName.toLowerCase()}_`) || kLower.includes(fieldName.toLowerCase())) {
+                return String(value);
+            }
+        }
+
+        return '';
+    }
+
+    const handleApplyFilter = useCallback((_filterDataJson: string, parsedData: Record<string, unknown>) => {
+        // Merge parsedData with the real-time tracked values from latestFilterValuesRef.
+        // This is critical: when the user sets ONLY the date and saves,
+        // parsedData may only have keys the user actually touched. The ref has everything
+        // including pre-populated values from profileString that were never re-fired by the form.
+        const merged = { ...latestFilterValuesRef.current, ...parsedData };
+
+        const datecreated = extractFieldValue(merged, 'datecreated').trim();
+        const message = extractFieldValue(merged, 'message').trim();
+
+        setAppliedFilter({ datecreated, message });
+        setIsFilterOpen(false);
+
+
+        let list = activities ? [...activities] : [];
+        if (datecreated) {
+            const dateRange = parseFilterDateRange(datecreated);
+            const normalizedFilterDate = (/^\d{4}[-/]/.test(datecreated)
+                ? FnConvertDateToUtcOrUtcToDate(datecreated, false, false)
+                : datecreated
+            ).replace(/[-]/g, '/').toLowerCase();
+
+            list = list.filter((row) => {
+                if (dateRange) {
+                    const ts = parseActivityDate(row.datecreated, row as Record<string, unknown>);
+                    if (ts >= dateRange.start && ts <= dateRange.end) {
+                        return true;
+                    }
+                }
+                if (row.datecreated) {
+                    const rowLocalDate = FnConvertDateToUtcOrUtcToDate(
+                        String(row.datecreated),
+                        false,
+                        false
+                    ).replace(/[-]/g, '/').toLowerCase();
+                    if (rowLocalDate && rowLocalDate === normalizedFilterDate) {
+                        return true;
+                    }
+                }
+                const fmt = formatActivityDate(row.datecreated).toLowerCase();
+                return fmt.includes(datecreated.toLowerCase()) || String(row.datecreated || '').toLowerCase().includes(datecreated.toLowerCase());
+            });
+        }
+        if (message) {
+            list = list.filter((row) => String(row.message || '').toLowerCase().includes(message.toLowerCase()));
+        }
+        if (list.length >= 501) {
+            debugger
+            setPopupMessage("More than 500 records exist. Please use filter to refine your search.");
+            setIsPopupOpen(true);
+        }
+    }, [activities]);
+
 
     const showGrid = !loading && !error && rowData.length > 0;
 
@@ -334,7 +419,6 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
                         fontWeight='600'
                     />
                 </div>
-
             </div>
             <div className='nz-my-activities-content'>
                 <div className='nz-activities-grid'>
@@ -394,61 +478,50 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
                     )}
                 </div>
             </div>
-            <PopupFilterForm
-                uniqueName={`${myActivitiesProps.uniqueName}-popup-filter`}
-                isOpen={isFilterOpen}
-                headerText="Filter Activities"
-                controls={filterFormControls}
-                isFilterChange={Boolean(appliedFilter.datecreated || appliedFilter.message)}
-                onApplyFilter={(_filterDataJson: string, parsedData: Record<string, unknown>) => {
-                    const datecreated = String(
-                        parsedData.datecreated ??
-                        parsedData.DateCreated ??
-                        parsedData['Filter Activities_datecreated'] ??
-                        ''
-                    ).trim();
-                    const message = String(
-                        parsedData.message ??
-                        parsedData.Message ??
-                        parsedData['Filter Activities_message'] ??
-                        ''
-                    ).trim();
 
-                    setAppliedFilter({ datecreated, message });
-                    setIsFilterOpen(false);
 
-                    // Check if matching filtered records count is >= 501
-                    let list = activities ? [...activities] : [];
-                    if (datecreated) {
-                        const filterDateStr = datecreated.toLowerCase();
-                        list = list.filter((row) => {
-                            const formatted = formatActivityDate(row.datecreated).toLowerCase();
-                            const rawStr = String(row.datecreated || '').toLowerCase();
-                            return formatted.includes(filterDateStr) || rawStr.includes(filterDateStr);
-                        });
-                    }
-                    if (message) {
-                        const filterMsgStr = message.toLowerCase();
-                        list = list.filter((row) => {
-                            const msg = String(row.message || '').toLowerCase();
-                            return msg.includes(filterMsgStr);
-                        });
-                    }
+            {isFilterOpen && (() => {
+                // Seed the ref with current applied values so handleApplyFilter has them
+                // even before the user touches any field.
+                latestFilterValuesRef.current = {
+                    datecreated: appliedFilter.datecreated ?? '',
+                    message: appliedFilter.message ?? '',
+                };
+                return (
+                    <PopupFilterForm
+                        uniqueName={`${myActivitiesProps.uniqueName}-popup-filter`}
+                        isOpen={isFilterOpen}
+                        headerText="Filter Activities"
+                        controls={filterFormControls}
+                        profileString={filterProfileString}
+                        isFilterChange={Boolean(appliedFilter.datecreated || appliedFilter.message)}
+                        onApplyFilter={handleApplyFilter}
+                        onFilterChange={(values) => {
+                            // Merge every field change into the ref so handleApplyFilter
+                            // always has the latest value the user picked.
+                            const dateVal = extractFieldValue(values, 'datecreated');
+                            const msgVal = extractFieldValue(values, 'message');
+                            latestFilterValuesRef.current = {
+                                ...latestFilterValuesRef.current,
+                                ...values,
+                                ...(dateVal ? { datecreated: dateVal } : {}),
+                                ...(msgVal ? { message: msgVal } : {}),
+                            };
+                        }}
+                        onClose={() => setIsFilterOpen(false)}
+                    />
+                );
+            })()}
 
-                    if (list.length >= 501) {
-                        triggerOver500Popup();
-                    }
-                }}
-                onClose={() => setIsFilterOpen(false)}
-            />
-            <YesNoFormContainer
+
+            {isPopupOpen && <YesNoFormContainer
                 uniqueName={`${myActivitiesProps.uniqueName}-over-500-popup`}
                 isOpen={isPopupOpen}
                 message={popupMessage}
                 dialogTitle="Information"
                 showOkButton={true}
                 handleOkButtonClick={() => setIsPopupOpen(false)}
-            />
+            />}
         </div>
     )
 }

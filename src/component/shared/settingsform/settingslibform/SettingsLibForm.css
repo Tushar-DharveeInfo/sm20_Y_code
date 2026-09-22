@@ -22,6 +22,10 @@
     flex-direction: row;
 }
 
+.nz-settings-lib-form-container .nz-form-action-header .nz-form-header-action-save {
+    display: none;
+}
+
 .nz-settings-lib-form-container .nz-settings-lib-form-content .nz-settings-lib-form-controls {
     height: 100%;
     overflow: hidden;

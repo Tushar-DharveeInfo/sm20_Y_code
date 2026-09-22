@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import './MyProfile.css'
 import { Label } from '../../../shared/basic/label/Label'
 import { SettingsLibForm } from '../../../shared/settingsform/settingslibform/SettingsLibForm'
@@ -8,6 +8,7 @@ import { myProfileControls } from './MyProfileControls'
 import { FnBuildMyProfileString } from '../../allcommon/FnBuildMyProfileProfileString'
 import { IContactDoc, useContacts } from '@n20a/libfsdb'
 import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer'
+import { FnHideShowSaveIconForForm } from '../../../shared/allcommon/basic/FnHideShowSaveIconForForm'
 
 interface IMyProfile {
     uniqueName: string;//uniqueName for the control and required
@@ -26,6 +27,11 @@ const MyProfile = (myProfileProps: IMyProfile) => {
 
     const [popupOpen, setPopupOpen] = useState(false);
     const [popupMessage, setPopupMessage] = useState("");
+    const [isFormChanged, setIsFormChanged] = useState(false);
+
+    const handleFormValueChange = useCallback(() => {
+        setIsFormChanged(true);
+    }, []);
 
     const { contacts, loading, error, getContact, updateContact, createContact } = useContacts(bid);
 
@@ -62,6 +68,10 @@ const MyProfile = (myProfileProps: IMyProfile) => {
         }
         return "[]";
     }, [authUser, contacts]);
+
+    useEffect(() => {
+        setIsFormChanged(false);
+    }, [profileString]);
 
     const handleSaveProfile = async (formDataString?: string) => {
         if (!formDataString) return;
@@ -156,6 +166,8 @@ const MyProfile = (myProfileProps: IMyProfile) => {
                 setPopupMessage("Profile address saved successfully.");
                 setPopupOpen(true);
                 myProfileProps.handleShowUserMessage?.("Profile address saved successfully.");
+                setIsFormChanged(false);
+                FnHideShowSaveIconForForm('hide');
                 await getContact(cid);
             } else {
                 console.error("MyProfile: updateContact failed", result?.error);
@@ -196,6 +208,9 @@ const MyProfile = (myProfileProps: IMyProfile) => {
                     isDisableForm={false}
                     isAddressFormRequired={true}
                     isAutoSave={false}
+                    isFormValueChangedExternal={isFormChanged}
+                    handleValueChange={handleFormValueChange}
+                    handleValueChangeExternal={handleFormValueChange}
                     handleSaveForm={handleSaveProfile} />
             </div>
             <YesNoFormContainer

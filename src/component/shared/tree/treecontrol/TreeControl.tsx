@@ -596,13 +596,38 @@ const TreeControl = (treeControlProps: ITreeControl) => {
               disabled={treeControlProps.disableAddContact || false}
               handleMouse={treeControlProps.handleAIClick} />
           }
-          {treeControlProps.allowAdd && treeControlProps.handleAIClick &&
-            <ActionImage image={addImage} w={'var(--node_height)'} h={'var(--node_height)'}
-              uniqueName={`${treeControlProps.uniqueName}-aiadd`}
-              actionCode={treeControlProps.addActionCode || 'add'}
-              disabled={treeControlProps.disableAdd || false}
-              handleMouse={treeControlProps.handleAIClick} />
-          }
+          {treeControlProps.allowAdd && treeControlProps.handleAIClick && (
+            treeControlProps.addLabel ? (
+              <div
+                key={`${treeControlProps.uniqueName}-aiadd`}
+                className={`nz-tree-action-panel-add-btn${treeControlProps.disableAdd ? ' nz-disabled' : ''}`}
+                title={treeControlProps.addTooltip || treeControlProps.addLabel}
+                onClick={(e) => {
+                  if (!treeControlProps.disableAdd && treeControlProps.handleAIClick) {
+                    treeControlProps.handleAIClick(e, treeControlProps.addActionCode || 'add');
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (!treeControlProps.disableAdd && (e.key === 'Enter' || e.key === ' ') && treeControlProps.handleAIClick) {
+                    treeControlProps.handleAIClick(e, treeControlProps.addActionCode || 'add');
+                  }
+                }}
+                tabIndex={treeControlProps.disableAdd ? -1 : 0}
+                role="button"
+              >
+                <span className="nz-tree-add-icon">
+                  {addImage.source}
+                </span>
+                <span className="nz-tree-add-label">{treeControlProps.addLabel}</span>
+              </div>
+            ) : (
+              <ActionImage image={addImage} w={'var(--node_height)'} h={'var(--node_height)'}
+                uniqueName={`${treeControlProps.uniqueName}-aiadd`}
+                actionCode={treeControlProps.addActionCode || 'add'}
+                disabled={treeControlProps.disableAdd || false}
+                handleMouse={treeControlProps.handleAIClick} />
+            )
+          )}
           {treeControlProps.allowEdit && treeControlProps.handleAIClick &&
             <ActionImage image={editImage} w={'var(--node_height)'} h={'var(--node_height)'}
               uniqueName={`${treeControlProps.uniqueName}-aiedit`}

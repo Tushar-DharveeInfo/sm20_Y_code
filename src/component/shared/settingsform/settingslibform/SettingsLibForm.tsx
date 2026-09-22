@@ -201,6 +201,23 @@ const parseSessionEditPermissionKey = (key: string): Record<ISessionEditPermissi
     });
     return values;
 };
+const isAddressEqual = (a?: IAddress, b?: IAddress): boolean => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    return (
+        (a.Address1 ?? "") === (b.Address1 ?? "") &&
+        (a.Address2 ?? "") === (b.Address2 ?? "") &&
+        (a.City ?? "") === (b.City ?? "") &&
+        (a.State ?? "") === (b.State ?? "") &&
+        (a.Country ?? "") === (b.Country ?? "") &&
+        (a.Zip ?? "") === (b.Zip ?? "") &&
+        (a.CountryCode ?? "") === (b.CountryCode ?? "") &&
+        (a.Latitude ?? "") === (b.Latitude ?? "") &&
+        (a.Longitude ?? "") === (b.Longitude ?? "") &&
+        (a.TimezoneOffset ?? "") === (b.TimezoneOffset ?? "")
+    );
+};
+
 const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSectionHeader, isDisableForm, allowHelp, testApiJson, featureId, isAutoSave, allowTestIcon, allowShowHeader, controls, isAddressFormRequired, profileString, headerText, isFormValueChangedExternal, handleSaveForm, handleActionImageClick, handleShowMessage, handleValueChange, handleValueChangeExternal }: ISettingsLibForm) => {
     const [formElements, setFormElements] = useState<IFormElements>();
     const [selectedProfile, setSelectedProfile] = useState<Record<string, unknown>>();
@@ -218,6 +235,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
     const [jsonForView, setJsonForView] = useState<Record<string, unknown>>();
     const [loading, setLoading] = useState(true);
     const [showOverlay, setShowOverlay] = useState(false);
+    const [isDirty, setIsDirty] = useState(false);
     const updatedValuesRef = useRef<Record<string, unknown>>(undefined);
     const overlayTimerRef = useRef<number | null>(null);
     const prevDeps = useRef<Record<string, unknown>>(undefined);
@@ -322,6 +340,8 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
         if (!depsChanged) return;
 
         updatedValuesRef.current = undefined;
+        setIsDirty(false);
+        FnHideShowSaveIconForForm('hide');
         prevDeps.current = currentDeps;
 
         if (!controls) return;
@@ -577,6 +597,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
     useEffect(() => {
         if (prevId.current !== id) {
             setJsonForView(undefined);
+            setIsDirty(false);
             FnHideShowSaveIconForForm('hide');
             prevId.current = id;
             return;
@@ -642,16 +663,60 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
         }
     };
 
-    // Builds profile payload from current in-form control values.
+    // Builds profile payload from current in-form control values, falling back to selectedProfile and defaults.
     const buildProfileData = (): Record<string, unknown> | IFormData => {
-        const updatedValues =
-            updatedValuesRef.current ?? selectedProfile;
+        const updatedValues = updatedValuesRef.current;
 
-        if (!updatedValues) {
-            return isAddressFormRequired
-                ? { TableSections: {} }
-                : {};
-        }
+        // Helper to extract a control's value from user edits, external edits, selectedProfile, or control defaults
+        const resolveControlValue = (col: IControl, sectionName: string): { value: unknown; found: boolean } => {
+            const colName = col.Name ?? "";
+            const colNameLower = colName.toLowerCase();
+
+            // 1. Check user edits in updatedValuesRef
+            if (updatedValues && Object.keys(updatedValues).length > 0) {
+                const refKeyPrefix = `${sectionName}_${colName}_`.toLowerCase();
+                const refKey = Object.keys(updatedValues).find(key =>
+                    key.toLowerCase().startsWith(refKeyPrefix)
+                );
+                if (refKey && updatedValues[refKey] !== undefined) {
+                    return { value: updatedValues[refKey], found: true };
+                }
+                if (updatedValues[colName] !== undefined) {
+                    return { value: updatedValues[colName], found: true };
+                }
+                if (updatedValues[colNameLower] !== undefined) {
+                    return { value: updatedValues[colNameLower], found: true };
+                }
+            }
+
+            // 2. Check external grid / JSON edits
+            if (updatedValuesExternal && Object.keys(updatedValuesExternal).length > 0) {
+                if (updatedValuesExternal[colName] !== undefined) {
+                    return { value: updatedValuesExternal[colName], found: true };
+                }
+            }
+
+            // 3. Fall back to selectedProfile (original loaded profile)
+            if (selectedProfile && Object.keys(selectedProfile).length > 0) {
+                const sectionKey = sectionName.replace(/\s+/g, "");
+                const selectedProfileKey = `${sectionKey}_${colName}`.toLowerCase();
+                const matchedKey = Object.keys(selectedProfile).find(k => {
+                    const kLower = k.toLowerCase();
+                    return kLower === selectedProfileKey || kLower === colNameLower;
+                });
+                if (matchedKey && selectedProfile[matchedKey] !== undefined) {
+                    return { value: selectedProfile[matchedKey], found: true };
+                }
+            }
+
+            // 4. Fall back to control default / initial value
+            const defVal = col.DefaultAPValue ?? col.DefaultValue ?? col.Value;
+            if (defVal !== undefined && defVal !== null && defVal !== "") {
+                return { value: defVal, found: true };
+            }
+
+            return { value: undefined, found: false };
+        };
 
         // Address form mode
         if (isAddressFormRequired) {
@@ -660,83 +725,31 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
             };
 
             for (const col of controls ?? []) {
-                const sectionName =
-                    col.DisplayGroupControl ?? "Default";
+                const sectionName = col.DisplayGroupControl ?? "Default";
+                const { value, found } = resolveControlValue(col, sectionName);
 
-                let value: unknown;
-                let found = false;
-
-                /*
-                 * Format from updatedValuesRef.current:
-                 *
-                 * Contact Details_ContactName_0_0_0
-                 * User Details_IsNZ_0_0_0
-                 */
-                const refKeyPrefix =
-                    `${sectionName}_${col.Name}_`;
-
-                const refKey = Object.keys(updatedValues).find(key =>
-                    key.startsWith(refKeyPrefix)
-                );
-
-                if (refKey) {
-                    value = updatedValues[refKey];
-                    found = true;
-                } else {
-                    /*
-                     * Format from selectedProfile:
-                     *
-                     * ContactDetails_ContactName
-                     * UserDetails_IsNZ
-                     * UserDetails__User
-                     */
-                    const sectionKey =
-                        sectionName.replace(/\s+/g, "");
-
-                    const selectedProfileKey =
-                        `${sectionKey}_${col.Name}`;
-
-                    if (
-                        Object.prototype.hasOwnProperty.call(
-                            updatedValues,
-                            selectedProfileKey
-                        )
-                    ) {
-                        value = updatedValues[selectedProfileKey];
-                        found = true;
-                    }
-                }
-
-                if (!found) continue;
+                if (!found || value === undefined) continue;
 
                 if (!formData.TableSections[sectionName]) {
                     formData.TableSections[sectionName] = {};
                 }
 
-                formData.TableSections[sectionName][col.Name] =
-                    value !== "" ? value : undefined;
+                formData.TableSections[sectionName][col.Name] = value;
             }
 
             return formData;
         }
 
-        // Existing behavior - unchanged
+        // Non-address form mode
         const profileData: Record<string, unknown> = {};
 
         for (const col of controls ?? []) {
-            const classKeyPrefix =
-                `${col.DisplayGroupControl ?? "Default"}_${col.Name}_`;
+            const sectionName = col.DisplayGroupControl ?? "Default";
+            const { value, found } = resolveControlValue(col, sectionName);
 
-            const key = Object.keys(updatedValues).find(k =>
-                k.startsWith(classKeyPrefix)
-            );
+            if (!found || value === undefined) continue;
 
-            if (!key) continue;
-
-            const value = updatedValues[key];
-
-            profileData[col.Name] =
-                value !== "" ? value : undefined;
+            profileData[col.Name] = value;
         }
 
         return profileData;
@@ -792,6 +805,8 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                     State: updatedAddress.State ?? "",
                     Country: updatedAddress.Country ?? "",
                     Zip: updatedAddress.Zip ?? "",
+                    CountryCode: updatedAddress.CountryCode ?? "",
+                    TimezoneOffset: updatedAddress.TimezoneOffset ?? "",
                     GPS:
                         updatedAddress.Latitude && updatedAddress.Longitude
                             ? `${updatedAddress.Latitude},${updatedAddress.Longitude}`
@@ -805,6 +820,8 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
             JSON.stringify(isAddressFormRequired ? profileData : [profileData]),
             id
         );
+        setIsDirty(false);
+        FnHideShowSaveIconForForm('hide');
     };
 
     // Validates required controls against current form values and address values.
@@ -856,9 +873,11 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
     // Tracks libform value changes and toggles manual save icon visibility.
     const handleOnValueChange = (values: Record<string, unknown>) => {
         updatedValuesRef.current = values;
+        const valid = isValidForm(values);
         if (allowShowHeader && !isAutoSave && !isFormValueChangedExternal) {
+            setIsDirty(valid);
             FnHideShowSaveIconForForm(
-                isValidForm(values) ? 'show' : 'hide'
+                valid ? 'show' : 'hide'
             );
         }
         handleValueChangeExternal?.(values);
@@ -874,14 +893,14 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
         }));
 
         if ((!isDefault || isFormValueChangedExternal) && allowShowHeader && !isAutoSave) {
+            setIsDirty(true);
             FnHideShowSaveIconForForm('show');
         }
     };
 
     const handleValueChangeAddress = (address: IAddress) => {
         // Check whether address actually changed
-        const isAddressChanged =
-            JSON.stringify(updatedAddress) !== JSON.stringify(address);
+        const isAddressChanged = !isAddressEqual(updatedAddress, address);
 
         // No address change → don't update save button
         if (!isAddressChanged) return;
@@ -920,13 +939,16 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
         if (
             isAddressFormRequired &&
             allowShowHeader &&
-            !isAutoSave
+            !isAutoSave &&
+            !isFormValueChangedExternal
         ) {
             const valuesToValidate =
                 updatedValuesRef.current ?? selectedProfile ?? {};
 
+            const valid = isValidForm(valuesToValidate);
+            setIsDirty(valid);
             FnHideShowSaveIconForForm(
-                isValidForm(valuesToValidate)
+                valid
                     ? "show"
                     : "hide"
             );
@@ -994,7 +1016,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                             h={'var(--node_height)'}
                             handleMouse={handleActionClick} actionCode={'help'} />}
                     {(!isAutoSave || isAddressFormRequired) &&
-                        <div className='nz-form-header-action-save nz-save-yellow-background' style={{ display: isFormValueChangedExternal === true ? 'block' : isFormValueChangedExternal === false ? 'none' : undefined }}>
+                        <div className='nz-form-header-action-save nz-save-yellow-background' style={{ display: (isFormValueChangedExternal !== undefined ? Boolean(isFormValueChangedExternal) : isDirty) ? 'flex' : 'none' }}>
                             <ActionImage uniqueName={`${uniqueName}-ai`} image={saveImageData} w={'var(--node_height)'} h={'var(--node_height)'} handleMouse={handleSaveClick} actionCode={''} />
                         </div>}
                     {allowTestIcon

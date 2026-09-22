@@ -90,18 +90,26 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
     }, [isOpen, profileString, isFilterChange]);
 
     const handleSaveClick = useCallback(() => {
-        if (!isDirty) return;
         const filterDataJson = JSON.stringify([formValuesState]);
         setIsDirty(false);
         if (onApplyFilter) {
             onApplyFilter(filterDataJson, formValuesState);
         }
-    }, [isDirty, formValuesState, onApplyFilter]);
+    }, [formValuesState, onApplyFilter]);
 
     const handleSaveFormInternal = useCallback(
         (profileDataJson: string) => {
             const parsed = parseProfileJsonSafely(profileDataJson);
             const merged = { ...formValuesState, ...parsed };
+            for (const [k, v] of Object.entries(parsed)) {
+                const kLower = k.toLowerCase();
+                if (kLower.includes('datecreated')) {
+                    merged['datecreated'] = v;
+                }
+                if (kLower.includes('message')) {
+                    merged['message'] = v;
+                }
+            }
             setIsDirty(false);
             if (onApplyFilter) {
                 onApplyFilter(profileDataJson, merged);
@@ -118,6 +126,13 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
             if (name) {
                 setFormValuesState((prev) => {
                     const next = { ...prev, [name]: value };
+                    const nameLower = name.toLowerCase();
+                    if (nameLower.includes('datecreated')) {
+                        next['datecreated'] = value;
+                    }
+                    if (nameLower.includes('message')) {
+                        next['message'] = value;
+                    }
                     if (onFilterChange) {
                         onFilterChange(next);
                     }
@@ -127,6 +142,31 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
         },
         [onFilterChange]
     );
+
+    const handleValueChangeExternalInternal = useCallback(
+        (values: Record<string, unknown>) => {
+            if (!values || typeof values !== 'object') return;
+            setIsDirty(true);
+            setFormValuesState((prev) => {
+                const next = { ...prev, ...values };
+                for (const [k, v] of Object.entries(values)) {
+                    const kLower = k.toLowerCase();
+                    if (kLower.includes('datecreated')) {
+                        next['datecreated'] = v;
+                    }
+                    if (kLower.includes('message')) {
+                        next['message'] = v;
+                    }
+                }
+                if (onFilterChange) {
+                    onFilterChange(next);
+                }
+                return next;
+            });
+        },
+        [onFilterChange]
+    );
+
 
     if (!isOpen) {
         return null;
@@ -215,6 +255,7 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
                         isAutoSave={true}
                         handleSaveForm={handleSaveFormInternal}
                         handleValueChange={handleValueChangeInternal}
+                        handleValueChangeExternal={handleValueChangeExternalInternal}
                     />
                 </div>
             </div>

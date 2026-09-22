@@ -738,6 +738,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
                 allowIcon={false}
                 allowInternalDrag={false}
                 allowAdd={treeExplorerContainerProps.allowAdd ?? false}
+                addLabel={treeExplorerContainerProps.addLabel}
                 addTooltip={treeExplorerContainerProps.addTooltip}
                 addActionCode={treeExplorerContainerProps.addActionCode}
                 disableAdd={treeExplorerContainerProps.disableAdd}

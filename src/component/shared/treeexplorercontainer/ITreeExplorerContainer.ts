@@ -77,6 +77,7 @@ interface ITreeExplorerContainer {
     subTreeFeatureId?: string;//this will be used to control tree
     originalTreeData?: ITreeNode[];//for use from cache
     allowAdd?: boolean; // Enables the ability to add new items (optional)
+    addLabel?: string; // Custom label for Add button
     addTooltip?: string; // Custom tooltip for Add button
     addActionCode?: string; // Custom action code for Add button
     disableAdd?: boolean; // Disable the Add button

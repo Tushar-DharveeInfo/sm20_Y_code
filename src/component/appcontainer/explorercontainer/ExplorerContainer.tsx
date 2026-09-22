@@ -349,14 +349,25 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     );
     const isBusinessNode = !isRootNode && !isContactNode;
 
+    const selectedBusinessName =
+        activeSelectedNode?.bname ||
+        activeSelectedNode?.Name ||
+        (typeof activeSelectedNode?.title === "string" ? activeSelectedNode.title : "") ||
+        "";
+
     const hasSidebarQa = Boolean(featureQAData && featureQAData.length > 0);
     // User logic:
-    // Root node selected -> + btn with tooltip "Add New Business"
-    // Business node selected -> + btn with tooltip "Add New Contact"
+    // Root node selected -> + btn with label "Add New Business"
+    // Business node selected -> + btn with label "Add New Contact for <selected business name>"
     // Contact node selected -> hide + button
     // Sidebar QA not found -> hide + button completely
     const allowTreeAdd = hasSidebarQa && !isContactNode;
-    const addTooltip = isRootNode ? "Add New Business" : "Add New Contact";
+    const addLabel = isRootNode
+        ? "Add New Business"
+        : selectedBusinessName
+            ? `Add New Contact for ${selectedBusinessName}`
+            : "Add New Contact";
+    const addTooltip = addLabel;
     const addActionCode = isRootNode ? "addBusiness" : "addContact";
 
     const handleAIClick = (
@@ -432,6 +443,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                             isReloadTreeCache={explorerContainerProps.selectedFeatureData?.isReloadCache}
                             originalTreeData={explorerContainerProps.originalTreeData}
                             allowAdd={allowTreeAdd}
+                            addLabel={addLabel}
                             addTooltip={addTooltip}
                             addActionCode={addActionCode}
                             handleNodeSelect={handleNodeSelect}
@@ -444,6 +456,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                             featureId={explorerContainerProps.featureId}
                             wrapWithRootLabel="Businesses"
                             allowAdd={allowTreeAdd}
+                            addLabel={addLabel}
                             addTooltip={addTooltip}
                             addActionCode={addActionCode}
                             handleNodeSelect={handleNodeSelect}
