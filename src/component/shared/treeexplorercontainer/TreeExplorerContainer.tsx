@@ -29,13 +29,16 @@ import { SearchControl } from '../searchfilter/searchcontrol/SearchControl.tsx'
 import { TreeControl } from '../tree/treecontrol/TreeControl.tsx'
 import { useBusinesses, useContacts, useFirestore } from '@n20a/libfsdb'
 import { useCommonVariableContext } from '../context/hooks/CommonVariableHooks.ts'
+import { useMainAppContext } from '../context/hooks/MainAppHooks.ts'
+import { FnCopyToClipboard } from '../allcommon/basic/FnCopyToClipboard.ts'
+import { FnUpdateTreeNodeBasedOnKey } from '../allcommon/tree/FnUpdateTreeNodeBasedOnKey.ts'
 
-function buildFeatureTreeProps(allowCheckbox = false): IFeatureTree {
+function buildFeatureTreeProps(allowCheckbox = false, hideKebabMenu = false): IFeatureTree {
   return {
-    hideKebabMenu: true,
+    hideKebabMenu,
     allowCheckbox,
     allowIcon: false,
-    hideCopyIcon: true,
+    hideCopyIcon: false,
     reuseFromCache: false,
     instanceName: 'dc_explorer_tree',
     isAllowDrag: false,
@@ -77,6 +80,7 @@ function accordionExpandedKeys(tree: ITreeNode[] | undefined, businessKey: Key):
 const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContainer) => {
   const smDataContext = useSmDataContext()
   const commonVariableContext = useCommonVariableContext()
+  const mainAppContext = useMainAppContext()
   const [featureTreeProps, setFeatureTreeProps] = useState<IFeatureTree | null>(null)
   const [treeContainerFlatDataProps, setTreeContainerFlatDataProps] = useState<ITreeForFlatDataContainer>()
   const [treeData, setTreeData] = useState<ITreeNode[]>()
@@ -129,6 +133,35 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     isFilterChangeRef.current = isFilterChange
   }, [isFilterChange])
 
+  const handleKebabMenuSelect = useCallback((selectedItem: any, nodeParam?: ITreeNode | ISelectedNodeInfo) => {
+    const payload = selectedItem?.payload ?? selectedItem;
+    const targetNode = (nodeParam && 'node' in nodeParam)
+      ? nodeParam.node
+      : (nodeParam as ITreeNode | undefined) ?? defaultSelectedNodeInfo?.node;
+    if (treeExplorerContainerProps.handleKebabMenuSelect && targetNode) {
+      treeExplorerContainerProps.handleKebabMenuSelect(selectedItem, {
+        event: 'select',
+        selected: true,
+        node: targetNode,
+        selectedNodes: [targetNode],
+      });
+      return;
+    }
+    if (payload?.Label?.toLowerCase() === 'services' || payload?.Alias?.toLowerCase() === 'service') {
+      const bid = targetNode?.bid ?? '';
+      const cid = targetNode?.cid ?? targetNode?.NodeEntID ?? '';
+      const url = new URL(window.location.href);
+      url.searchParams.set('bid', bid);
+      url.searchParams.set('cid', cid);
+      const newTab = window.open(url.toString(), '_blank');
+      if (newTab) {
+        newTab.document.title = 'Service';
+      }
+    } else if (payload?.Label === 'Copy' && targetNode) {
+      FnCopyToClipboard(targetNode.TableLabel ? `${targetNode.TableLabel}` : (targetNode.Name ? targetNode.Name : ''));
+    }
+  }, [treeExplorerContainerProps.handleKebabMenuSelect, defaultSelectedNodeInfo]);
+
   const selectNode = (
     node: ITreeNode,
     expandedKeys: Key[],
@@ -144,6 +177,9 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     setDefaultSelectedKeys([node.key])
     setDefaultSelectedNodeInfo(info)
     smDataContext.setExplorerSelection(node, getAppliedFilterJson(filterFormDataRef.current))
+    if (currentTree && node.key) {
+      void handleSelectedKeyChange(currentTree, node.key, info);
+    }
     treeExplorerContainerProps.handleNodeSelect?.([node.key], info, expandedKeys, currentTree)
   }
 
@@ -352,7 +388,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         filteredContacts,
         featureProps,
         treeExplorerContainerProps.featureId,
-        targetBusinessId
+        targetBusinessId,
+        handleKebabMenuSelect
       );
       const seenNodeKeys = new Set<string>();
       const uniqueContactNodes = contactNodes.filter((cn) => {
@@ -508,11 +545,14 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       filterFormDataRef.current,
       businessId
     );
+    const activeFeatureProps = featureTreeProps ?? buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox);
+    const activeFeatureId = treeContainerFlatDataProps?.featureId ?? treeExplorerContainerProps.featureId ?? '';
     const contactNodes = FnMapContactsToTreeNodes(
       filteredContacts,
-      featureTreeProps,
-      treeContainerFlatDataProps.featureId,
-      businessId
+      activeFeatureProps,
+      activeFeatureId,
+      businessId,
+      handleKebabMenuSelect
     );
     const seenNodeKeys = new Set<string>();
     const uniqueContactNodes = contactNodes.filter((cn) => {
@@ -528,8 +568,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       clearedTree,
       businessId,
       uniqueContactNodes,
-      featureTreeProps,
-      treeContainerFlatDataProps.featureId,
+      activeFeatureProps,
+      activeFeatureId,
       false,
       0
     );
@@ -537,8 +577,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       clearedOriginal,
       businessId,
       uniqueContactNodes,
-      featureTreeProps,
-      treeContainerFlatDataProps.featureId,
+      activeFeatureProps,
+      activeFeatureId,
       true,
       0
     );
@@ -594,10 +634,37 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     await applyContactsToBusiness(businessId, records ?? [], true)
   }
 
+  const handleSelectedKeyChange = useCallback(async (
+    currentTreeData: ITreeNode[],
+    selectedKey: Key,
+    selectedNodeInfo?: ISelectedNodeInfo | null
+  ) => {
+    if (treeContainerFlatDataProps && selectedKey) {
+      const activeFeatureProps = featureTreeProps ?? buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox);
+      const activeNodeInfo = selectedNodeInfo ?? defaultSelectedNodeInfo;
+      const updatedTreeData = await FnUpdateTreeNodeBasedOnKey(
+        currentTreeData,
+        selectedKey,
+        !activeFeatureProps.hideCopyIcon,
+        !activeFeatureProps.hideKebabMenu,
+        {
+          ...treeContainerFlatDataProps,
+          featureTreeProps: activeFeatureProps,
+        },
+        activeNodeInfo,
+        handleKebabMenuSelect
+      );
+      setTreeData([...updatedTreeData]);
+    }
+  }, [treeContainerFlatDataProps, featureTreeProps, defaultSelectedNodeInfo, handleKebabMenuSelect, treeExplorerContainerProps.allowCheckbox]);
+
   const handleNodeSelect = async (selectedKeys: Key[], info: ISelectedNodeInfo, expandedNodeKeys?: Key[]) => {
     setDefaultSelectedKeys(selectedKeys)
     setDefaultSelectedNodeInfo(info)
     smDataContext.setExplorerSelection(info.node, getAppliedFilterJson(filterFormDataRef.current))
+    if (treeData && selectedKeys.length > 0) {
+      void handleSelectedKeyChange(treeData, selectedKeys[0], info);
+    }
     treeExplorerContainerProps.handleNodeSelect?.(
       selectedKeys,
       info,

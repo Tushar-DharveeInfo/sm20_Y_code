@@ -1,13 +1,12 @@
-
-import { useEffect, useState } from 'react'
-import { SimplePdfViewer } from '@n20a/libflippdf'
-import '@n20a/libflippdf/style.css'
-import './PdfDocumentViewer.css'
-import { Label } from '../basic/label/Label.tsx'
-import { DefaultPdfScale } from '../../features/alldefaultprops/DefaultPropsPrivatePdf.ts'
-import { FnGetPrivatePdfUrl } from '../../features/allcommon/FnGetPrivatePdfUrl.ts'
-import { PdfDownloadOverlay } from './PdfDownloadOverlay.tsx'
-import { Loader } from '../loader/Loader.tsx'
+import { useEffect, useState } from 'react';
+import { SimplePdfViewer } from '@n20a/libflippdf';
+import '@n20a/libflippdf/style.css';
+import './PdfDocumentViewer.css';
+import { Label } from '../basic/label/Label.tsx';
+import { DefaultPdfScale } from '../../features/alldefaultprops/DefaultPropsPrivatePdf.ts';
+import { FnGetPrivatePdfUrl } from '../../features/allcommon/FnGetPrivatePdfUrl.ts';
+import { PdfDownloadOverlay } from './PdfDownloadOverlay.tsx';
+import { Loader } from '../loader/Loader.tsx';
 
 interface IPdfDocumentViewer {
     uniqueName: string; // uniqueName for the control and required
@@ -19,6 +18,10 @@ interface IPdfDocumentViewer {
     downloadFileName?: string; // saved file name for the download overlay
     hideDownloadIcon?: boolean; // hide the download overlay icon
     pdfSource?: 'local' | 'api'; // resolve pdf from local public or call api
+    onZoomIn?: (scale?: number) => void;
+    onZoomOut?: (scale?: number) => void;
+    handleZoom?: (action: 'zoomin' | 'zoomout', scale?: number) => void;
+    hideZoomIcons?: boolean;
 }
 
 /* Read only pdf host used by EULA and the brochure features.
@@ -29,6 +32,31 @@ const PdfDocumentViewer = (pdfDocumentViewerProps: IPdfDocumentViewer) => {
 
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [scale, setScale] = useState<number>(pdfDocumentViewerProps.scale ?? DefaultPdfScale);
+
+    useEffect(() => {
+        if (pdfDocumentViewerProps.scale !== undefined) {
+            setScale(pdfDocumentViewerProps.scale);
+        }
+    }, [pdfDocumentViewerProps.scale]);
+
+    const handleZoomInClick = () => {
+        setScale((prev) => {
+            const nextScale = Math.min(Math.round((prev + 0.1) * 10) / 10, 3.0);
+            pdfDocumentViewerProps.onZoomIn?.(nextScale);
+            pdfDocumentViewerProps.handleZoom?.('zoomin', nextScale);
+            return nextScale;
+        });
+    };
+
+    const handleZoomOutClick = () => {
+        setScale((prev) => {
+            const nextScale = Math.max(Math.round((prev - 0.1) * 10) / 10, 0.4);
+            pdfDocumentViewerProps.onZoomOut?.(nextScale);
+            pdfDocumentViewerProps.handleZoom?.('zoomout', nextScale);
+            return nextScale;
+        });
+    };
 
     useEffect(() => {
         let isActive = true;
@@ -94,18 +122,21 @@ const PdfDocumentViewer = (pdfDocumentViewerProps: IPdfDocumentViewer) => {
                         uniqueName={`${pdfDocumentViewerProps.uniqueName}-overlay`}
                         headerText={pdfDocumentViewerProps.headerText}
                         pdfUrl={pdfUrl}
-                        downloadFileName={downloadFileName} />
+                        downloadFileName={downloadFileName}
+                        onZoomIn={handleZoomInClick}
+                        onZoomOut={handleZoomOutClick}
+                        hideZoomIcons={pdfDocumentViewerProps.hideZoomIcons} />
             )}
             <div className='nz-pdf-document-viewer-content'>
                 <SimplePdfViewer
                     documentTitle={documentTitle}
                     pdfUrl={pdfUrl}
-                    scale={pdfDocumentViewerProps.scale ?? DefaultPdfScale} />
+                    scale={scale} />
             </div>
         </div>
-    )
-}
+    );
+};
 
-export { PdfDocumentViewer }
-export type { IPdfDocumentViewer }
-export default PdfDocumentViewer
+export { PdfDocumentViewer };
+export type { IPdfDocumentViewer };
+export default PdfDocumentViewer;

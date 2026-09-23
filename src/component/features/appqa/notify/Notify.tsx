@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Key } from "rc-tree/lib/interface";
 import type { CheckInfo } from "rc-tree/lib/Tree";
 import { handleContainerKeyDown } from "../../../shared/allcommon/basic/FnHandleContainerKeyDown";
@@ -10,7 +10,7 @@ import { YesNoFormContainer } from "../../../shared/basic/yesnoformcontainer/Yes
 import { Label } from "../../../shared/basic/label/Label";
 import { FnConvertBase64Blob } from "../../../shared/allcommon/sidebar/FnConvertBase64Blob";
 import { FnGenerateUID } from "../../../shared/allcommon/settingsform/FnGenerateUID";
-import { ComboBoxControl, HTMLEditControl, IOptionItem } from "@n20a/libform";
+import { ComboBoxControl, IOptionItem } from "@n20a/libform";
 import { TreeExplorerContainer } from "../../../shared/treeexplorercontainer/TreeExplorerContainer";
 import type { TNodeCheckState } from "../../../shared/treeexplorercontainer/ITreeExplorerContainer";
 import type { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
@@ -23,6 +23,12 @@ import { FnResolvedHtmlVariable } from "../allcommon/FnResolvedHtmlVariable";
 import { useFileDownload } from "@n20a/libfsdb";
 import { Send24x24 } from "@n20a/libicon";
 import notifySampleData from "../../../../smsampledata/appqa/NotifySampleData.json";
+// @ts-ignore
+import prettier from 'prettier/standalone';
+// @ts-ignore
+import parserHtml from 'prettier/parser-html';
+import { Highlight, themes } from 'prism-react-renderer';
+import parse from 'html-react-parser';
 
 const {
     sampleNotifyAlertProfiles,
@@ -41,8 +47,9 @@ interface IAppqaNotify {
 }
 
 interface IEmailTemplateItem {
-    name: string;
-    desc: string;
+    title: string;
+    markdown: string;
+    comboLabel: string;
     fileName: string;
     raw: Record<string, unknown>;
 }
@@ -71,31 +78,35 @@ function unwrapEmailTemplates(data: unknown): IEmailTemplateItem[] {
 
     const items: IEmailTemplateItem[] = list.map((item) => {
         if (typeof item === "string") {
+            const clean = item.replace(/\.html$/i, "");
             return {
-                name: item,
-                desc: item,
+                title: clean,
+                markdown: "",
+                comboLabel: clean,
                 fileName: item.endsWith(".html") ? item : `${item}.html`,
                 raw: { name: item },
             };
         }
         const r = (item ?? {}) as Record<string, unknown>;
-        const name = String(
+        const title = String(
+            r.Title ?? r.title ??
             r.Topic ?? r.topic ??
-            r.GroupName ?? r.groupName ??
             r.EmailTemplateName ?? r.emailtemplatename ??
             r.TemplateName ?? r.templateName ??
             r.Name ?? r.name ??
-            r.Title ?? r.title ??
+            r.GroupName ?? r.groupName ??
             r._EmailTemplateProfile ?? r.EmailTemplate ?? ""
         ).trim();
-        const desc = String(
+        const markdown = String(
+            r.Markdown ?? r.markdown ??
             r.Description ?? r.description ??
             r.Desc ?? r.desc ??
-            r.Tooltip ?? r.tooltip ??
-            r.Markdown ?? r.markdown ??
-            r.GroupName ?? r.groupName ??
-            name
+            r.Tooltip ?? r.tooltip ?? ""
         ).trim();
+
+        // Format as {Title} – {Markdown}
+        const comboLabel = title && markdown ? `${title} – ${markdown}` : title || markdown;
+
         let fileName = String(
             r.Filename ?? r.filename ??
             r.FileName ?? r.fileName ??
@@ -103,23 +114,24 @@ function unwrapEmailTemplates(data: unknown): IEmailTemplateItem[] {
             r.HtmlFile ?? r.htmlFile ??
             r.File ?? r.file ?? ""
         ).trim();
-        if (!fileName && name) {
-            fileName = name.toLowerCase().endsWith(".html") ? name : `${name}.html`;
+        if (!fileName && title) {
+            fileName = title.toLowerCase().endsWith(".html") ? title : `${title}.html`;
         } else if (fileName && !fileName.toLowerCase().endsWith(".html")) {
             fileName = `${fileName}.html`;
         }
         return {
-            name,
-            desc,
+            title,
+            markdown,
+            comboLabel,
             fileName,
             raw: r,
         };
-    }).filter((t) => Boolean(t.name));
+    }).filter((t) => Boolean(t.comboLabel));
 
-    // Deduplicate by name to ensure unique ComboBox options
+    // Deduplicate by comboLabel to ensure unique ComboBox options
     const seen = new Set<string>();
     return items.filter((item) => {
-        const key = item.name.toLowerCase();
+        const key = item.comboLabel.toLowerCase();
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
@@ -151,7 +163,33 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
     const [emailTemplates, setEmailTemplates] = useState<IEmailTemplateItem[]>([]);
     const [selectedTemplateName, setSelectedTemplateName] = useState<string>("");
     const [htmlContent, setHtmlContent] = useState<string>("");
+    const [formattedHtml, setFormattedHtml] = useState<string>("");
     const [loadingHtml, setLoadingHtml] = useState<boolean>(false);
+    const dialogRef = useRef<HTMLDialogElement>(null);
+
+    // 1. Use Prettier in the browser to fix indentation and clean up syntax
+    useEffect(() => {
+        if (!htmlContent) {
+            setFormattedHtml("");
+            return;
+        }
+        prettier
+            .format(htmlContent, {
+                parser: "html",
+                plugins: [parserHtml],
+                printWidth: 60, // Wraps long code blocks gracefully onto new lines
+                tabWidth: 2,
+            })
+            .then((cleanHtml: string) => setFormattedHtml(cleanHtml.trim()))
+            .catch((err: unknown) => {
+                console.warn("Prettier formatting error, fallback to raw html:", err);
+                setFormattedHtml(htmlContent);
+            });
+    }, [htmlContent]);
+
+    // Functions to open and close the popup modal
+    const openModal = () => dialogRef.current?.showModal();
+    const closeModal = () => dialogRef.current?.close();
 
     const { downloadSingleFile } = useFileDownload();
 
@@ -290,25 +328,35 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
         };
     }, [FnGetJsonFromStorage]);
 
-    // Populate template options with desc as tooltip
+    // Populate template options formatted as {Title} – {Markdown}
     const templateOptions = useMemo<IOptionItem[]>(() => {
         return emailTemplates.map((t) => ({
-            label: t.name,
-            value: t.name,
-            tooltip: t.desc || t.name,
+            label: t.comboLabel,
+            value: t.comboLabel,
+            tooltip: t.markdown ? `${t.title} – ${t.markdown}` : t.title,
         }));
     }, [emailTemplates]);
 
     // Handle template selection in combo
-    const handleTemplateChange = async (templateName: string) => {
-        setSelectedTemplateName(templateName);
-        if (!templateName) {
+    const handleTemplateChange = async (templateComboValue: string) => {
+        setSelectedTemplateName(templateComboValue);
+        if (!templateComboValue) {
             setHtmlContent("");
+            setFormattedHtml("");
             return;
         }
 
-        const template = emailTemplates.find((t) => t.name === templateName);
-        const fileName = template?.fileName || `${templateName}.html`;
+        // Parse Title from formatted "{Title} – {Markdown}" to get to filename
+        const parsedTitle = templateComboValue.includes("–")
+            ? templateComboValue.split("–")[0].trim()
+            : templateComboValue.includes("-")
+                ? templateComboValue.split("-")[0].trim()
+                : templateComboValue.trim();
+
+        const template = emailTemplates.find(
+            (t) => t.comboLabel === templateComboValue || t.title.toLowerCase() === parsedTitle.toLowerCase()
+        );
+        const fileName = template?.fileName || (parsedTitle.toLowerCase().endsWith(".html") ? parsedTitle : `${parsedTitle}.html`);
         const templatePath = `sm/emailtemplates/${fileName}`;
 
         setLoadingHtml(true);
@@ -654,6 +702,7 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             noteCreatedAt: new Date(),
         });
         setHtmlContent("");
+        setFormattedHtml("");
         setSelectedTemplateName("");
     };
 
@@ -672,11 +721,31 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             onKeyDown={handleContainerKeyDown}
             key={appqaMessageProps.uniqueName}
         >
-            <div className="nz-sub-header">
+            <div className="nz-sub-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <Label
                     uniqueName={`${appqaMessageProps.uniqueName}-task-header`}
                     label={appqaMessageProps.headerText ?? "Notify"}
                 />
+                <button
+                    type="button"
+                    onClick={openModal}
+                    disabled={!htmlContent.trim()}
+                    style={{
+                        background: htmlContent.trim() ? '#0070f3' : '#a0aec0',
+                        color: 'white',
+                        border: 'none',
+                        padding: '6px 12px',
+                        borderRadius: '4px',
+                        cursor: htmlContent.trim() ? 'pointer' : 'not-allowed',
+                        fontWeight: 'bold',
+                        fontSize: '12px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                    }}
+                >
+                    Preview
+                </button>
             </div>
             <Splitter tabIndex={-1} className="nz-w-100 nz-h-100">
                 <SplitterPanel
@@ -725,21 +794,47 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                                 />
                             )
                         ) : (
-                            <div className="nz-html-editor-container nz-w-100 nz-h-100">
+                            <div className="nz-html-editor-container nz-w-100 nz-h-100" style={{ display: "flex", flexDirection: "column" }}>
                                 {loadingHtml ? (
                                     <div className="nz-html-editor-loading">Loading template...</div>
                                 ) : (
                                     <>
-                                        <div className="nz-html-editor-body">
-                                            <HTMLEditControl
-                                                id={`${appqaMessageProps.uniqueName}-html-editor`}
-                                                name="emailTemplateHtml"
-                                                value={htmlContent}
-                                                minHeight={60}
-                                                onChange={(val) => {
-                                                    setHtmlContent(val ?? "");
-                                                }}
-                                            />
+                                        <div className="nz-html-editor-body" style={{ flex: 1, overflow: "auto" }}>
+                                            {formattedHtml ? (
+                                                <Highlight theme={themes.vsDark} code={formattedHtml} language="html">
+                                                    {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                                                        <pre
+                                                            className={className}
+                                                            style={{
+                                                                ...style,
+                                                                padding: '16px',
+                                                                borderRadius: '8px',
+                                                                overflowX: 'auto',
+                                                                fontSize: '14px',
+                                                                lineHeight: '1.5',
+                                                                margin: 0,
+                                                                minHeight: '100%',
+                                                                boxSizing: 'border-box',
+                                                            }}
+                                                        >
+                                                            {tokens.map((line, i) => (
+                                                                <div key={i} {...getLineProps({ line })}>
+                                                                    <span style={{ display: 'inline-block', width: '25px', opacity: 0.4, userSelect: 'none' }}>
+                                                                        {i + 1}
+                                                                    </span>
+                                                                    {line.map((token, key) => (
+                                                                        <span key={key} {...getTokenProps({ token })} />
+                                                                    ))}
+                                                                </div>
+                                                            ))}
+                                                        </pre>
+                                                    )}
+                                                </Highlight>
+                                            ) : (
+                                                <p style={{ padding: "10px", color: "var(--textsecondary, #777)" }}>
+                                                    Formatting code...
+                                                </p>
+                                            )}
                                         </div>
                                         <div className="nz-html-editor-action-strip">
                                             <button
@@ -793,6 +888,41 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                 handleYesButtonClick={function (): void { }}
                 handleNoButtonClick={function (): void { }}
             />
+            {/* POPUP MODAL (Native HTML Dialog) */}
+            <dialog
+                ref={dialogRef}
+                onClick={(e) => {
+                    if (e.target === dialogRef.current) {
+                        closeModal();
+                    }
+                }}
+                style={{
+                    position: 'fixed',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    margin: 0,
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '24px',
+                    maxWidth: '650px',
+                    width: '90%',
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.25)',
+                    backgroundColor: 'var(--bgfeaturepane1, #ffffff)',
+                    color: 'var(--textprimary, #333)',
+                    zIndex: 9999,
+                }}
+            >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px', marginBottom: '15px' }}>
+                    <h4 style={{ margin: 0 }}>Live HTML Preview</h4>
+                    <button type="button" onClick={closeModal} style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}>✕</button>
+                </div>
+
+                {/* Live Output Container */}
+                <div style={{ padding: '10px', background: '#fafafa', borderRadius: '6px', border: '1px solid #eaeaea', maxHeight: '70vh', overflow: 'auto' }}>
+                    {formattedHtml ? parse(formattedHtml) : htmlContent ? parse(htmlContent) : null}
+                </div>
+            </dialog>
         </div>
     );
 };

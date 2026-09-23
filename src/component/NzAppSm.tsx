@@ -212,8 +212,10 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
             const authSession: IUserAuthSession = {
                 id: user.id,
                 username: user.username,
-                displayName: user.displayName,
                 email: user.email ?? null,
+                ImpersonatedUser: user.username,
+                ImpersonatedEmail: user.email ?? "",
+                displayName: user.displayName,
                 phoneNumber: user.phoneNumber ?? null,
                 authType: String(user.authType ?? ""),
                 tenantNickname: user.tenantNickname ?? null,

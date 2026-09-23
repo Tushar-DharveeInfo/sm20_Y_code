@@ -27,7 +27,9 @@ const FnAddSubNode = async (
                 node.NaturalSortorder = i;
                 if (treeDataPorps && featureId) {
 
-                    node.title = TreeNodeTitle(node, treeDataPorps);
+                    if (!node.title || typeof node.title === "string") {
+                        node.title = TreeNodeTitle(node, treeDataPorps, featureId);
+                    }
                     node.checkable = treeDataPorps.allowCheckbox ? FnCheckAllowCheckbox(node, featureId) : false;
 
                     if (treeDataPorps.allowIcon) {

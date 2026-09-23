@@ -1,5 +1,5 @@
-import { DisplayControlEnums } from "../../../../shared/alldefaultprops/basic/DefaultPropsFormContainer";
-import { IControl } from "../../../../shared/allinterface/settingsform/ISettingsLibForm";
+import { DisplayControlEnums } from "../../../shared/alldefaultprops/basic/DefaultPropsFormContainer";
+import { IControl } from "../../../shared/allinterface/settingsform/ISettingsLibForm";
 
 const createProfileControl = (
     name: string,

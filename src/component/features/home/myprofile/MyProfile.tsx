@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './MyProfile.css'
-import { Label } from '../../../../shared/basic/label/Label'
-import { SettingsLibForm } from '../../../../shared/settingsform/settingslibform/SettingsLibForm'
-import { useMainAppContext } from '../../../../shared/context/hooks/MainAppHooks'
-import { useStatusBarContext } from '../../../../shared/context/hooks/StatusBarHooks'
+import { Label } from '../../../shared/basic/label/Label'
+import { SettingsLibForm } from '../../../shared/settingsform/settingslibform/SettingsLibForm'
+import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks'
+import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks'
 import { myProfileControls } from './MyProfileControls'
-import { FnBuildMyProfileString } from '../../../allcommon/FnBuildMyProfileProfileString'
+import { FnBuildMyProfileString } from '../../allcommon/FnBuildMyProfileProfileString'
 import { IContactDoc, useContacts } from '@n20a/libfsdb'
-import { YesNoFormContainer } from '../../../../shared/basic/yesnoformcontainer/YesNoFormContainer'
-import { FnHideShowSaveIconForForm } from '../../../../shared/allcommon/basic/FnHideShowSaveIconForForm'
+import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer'
+import { FnHideShowSaveIconForForm } from '../../../shared/allcommon/basic/FnHideShowSaveIconForForm'
 
 interface IMyProfile {
     uniqueName: string;//uniqueName for the control and required

@@ -1,0 +1,56 @@
+/* TicketCard.css */
+.nz-ticket-card-wrapper {
+    margin-bottom: var(--spacing-1, 6px);
+}
+
+.nz-ticket-card-skus {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 0 6px 0;
+    /* border-bottom: 1px solid var(--border-color, #2f2d2d); */
+    /* margin-bottom: 4px; */
+}
+
+.nz-ticket-sku-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    height: 22px;
+    box-sizing: border-box;
+    border-radius: 11px;
+    border: 1px solid var(--primary, #2c7bb6);
+    background: transparent;
+    color: var(--primary, #2c7bb6);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    line-height: 1;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+    user-select: none;
+}
+
+.nz-ticket-sku-chip.nz-ticket-sku-chip-icon {
+    padding: 2px 6px;
+    min-width: 26px;
+}
+
+.nz-ticket-sku-chip:hover {
+    background: var(--primary, #2c7bb6);
+    color: #fff;
+    transform: scale(1.05);
+}
+
+.nz-ticket-sku-chip.nz-ticket-sku-chip-icon:hover {
+    background: var(--primary, #2c7bb6);
+    color: #fff;
+}
+
+.nz-ticket-sku-icon-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}

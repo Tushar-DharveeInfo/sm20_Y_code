@@ -1,9 +1,9 @@
 import { ImpersonateUser } from './ImpersonateUser';
-import { IFeatureItem } from '../../shared/context/allinterface/IMainApp';
-import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu';
-import { ITreeNode } from '../../shared/allinterface/tree/ITreeControl';
-import { useSmDataContext } from '../../shared/context/hooks/SmDataHooks';
-import { Label } from '../../shared/basic/label/Label';
+import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
+import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
+import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl';
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
+import { Label } from '../../../shared/basic/label/Label';
 
 interface IImpersonateServiceProps {
     uniqueName?: string;

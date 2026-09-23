@@ -15,7 +15,8 @@ import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";
 const FnMapBusinessesToTreeNodes = (
     businesses: IBusinessDoc[],
     featureTreeProps?: IFeatureTree,
-    featureId?: string
+    featureId?: string,
+    handleKebabMenuSelect?: (selectedItem: any) => void
 ): ITreeNode[] => {
     if (!businesses?.length) {
         return [];
@@ -72,7 +73,12 @@ const FnMapBusinessesToTreeNodes = (
         if (featureTreeProps && featureId) {
             treeNode.title = TreeNodeTitle(
                 treeNode,
-                featureTreeProps
+                featureTreeProps,
+                featureId,
+                false,
+                !featureTreeProps.hideCopyIcon,
+                undefined,
+                handleKebabMenuSelect
             );
         }
 

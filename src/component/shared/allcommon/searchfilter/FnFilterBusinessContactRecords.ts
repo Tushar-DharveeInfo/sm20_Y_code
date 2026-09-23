@@ -219,8 +219,12 @@ export function getAppliedFilterJson(
         if (!isAppliedValue(value)) return;
         const field = normalizeFilterFieldName(key) ?? key;
         if (field === "verified" || field === "cverified") {
-            if (!isTruthyFlag(value)) return;
-            applied[field] = "true";
+            const parsed = parseVerified(String(value));
+            if (parsed === true) {
+                applied[field] = "true";
+            } else if (parsed === false) {
+                applied[field] = "false";
+            }
             return;
         }
         applied[field] = String(value);
@@ -258,7 +262,8 @@ export function buildBusinessRecordFilter(
     const filter: Record<string, unknown> = {};
     if (isAppliedValue(form.bname)) filter.bname = form.bname;
     if (isAppliedValue(form.status)) filter.status = form.status;
-    if (isTruthyFlag(form.verified)) filter.verified = true;
+    const parsedVerified = parseVerified(form.verified);
+    if (parsedVerified !== undefined) filter.verified = parsedVerified;
     if (isAppliedValue(form.country)) filter.country = form.country;
     if (isAppliedValue(form.state)) filter.state = form.state;
     if (isAppliedValue(form.daysnoticeperiod)) filter.daysnoticeperiod = Number(form.daysnoticeperiod);
@@ -349,6 +354,13 @@ function matchesBusinessFilters(
 ): boolean {
     for (const key of Object.keys(filter)) {
         const filterVal = filter[key];
+        // Handle verified explicitly — boolean false is a valid filter value but
+        // isAppliedValue(false) returns false, so it must be checked before the guard.
+        if (key === "verified" && typeof filterVal === "boolean") {
+            const recordVal = (business as unknown as Record<string, unknown>)[key];
+            if (Boolean(recordVal) !== filterVal) return false;
+            continue;
+        }
         if (!isAppliedValue(filterVal)) continue;
         const recordVal = (business as unknown as Record<string, unknown>)[key];
         if (key === "bname") {

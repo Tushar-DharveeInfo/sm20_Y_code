@@ -187,7 +187,8 @@ const AppContainer = (appContainerProps: IAppContainer) => {
                 || featureId === AppQA.Launch
                 || featureId === AppQA.Theme
                 || featureId === AppQA.Report
-                || featureId === AppQA.ToDo;
+                || featureId === AppQA.ToDo
+                || featureId === AppQA.Impersonate;
             if (isAppqa) {
                 setSelectedAppQAData(location.state)
             }

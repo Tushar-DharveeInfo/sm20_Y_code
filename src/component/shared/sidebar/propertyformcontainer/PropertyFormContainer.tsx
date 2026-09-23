@@ -10,7 +10,7 @@ import { FnNodeGetKebabMenuData } from '../../allcommon/settingsform/FnNodeGetKe
 import { FnBuildFormElementsFromDataset } from '../../allcommon/sidebar/FnBuildFormElementsFromDataset'
 import { Label } from '../../basic/label/Label'
 import { IImage } from '../../allinterface/basic/IImage'
-import { Back24x24, Save24x24 } from '@n20a/libicon'
+import { Back24x24, Check, Delete24x24, Save24x24 } from '@n20a/libicon'
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable'
 import { DirtyFlagImage } from '../../basic/dirtyflagimage/DirtyFlagImage'
 import { getDiagnosticLevelData } from '../../context/contextandprovider/CommonVariable'
@@ -18,6 +18,7 @@ import { ActionImage } from '../../basic/actionimage/ActionImage'
 import { useSelectedNodeContext } from '../../context/hooks/SelectedNodeHooks'
 import { ISelectedNodeProperty } from '../../context/allinterface/ISelectedNode'
 import { useSessionContext } from '../../context/hooks/SessionHooks'
+import { useCommonVariableContext } from '../../context/hooks/CommonVariableHooks'
 import { FnParseJsonSafely } from '../../../appcontainer/allcommon/FnParseJsonSafely'
 import { FnCheckPermissionToEditName, IFeaturePermission } from '../../allcommon/FnCheckPermissionToEditName'
 import { handleFormControlsBubbleKeyDown, handleFormControlsKeyDown } from '../../allcommon/basic/FnHandleContainerKeyDown'
@@ -26,6 +27,8 @@ import { useActivities, useBusinesses, useContacts } from '@n20a/libfsdb'
 import { useSmDataContext } from '../../context/hooks/SmDataHooks'
 import { useMainAppContext } from '../../context/hooks/MainAppHooks'
 import { FnLogActivity } from '../../allcommon/basic/FnLogActivity'
+import { YesNoFormContainer } from '../../basic/yesnoformcontainer/YesNoFormContainer'
+import { isPrimaryCompanyContact } from './ProfileAddFormContainer'
 import type { IBusinessDoc, IContactDoc } from '../../allinterface/IDatasets'
 
 const addressFieldNames = new Set([
@@ -283,6 +286,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
     const [loading, setLoading] = useState(true);
     const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const statusBarContext = useStatusBarContext();
+    const commonVariableContext = useCommonVariableContext();
     const selectedNodeContext = useSelectedNodeContext();
     const sessionContext = useSessionContext();
     const smDataContext = useSmDataContext();
@@ -309,8 +313,245 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
     }, [selectedNode?.bid, selectedNode?.parentEntID, selectedNode?.NodeEntID, selectedNode?.key]);
 
     const { updateBusiness } = useBusinesses();
-    const { updateContact } = useContacts(effectiveBid);
+    const { updateContact, deleteContact } = useContacts(effectiveBid);
     const { createActivity } = useActivities(effectiveBid);
+
+    const entityType = String(
+        selectedNode?.NodeEntityname ||
+        selectedNode?.NodeType ||
+        selectedNode?.treetype ||
+        ""
+    ).toLowerCase();
+
+    const isContact =
+        entityType === "contact" ||
+        (Boolean(selectedNode?.cid) && selectedNode?.cid !== selectedNode?.bid);
+
+    const oldPgClassRow = useMemo(() => {
+        return (kebabMenuData?.[String(pgClassRecord?.tableName)]?.[0] ?? {}) as Record<string, unknown>;
+    }, [kebabMenuData, pgClassRecord?.tableName]);
+
+    const isContactVerified = useMemo(() => {
+        if (!isContact) return false;
+        if (updatedProperties?.verified !== undefined) {
+            return Boolean(updatedProperties.verified);
+        }
+        if (updatedProperties?.monitor !== undefined) {
+            return Boolean(updatedProperties.monitor);
+        }
+        if (oldPgClassRow?.verified !== undefined) {
+            return Boolean(oldPgClassRow.verified);
+        }
+        if (oldPgClassRow?.monitor !== undefined) {
+            return Boolean(oldPgClassRow.monitor);
+        }
+        return Boolean(selectedNode?.verified ?? selectedNode?.IsAuthorized ?? false);
+    }, [isContact, updatedProperties, oldPgClassRow, selectedNode]);
+
+    const [isDeleteContactConfirmOpen, setIsDeleteContactConfirmOpen] = useState(false);
+    const [deleteContactWarningMsg, setDeleteContactWarningMsg] = useState("");
+    const [isDeleteWarningOpen, setIsDeleteWarningOpen] = useState(false);
+
+    const handleToggleVerified = () => {
+        if (!isContact) return;
+
+        const nextVerified = !isContactVerified;
+        const nextStatus = nextVerified ? "Active" : (oldPgClassRow?.status ? String(oldPgClassRow.status) : "Active");
+
+        setUpdatedProperties((prev) => ({
+            ...(prev ?? {}),
+            verified: nextVerified,
+            monitor: nextVerified,
+            status: nextStatus,
+        }));
+
+        setIsDirty(true);
+
+        setFormElements((prev) => {
+            if (!prev?.TableSections) return prev;
+            const newSections: Record<string, any[]> = {};
+            for (const [secKey, secElements] of Object.entries(prev.TableSections)) {
+                newSections[secKey] = secElements.map((el) => {
+                    const fieldName = (el.field || "").toLowerCase();
+                    if (fieldName === "verified" || fieldName === "monitor") {
+                        return { ...el, defaultvalue: nextVerified };
+                    }
+                    if (fieldName === "status") {
+                        return { ...el, defaultvalue: nextStatus };
+                    }
+                    return el;
+                });
+            }
+            return { ...prev, TableSections: newSections };
+        });
+
+        // statusBarContext.setUserActionData(
+        //     `Contact marked as ${nextVerified ? "Verified" : "Unverified"}. Click Save button to apply changes.`
+        // );
+    };
+
+    const handleDeleteContactClick = () => {
+        if (!isContact) return;
+
+        const contactId = String(
+            selectedNode?.cid ||
+            selectedNode?.NodeEntID ||
+            selectedNode?.EntID ||
+            selectedNode?.key ||
+            ""
+        );
+        const parentBid = String(
+            selectedNode?.bid ||
+            selectedNode?.parentEntID ||
+            effectiveBid ||
+            ""
+        );
+
+        if (isPrimaryCompanyContact(contactId, parentBid)) {
+            setDeleteContactWarningMsg(
+                "Primary contact created with company cannot be deleted individually. It can be deleted only when the business record is deleted."
+            );
+            setIsDeleteWarningOpen(true);
+            return;
+        }
+
+        setIsDeleteContactConfirmOpen(true);
+    };
+
+    const handleConfirmDeleteContact = async () => {
+        setIsDeleteContactConfirmOpen(false);
+        if (!isContact) return;
+
+        const contactId = String(
+            selectedNode?.cid ||
+            selectedNode?.NodeEntID ||
+            selectedNode?.EntID ||
+            selectedNode?.key ||
+            ""
+        );
+        const parentBid = String(
+            selectedNode?.bid ||
+            selectedNode?.parentEntID ||
+            effectiveBid ||
+            ""
+        );
+        const contactName = String(
+            selectedNode?.Name ||
+            oldPgClassRow?.cname ||
+            oldPgClassRow?.contact ||
+            contactId
+        );
+
+        statusBarContext.setIsLoading(true);
+        statusBarContext.setLoadingLabel("Deleting contact...");
+
+        try {
+            const nextStatus = "Inactive";
+            const nextVerified = false;
+
+            const mergedRecord: Record<string, unknown> = {
+                ...oldPgClassRow,
+                ...(updatedProperties ?? {}),
+                verified: nextVerified,
+                monitor: nextVerified,
+                status: nextStatus,
+                cid: contactId,
+                bid: parentBid,
+                dateUpdated: new Date().toISOString(),
+            };
+
+            const fsdbPayload = buildFirestoreContactPayload(contactId, parentBid, mergedRecord);
+
+            if (contactId) {
+                try {
+                    await updateContact(contactId, fsdbPayload);
+                } catch (upErr) {
+                    console.warn("Failed to update status to Inactive before delete:", upErr);
+                }
+            }
+
+            if (deleteContact && contactId) {
+                try {
+                    await deleteContact(contactId);
+                } catch (delErr) {
+                    console.warn("deleteContact hook failed:", delErr);
+                }
+            }
+
+            if (smDataContext?.updateDataset && smDataContext.datasets?.contacts) {
+                const nextContacts = smDataContext.datasets.contacts.map((c) =>
+                    c.cid?.toLowerCase() === contactId.toLowerCase()
+                        ? ({ ...c, ...mergedRecord, status: nextStatus, verified: nextVerified, monitor: nextVerified } as unknown as IContactDoc)
+                        : c
+                );
+                smDataContext.updateDataset("contacts", nextContacts);
+            }
+
+            if (selectedNode) {
+                selectedNode.verified = nextVerified;
+                selectedNode.IsAuthorized = nextVerified;
+                selectedNode.status = nextStatus;
+                selectedNode.Description = nextStatus;
+                selectedNode.NodeState = nextStatus;
+            }
+
+            if (pgClassRecord?.tableName) {
+                setKebabMenuData((prev) => ({
+                    ...prev,
+                    [String(pgClassRecord.tableName)]: [mergedRecord as IPropertyRow],
+                }));
+            }
+
+            setFormElements((prev) => {
+                if (!prev?.TableSections) return prev;
+                const newSections: Record<string, any[]> = {};
+                for (const [secKey, secElements] of Object.entries(prev.TableSections)) {
+                    newSections[secKey] = secElements.map((el) => {
+                        const fieldName = (el.field || "").toLowerCase();
+                        if (fieldName === "verified" || fieldName === "monitor") {
+                            return { ...el, defaultvalue: false };
+                        }
+                        if (fieldName === "status") {
+                            return { ...el, defaultvalue: nextStatus };
+                        }
+                        return el;
+                    });
+                }
+                return { ...prev, TableSections: newSections };
+            });
+
+            const userCid = String(
+                mainAppContext.authSession?.cid ||
+                mainAppContext.authSession?.username ||
+                "User"
+            ).trim();
+            void FnLogActivity({
+                bid: parentBid,
+                cid: userCid,
+                message: `${userCid} of ${parentBid} updated contact "${contactName}" (${contactId}) status to Inactive (Delete).`,
+                createActivity,
+                createActivityLog: mainAppContext.createActivityLog,
+                updateDataset: smDataContext?.updateDataset,
+                currentActivities: smDataContext?.datasets?.activities,
+            });
+
+            if (propertyFormContainerProps.featureId) {
+                commonVariableContext.setReloadTreeFor({
+                    featureId: propertyFormContainerProps.featureId,
+                    entId: parentBid || contactId,
+                });
+            }
+            propertyFormContainerProps.handleRefreshUpdatedRecord?.(contactId, contactName, "save");
+
+            statusBarContext.setUserActionData(`Contact "${contactName}" deleted / status updated to Inactive.`);
+        } catch (err) {
+            console.error("Error deleting contact:", err);
+            statusBarContext.setFetchError(["Failed to delete contact"]);
+        } finally {
+            statusBarContext.setIsLoading(false);
+            statusBarContext.setLoadingLabel(undefined);
+        }
+    };
 
     const isShowPgTableFirst = !!selectedNodeMenu;
     const requestIdRef = useRef(0);
@@ -628,6 +869,8 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
             setLoading(false);
             return;
         }
+        setIsDirty(false);
+        setUpdatedProperties(undefined);
         setUpdatedAddress(undefined);
         setIsAddressFormShow(false);
         const abortController = new AbortController();
@@ -856,8 +1099,8 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                 const isVerified = updates.verified !== undefined
                     ? Boolean(updates.verified)
                     : updates.monitor !== undefined
-                    ? Boolean(updates.monitor)
-                    : (oldPgClassRow?.verified !== undefined ? Boolean(oldPgClassRow.verified) : Boolean(oldPgClassRow?.monitor));
+                        ? Boolean(updates.monitor)
+                        : (oldPgClassRow?.verified !== undefined ? Boolean(oldPgClassRow.verified) : Boolean(oldPgClassRow?.monitor));
 
                 const mergedRecord: Record<string, unknown> = {
                     ...oldPgClassRow,
@@ -1147,20 +1390,78 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
 
     return (
         <div key={propertyFormContainerProps.uniqueName} className='nz-wh-100 nz-d-flex-column nz-prop-form-container'>
-            {isShowMainHeader || isAddressFormShow ? <div className='nz-sub-header nz-prop-form-container-action'>
+            {isShowMainHeader || isAddressFormShow || isContact ? <div className='nz-sub-header nz-prop-form-container-action'>
                 <Label uniqueName={propertyFormContainerProps.uniqueName + 'header'} label={propertyFormContainerProps.headerText ?? "Properties"} />
-                <div className='nz-header-action'>
-                    {allowBackButton ? <ActionImage
-                        uniqueName={propertyFormContainerProps.uniqueName + 'back-icon'}
-                        image={backImageData} w={'var(--node_height)'} h={'var(--node_height)'}
-                        actionCode={'back'} handleMouse={handleBackClick} /> : <></>}
-                    {isDirty && <div className={'nz-save-button'}>
-                        <DirtyFlagImage uniqueName={propertyFormContainerProps.uniqueName + 'save-icon'}
-                            isDirty={isDirty}
-                            bgColor={"#FFFF99"}
-                            image={saveImageData} w={'var(--node_height)'} h={'var(--node_height)'}
-                            handleMouse={handleSaveProperties} />
-                    </div>}
+                <div className='nz-header-action' style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {isContact && (
+                        <>
+                            <button
+                                type="button"
+                                onClick={handleToggleVerified}
+                                title={isContactVerified ? "Contact is verified. Click to mark as unverified" : "Click to mark contact as verified"}
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    padding: "2px 8px",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    border: isContactVerified ? "1px solid #10b981" : "1px solid #9ca3af",
+                                    backgroundColor: isContactVerified ? "#ecfdf5" : "#f3f4f6",
+                                    color: isContactVerified ? "#047857" : "#374151",
+                                    height: "var(--node_height, 26px)",
+                                    lineHeight: 1,
+                                }}
+                            >
+                                <Check
+                                    size={14}
+                                    fill="none"
+                                    strokeWidth={isContactVerified ? 2.5 : 1.5}
+                                    color={isContactVerified ? "#047857" : "#6b7280"}
+                                />
+                                {isContactVerified ? "Verified" : "Verify"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteContactClick}
+                                title="Click to delete contact"
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    padding: "2px 8px",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    border: "1px solid #ef4444",
+                                    backgroundColor: "#fef2f2",
+                                    color: "#dc2626",
+                                    height: "var(--node_height, 26px)",
+                                    lineHeight: 1,
+                                }}
+                            >
+                                <Delete24x24 size={14} fill="none" strokeWidth={1.5} color="#dc2626" />
+                                Delete
+                            </button>
+                        </>
+                    )}
+                    <div style={{ width: 'var(--node_height)' }}>
+
+                        {allowBackButton ? <ActionImage
+                            uniqueName={propertyFormContainerProps.uniqueName + 'back-icon'}
+                            image={backImageData} w={'var(--node_height)'} h={'var(--node_height)'}
+                            actionCode={'back'} handleMouse={handleBackClick} /> : <></>}
+                        {isDirty && <div className={'nz-save-button'}>
+                            <DirtyFlagImage uniqueName={propertyFormContainerProps.uniqueName + 'save-icon'}
+                                isDirty={isDirty}
+                                bgColor={"#FFFF99"}
+                                image={saveImageData} w={'var(--node_height)'} h={'var(--node_height)'}
+                                handleMouse={handleSaveProperties} />
+                        </div>}
+                    </div>
                 </div>
             </div> : <></>}
             <div className={'nz-prop-form-content' + (isOneToManyPgTable || isAddressFormShow ? " nz-prop-form-with-onetomany-grid" : "")} onKeyDownCapture={handleFormControlsKeyDown}
@@ -1180,6 +1481,24 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                     />
                 </div> : <></>}
             </div>
+            <YesNoFormContainer
+                uniqueName={`${propertyFormContainerProps.uniqueName}-delete-confirm`}
+                isOpen={isDeleteContactConfirmOpen}
+                dialogTitle="Confirm Delete"
+                message={`Are you sure you want to delete contact "${String(selectedNode?.Name || oldPgClassRow?.cname || "this contact")}"?`}
+                handleYesButtonClick={handleConfirmDeleteContact}
+                handleNoButtonClick={() => setIsDeleteContactConfirmOpen(false)}
+            />
+            <YesNoFormContainer
+                uniqueName={`${propertyFormContainerProps.uniqueName}-delete-warning`}
+                isOpen={isDeleteWarningOpen}
+                dialogTitle="Cannot Delete Contact"
+                message={deleteContactWarningMsg}
+                showOkButton={true}
+                handleOkButtonClick={() => setIsDeleteWarningOpen(false)}
+                handleYesButtonClick={() => setIsDeleteWarningOpen(false)}
+                handleNoButtonClick={() => setIsDeleteWarningOpen(false)}
+            />
         </div>
     );
 };

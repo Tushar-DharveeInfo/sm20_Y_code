@@ -15,7 +15,7 @@ interface IActionLabel {
     isSuccess?: boolean;// if true it will show checkCircle else cancel icon 
     imageTooltip?: string;// if provided it will show the tooltip
     showIconLast?: boolean;//to show icon last
-    iconSource?: string;//if provided it will show the icon
+    iconSource?: string | React.ReactNode;//if provided it will show the icon
     tabIndex?: number
 }
 

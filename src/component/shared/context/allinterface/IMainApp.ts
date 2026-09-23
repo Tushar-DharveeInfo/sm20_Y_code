@@ -34,13 +34,15 @@ interface IFeatureForHelp {
 interface IUserAuthSession {
     id: string;
     username: string;
-    displayName: string;
     email: string | null;
+    displayName: string;
     phoneNumber: string | null;
     authType: string;
     tenantNickname: string | null;
     bucketName: string;
     baseFolder: string;
+    ImpersonatedUser: string;
+    ImpersonatedEmail: string;
     bid?: string;
     cid?: string;
     authrole?: string;

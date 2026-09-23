@@ -23,6 +23,7 @@ import { SettingsInstanceList } from '../../shared/settingsform/settingsinstance
 import { IActionLabelItem } from '../../shared/allinterface/basic/IActionLabelItem'
 import { FnMapBusinessesToTreeNodes } from '../../shared/allcommon/tree/FnMapBusinessesToTreeNodes'
 import { FnIsRootBusinessNode } from '../../shared/allcommon/tree/FnIsRootBusinessNode'
+import { FnCopyToClipboard } from '../../shared/allcommon/basic/FnCopyToClipboard'
 import { useSmDataContext } from '../../shared/context/hooks/SmDataHooks'
 import { SidebarContainer } from '../sidebarcontainer/SidebarContainer'
 import { FeatureRenderContainer } from '../featurecontainer/FeatureRenderContainer'
@@ -328,16 +329,27 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     }
 
 
-    const FnRedirectService = () => {
+    const FnRedirectService = (node?: ITreeNode) => {
+        const targetNode = node ?? selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer;
         const url = new URL(window.location.href);
 
-        url.searchParams.set("bid", selectedNodeInfo?.node.bid ?? "");
-        url.searchParams.set("cid", selectedNodeInfo?.node.NodeEntID ?? "");
+        url.searchParams.set("bid", targetNode?.bid ?? "");
+        url.searchParams.set("cid", targetNode?.NodeEntID ?? targetNode?.cid ?? "");
 
         const newTab = window.open(url.toString(), "_blank");
 
         if (newTab) {
             newTab.document.title = "Service";
+        }
+    };
+
+    const handleKebabMenuSelect = (selectedItem: any, selectedNodeInfoParam?: ISelectedNodeInfo) => {
+        const payload = selectedItem?.payload ?? selectedItem;
+        const targetNode = selectedNodeInfoParam?.node ?? selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer;
+        if (payload?.Label?.toLowerCase() === 'services' || payload?.Alias?.toLowerCase() === 'service') {
+            FnRedirectService(targetNode);
+        } else if (payload?.Label === 'Copy' && targetNode) {
+            FnCopyToClipboard(targetNode.TableLabel ? `${targetNode.TableLabel}` : (targetNode.Name ? targetNode.Name : ''));
         }
     };
 
@@ -450,6 +462,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                             handleNodeSelect={handleNodeSelect}
                             updateOriginalTreeDataset={updateOriginalTreeDataset}
                             handleAIClick={handleAIClick}
+                            handleKebabMenuSelect={handleKebabMenuSelect}
                         />}
 
                         {explorerToRender === "MCS" && <TreeExplorerContainer
@@ -462,6 +475,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                             addActionCode={addActionCode}
                             handleNodeSelect={handleNodeSelect}
                             handleAIClick={handleAIClick}
+                            handleKebabMenuSelect={handleKebabMenuSelect}
                         />}
 
                         {(explorerToRender === "SAASINSTANCE" || explorerToRender === "CLIENTIDENTITY") && (

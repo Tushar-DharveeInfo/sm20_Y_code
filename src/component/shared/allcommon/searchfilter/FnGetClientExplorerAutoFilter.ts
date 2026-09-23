@@ -27,6 +27,14 @@ const FnGetClientExplorerAutoFilter = (
         case "feature-mcsdevelopment":
             return { btype: "mcs" };
 
+        // Requests Received: businesses where verified == false
+        case TicketsEnums.RequestsReceived:
+            return { verified: "false" };
+
+        // Approved Tickets: businesses where verified == true
+        case TicketsEnums.ApprovedTickets:
+            return { verified: "true" };
+
         default:
             return {};
     }

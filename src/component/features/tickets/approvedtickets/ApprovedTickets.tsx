@@ -1,5 +1,5 @@
 import React from 'react';
-import LibraryTicketsContainer from '../tickets/LibraryTicketsContainer';
+import { TicketCardsPane } from '../ticketcardspane/TicketCardsPane';
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl';
@@ -26,8 +26,6 @@ const ApprovedTickets: React.FC<IApprovedTicketsProps> = (props) => {
         libraryMode = 'accepted',
         selectedNode,
         treeData = [],
-        featureData,
-        selectedFeatureData
     } = props;
 
     const selectedNodeContext = useSelectedNodeContext();
@@ -39,11 +37,9 @@ const ApprovedTickets: React.FC<IApprovedTicketsProps> = (props) => {
 
     return (
         <div className="nz-feature-approvedtickets nz-wh-100">
-            <LibraryTicketsContainer
-                uniqueName={`${uniqueName}-tickets`}
+            <TicketCardsPane
+                uniqueName={`${uniqueName}-ticket-cards`}
                 featureId={featureId}
-                featureData={featureData}
-                selectedFeatureData={selectedFeatureData}
                 headerText={headerText}
                 libraryMode={libraryMode}
                 selectedNode={activeNode}

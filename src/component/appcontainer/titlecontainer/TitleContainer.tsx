@@ -83,13 +83,14 @@ const TitleContainer = (titleContainerProps: ITitleContainer) => {
 
     useEffect(() => {
         if (mainAppContext.featureRecords.length > 0) {
-            const filteredAppqa = mainAppContext.featureRecords.filter((item) => { return ((item._Feature as unknown as number) > 40 && (item._Feature as unknown as number) < 50) || ((item._Feature as unknown as number) > 90 && (item._Feature as unknown as number) < 100) });
+            const filteredAppqa = mainAppContext.featureRecords.filter((item) => { return ((item._Feature as unknown as number) > 40 && (item._Feature as unknown as number) <= 59) || ((item._Feature as unknown as number) > 90 && (item._Feature as unknown as number) < 100) });
+            debugger
             if (filteredAppqa.length > 0) {
                 const appqaMenu: IMenuItem[] = []
                 const appqaSubMenu: IMenuItem[] = []
                 filteredAppqa.sort((a, b) => b.SortOrder - a.SortOrder);
                 filteredAppqa.forEach((element) => {
-                    if ((element._Feature as unknown as number) > 50 && (element._Feature as unknown as number) < 100) {
+                    if ((element._Feature as unknown as number) > 59 && (element._Feature as unknown as number) < 100) {
                         appqaSubMenu.push(element)
                     } else {
                         appqaMenu.push(element)
@@ -142,7 +143,7 @@ const TitleContainer = (titleContainerProps: ITitleContainer) => {
 
             {menuImageObject && <MenuImage {...menuImageObject}
                 handleMouse={handleMouse}
-                // handleMouseEnter={!menuImageClick ? handleMouse : undefined} //uncomment if you want to allow hover to open menu when menuImageClick is false
+            // handleMouseEnter={!menuImageClick ? handleMouse : undefined} //uncomment if you want to allow hover to open menu when menuImageClick is false
 
             />}
             {appqaData && <AppQaMenuContainer

@@ -3,11 +3,23 @@ import { Fragment, MouseEvent } from 'react'
 import { Cart24x24, Check } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { FnGetLeafStatusIconConfig } from '../../allcommon/tree/FnGetLeafStatusIconConfig';
-import { ITreeNode } from '../../allinterface/tree/ITreeControl';
+import { ITreeNode, ISelectedNodeInfo } from '../../allinterface/tree/ITreeControl';
 import { IFeatureTree } from '../../allinterface/tree/ITreeForHierarchicalDataContainer';
 import { Image } from '../../basic/image/Image';
+import { NodeMenu } from '../../menu/nodemenu/NodeMenu';
+import { getfeaturesData } from '../../context/contextandprovider/MainApp';
+import { IFeatureItem } from '../../allinterface/menu/INodeMenu';
 
-const TreeNodeTitle = (treeNode: ITreeNode, treeDataProps: IFeatureTree) => {
+const TreeNodeTitle = (
+    treeNode: ITreeNode,
+    treeDataProps: IFeatureTree,
+    featureId?: string,
+    showKebabIcon?: boolean,
+    showCopyIcon?: boolean,
+    selectedNodeExplorer?: ISelectedNodeInfo,
+    handleKebabMenuSelect?: (selectedItem: any) => void,
+    featureData?: IFeatureItem[]
+) => {
     const clonedNode = { ...treeNode, title: "", icon: null, children: [] };
     const nodeTooltip = `${treeNode.Description ?? ""}${treeNode.WOID ? ` (${treeNode.WOID})` : ""}`
     let titleContent = `${treeNode.Name ?? ""}`.trim();
@@ -67,8 +79,30 @@ const TreeNodeTitle = (treeNode: ITreeNode, treeDataProps: IFeatureTree) => {
             : null;
         const StatusIcon = statusIconConfig?.Icon;
 
+        const isContactNode = Boolean(
+            treeNode.NodeType?.toLowerCase() === "contact" ||
+            treeNode.treetype?.toLowerCase() === "contact" ||
+            treeNode.NodeEntityname?.toLowerCase() === "contact" ||
+            (treeNode.cid && treeNode.cid !== treeNode.bid)
+        );
+
         return (
             <span className="nz-tree-node-icons-wrapper" key={`node-icons-${treeNode.key}`}>
+
+                {isContactNode && showKebabIcon && handleKebabMenuSelect && (
+                    <span key={`node-icons-kebabmenu-${treeNode.key}`} className="nz-tree-node-nz-icon-div nz-node-kebab-copy-icon">
+                        <NodeMenu
+                            showIcon={true}
+                            uniqueName={`kebab-${treeNode.key}`}
+                            handleSelect={handleKebabMenuSelect}
+                            featureId={featureId}
+                            selectedNode={selectedNodeExplorer?.node || treeNode}
+                            container="explorer_tree"
+                            featureData={featureData || getfeaturesData() || []}
+                            allowAddCopyIconInOverlay={true}
+                        />
+                    </span>
+                )}
 
                 {StatusIcon && statusIconConfig && (
                     <span

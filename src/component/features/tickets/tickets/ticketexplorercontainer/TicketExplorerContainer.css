@@ -36,12 +36,42 @@
 }
 
 
-.nz-dc-explorer-container .rc-tree-node-content-wrapper .nz-tree-node-nz-icon-div .nz-node-menu {
+.nz-dc-explorer-container .rc-tree-node-content-wrapper .nz-node-kebab-copy-icon,
+.nz-dc-explorer-container .rc-tree-node-content-wrapper .nz-tree-node-nz-icon-div.nz-node-kebab-copy-icon {
+    position: absolute;
+    right: 4px;
+    top: 0;
+    bottom: 0;
+    margin: auto 0;
     display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
 }
 
-.nz-dc-explorer-container .rc-tree-node-content-wrapper.rc-tree-node-selected .nz-tree-node-nz-icon-div .nz-node-menu {
+.nz-dc-explorer-container .rc-tree-node-content-wrapper .nz-node-menu {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 100%;
+}
+
+.nz-dc-explorer-container .rc-tree-node-content-wrapper.rc-tree-node-selected .nz-node-kebab-copy-icon,
+.nz-dc-explorer-container .rc-tree-node-content-wrapper.rc-tree-node-selected .nz-tree-node-nz-icon-div.nz-node-kebab-copy-icon,
+.nz-dc-explorer-container .rc-tree-treenode-selected .rc-tree-node-content-wrapper .nz-node-kebab-copy-icon,
+.nz-dc-explorer-container .rc-tree-treenode-selected .rc-tree-node-content-wrapper .nz-tree-node-nz-icon-div.nz-node-kebab-copy-icon {
     display: flex;
+}
+
+.nz-dc-explorer-container .rc-tree-node-content-wrapper.rc-tree-node-selected .nz-node-menu,
+.nz-dc-explorer-container .rc-tree-treenode-selected .rc-tree-node-content-wrapper .nz-node-menu {
+    display: flex;
+}
+
+.nz-dc-explorer-container .rc-tree-node-content-wrapper .nz-tree-node-title .nz-tree-node-content {
+    padding-right: 28px;
+    box-sizing: border-box;
 }
 
 .nz-ticket-explorer-container {

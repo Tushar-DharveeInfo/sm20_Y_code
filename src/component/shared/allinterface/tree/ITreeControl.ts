@@ -4,6 +4,7 @@ import { CheckInfo, DraggableConfig, DraggableFn } from "rc-tree/lib/Tree";
 import { NodeDragEventParams, NodeMouseEventHandler } from "rc-tree/lib/contextTypes";
 import { JSX } from "react";
 import { IActionImage } from "../basic/IActionImage";
+import { IFeatureItem } from "../../context/allinterface/IMainApp";
 interface ITreeNode {
     key: string;
     NodeEntityname: string | null;

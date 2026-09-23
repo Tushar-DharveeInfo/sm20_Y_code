@@ -24,8 +24,9 @@ enum AppQA {
     Notify = "45",
     Alerts = "46",
     Log = "47",
-    Report = "48",
-    ToDo = "49",
+    Report = "50",
+    Impersonate = "52",
+    ToDo = "54",
 }
 
 // Home feature ids — match public/smFeatures.json MenuID 100
@@ -52,6 +53,7 @@ enum ProspectEnums {
     Followup = "252",
     Recent = "254",
     Past = "256",
+    ReviewDeleted = "258",
     Delete = "258",
     All = "254",
     Verify = "256",
@@ -65,23 +67,64 @@ enum TicketsEnums {
     ApprovedTickets = "312",
 }
 
+// RMS menu feature ids — match public/smFeatures.json MenuID 400
 enum RmsEnums {
+    RMS = "400",
+    EQID = "402",
+    RMSLibrary = "404",
     McsDevelopment = "404",
+    ReviewDeviceLibrary = "406",
+    ReviewVisioStencils = "408",
 }
 
-// Services menu feature ids — match public/smFeatures.json MenuID 500
-enum ServicesEnums {
-    Service = "500",
-    Services = "502",
-    CatalogAndDiscounts = "504",
-    DownloadExcelTempates = "506",
-}
 
 // FAQ menu feature ids — match public/smFeatures.json MenuID 600
 enum FAQEnums {
     FAQEnums = "600",
     FAQ = "602",
+    Documents = "604",
     KBDOCS = "604",
+    CatalogAndDiscounts = "606",
+    DownloadExcelTemplates = "608",
+    DownloadExcelTempates = "608",
+}
+
+// Setting menu feature ids — match public/smFeatures.json MenuID 900
+enum SettingEnums {
+    Setting = "900",
+    ClientIdentityManagement = "904",
+    DailyScheduler = "908",
+    SAASInstance = "912",
+    Import = "916",
+    Delete = "920",
+    Test = "929",
+}
+
+// Kebab Services menu feature ids — match public/smFeatures.json
+enum KebabServicesEnums {
+    NetZoomServices = "10208",
+    VisioStencilsServices = "10212",
+    SSIAndOtherServices = "10216",
+    ResellerServices = "10218",
+    McsServices = "10220",
+    RequestsReceivedServices = "10308",
+    ApprovedTicketsServices = "10312",
+    ClientIdentityManagementServices = "10904",
+}
+
+// Feature QA ToDo IDs across menus — match public/smFeatures.json
+enum FeatureToDoEnums {
+    NetZoom = "2094",
+    VisioStencils = "2134",
+    SSIAndOtherServices = "2174",
+    Reseller = "2194",
+    Mcs = "2214",
+    ProspectFollowup = "2528",
+    ProspectRecent = "2548",
+    ProspectPast = "2568",
+    ProspectReviewDeleted = "2588",
+    RequestsReceived = "3094",
+    ApprovedTickets = "3134",
 }
 
 // About menu feature ids — match public/smFeatures.json MenuID 990
@@ -106,7 +149,9 @@ enum SidebarEnum {
     Profile = "Profile",
     Device = "Device",
     List = "List",
-    ListContacts = "List Contacts"
+    ListContacts = "List Contacts",
+    ToDo = "ToDo",
+    Orders = "Order"
 }
 
 export {
@@ -114,10 +159,12 @@ export {
     , HomeEnums
     , ClientEnums
     , ProspectEnums
-    , ServicesEnums
     , TicketsEnums
     , RmsEnums
     , FAQEnums
+    , SettingEnums
+    , KebabServicesEnums
+    , FeatureToDoEnums
     , AboutEnums
     , deviceModelTabs
     , FeatureQARange

@@ -267,6 +267,23 @@ html {
     align-items: center;
 }
 
+.rc-tree-node-content-wrapper .nz-node-kebab-copy-icon {
+    position: absolute;
+    right: 4px;
+    top: 0;
+    bottom: 0;
+    margin: auto 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+.rc-tree-node-content-wrapper.rc-tree-node-selected .nz-node-kebab-copy-icon,
+.rc-tree-treenode-selected .rc-tree-node-content-wrapper .nz-node-kebab-copy-icon {
+    display: flex;
+}
+
 .rc-tree-list .nz-img-three-dots-rtm {
     width: 20px;
     position: absolute;

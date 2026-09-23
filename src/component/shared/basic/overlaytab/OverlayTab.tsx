@@ -286,9 +286,9 @@ const OverlayTab = (overlayTabProps: TOverlayTabProps) => {
                                         image={
                                             {
                                                 uniqueName: `${tab.uniqueName}-image`,
-                                                source: handleIconForMenu(tab.label.label),
+                                                source: tab.iconSource ?? handleIconForMenu(tab.label.label),
                                                 w: '18px',
-                                                tooltip: "Click to " + tab.label.label,
+                                                tooltip: tab.imageTooltip || tab.label.tooltip || ("Click to " + tab.label.label),
                                                 type: "svg"
 
                                             }}

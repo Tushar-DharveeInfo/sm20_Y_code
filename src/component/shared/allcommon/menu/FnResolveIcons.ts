@@ -122,6 +122,7 @@ import {
     WallMountBox24x24,
     Watermark24x24,
     Workstation24x24,
+    Copy24x24
 
 } from "@n20a/libicon";
 
@@ -157,6 +158,7 @@ const featureIconMap: IconMap = {
     SelectColumns24x24,
     Excel24x24,
     XLSX24x24,
+    Copy24x24,
     // Label lookups keep VisioStencils24x24 / NetZoom24x24 / NZIcon24x24 keys.
     VisioStencils24x24: Visio,
     VisioStencilsBrochure24x24: Visio,

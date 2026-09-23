@@ -61,6 +61,11 @@ export interface IRenderPdfWithoutToc {
   tocWidthPercent?: number;
   initialTocItem?: string;
   initialPageNumber?: number;
+  scale?: number;
+  onZoomIn?: (scale?: number) => void;
+  onZoomOut?: (scale?: number) => void;
+  handleZoom?: (action: 'zoomin' | 'zoomout', scale?: number) => void;
+  hideZoomIcons?: boolean;
 }
 
 export function RenderPdfWithoutToc({
@@ -74,10 +79,40 @@ export function RenderPdfWithoutToc({
   downloadFileName,
   hideDownloadIcon = false,
   uniqueName = 'pdf-viewer-without-toc',
+  scale: initialScaleProp,
+  onZoomIn,
+  onZoomOut,
+  handleZoom,
+  hideZoomIcons = false,
 }: IRenderPdfWithoutToc) {
   const { getDownloadUrl, downloading, error } = useFileDownload();
   const [cloudPdfUrl, setCloudPdfUrl] = useState<string | undefined>();
   const [blobPdfUrl, setBlobPdfUrl] = useState<string | undefined>();
+  const [scale, setScale] = useState<number>(initialScaleProp ?? 1.0);
+
+  useEffect(() => {
+    if (initialScaleProp !== undefined) {
+      setScale(initialScaleProp);
+    }
+  }, [initialScaleProp]);
+
+  const handleZoomInClick = () => {
+    setScale((prev) => {
+      const nextScale = Math.min(Math.round((prev + 0.1) * 10) / 10, 3.0);
+      onZoomIn?.(nextScale);
+      handleZoom?.('zoomin', nextScale);
+      return nextScale;
+    });
+  };
+
+  const handleZoomOutClick = () => {
+    setScale((prev) => {
+      const nextScale = Math.max(Math.round((prev - 0.1) * 10) / 10, 0.4);
+      onZoomOut?.(nextScale);
+      handleZoom?.('zoomout', nextScale);
+      return nextScale;
+    });
+  };
 
   const storagePath = bucketName && baseFolder && fileName ? `${bucketName}/${baseFolder}${fileName}` : '';
 
@@ -145,7 +180,7 @@ export function RenderPdfWithoutToc({
       <SimplePdfViewer
         pdfUrl={resolvedPdfUrl}
         documentTitle={effectiveDocumentTitle}
-        scale={1.0}
+        scale={scale}
       />
     </div>
   );
@@ -160,6 +195,9 @@ export function RenderPdfWithoutToc({
               headerText={headerText}
               pdfUrl={resolvedPdfUrl}
               downloadFileName={effectiveDownloadName}
+              onZoomIn={handleZoomInClick}
+              onZoomOut={handleZoomOutClick}
+              hideZoomIcons={hideZoomIcons}
             />
           ) : (
             <div className="nz-sub-header">

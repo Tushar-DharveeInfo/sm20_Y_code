@@ -1,5 +1,5 @@
 import { lazy, Suspense, } from 'react'
-import { TicketsEnums, RmsEnums, ServicesEnums, ClientEnums, HomeEnums, ProspectEnums, FAQEnums, AboutEnums } from '../../constants/Feature.ts'
+import { TicketsEnums, RmsEnums, ClientEnums, HomeEnums, ProspectEnums, FAQEnums, AboutEnums } from '../../constants/Feature.ts'
 import ErrorBoundary from '../../shared/errorboundary/ErrorBoundary.tsx'
 import { Loader } from '../../shared/loader/Loader.tsx'
 import { Label } from '../../shared/basic/label/Label.tsx'
@@ -17,8 +17,8 @@ import '@n20a/libclientidentity/index.css'
 const DashboardChartsContainer = lazy(() => import('../../features/home/home/dashboardchartscontainer/DashboardChartsContainer.tsx'))
 const FqaNotes = lazy(() => import('../../shared/sidebar/notes/FqaNotes.tsx'))
 
-const MyProfile = lazy(() => import('../../features/home/profile/myprofile/MyProfile.tsx'))
-const MyActivities = lazy(() => import('../../features/home/profile/myactivities/MyActivities.tsx')) 
+const MyProfile = lazy(() => import('../../features/home/myprofile/MyProfile.tsx'))
+const MyActivities = lazy(() => import('../../features/home/myactivities/MyActivities.tsx'))
 
 // Library Features
 const DeviceLibrary = lazy(() => import('../../features/tickets/devicelibrary/DeviceLibrary.tsx'))
@@ -26,7 +26,7 @@ const RequestsReceived = lazy(() => import('../../features/tickets/requestsrecei
 const ApprovedTickets = lazy(() => import('../../features/tickets/approvedtickets/ApprovedTickets.tsx'))
 const McsDevelopment = lazy(() => import('../../features/rms/McsDevelopment.tsx'))
 
-const ImpersonateService = lazy(() => import('../../features/impersonateservice/ImpersonateService.tsx'))
+const ImpersonateService = lazy(() => import('../../features/faq/impersonateservice/ImpersonateService.tsx'))
 
 // FAQ & About Features
 const Faq = lazy(() => import('../../features/faq/Faq.tsx'))
@@ -64,11 +64,12 @@ const FeaturesWithOwnLayout: string[] = [
     HomeEnums.MyProfile,
     HomeEnums.MyActivities,
     TicketsEnums.DeviceLibrary,
-    ServicesEnums.CatalogAndDiscounts,
-    ServicesEnums.DownloadExcelTempates,
-    FAQEnums.KBDOCS,
+    FAQEnums.FAQEnums,
     FAQEnums.FAQ,
-
+    FAQEnums.KBDOCS,
+    FAQEnums.CatalogAndDiscounts,
+    FAQEnums.DownloadExcelTemplates,
+    AboutEnums.About,
     AboutEnums.AboutNetZoom,
 ];
 
@@ -268,21 +269,21 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case ServicesEnums.Services:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <ImpersonateService
-                            uniqueName={'feature-services'}
-                            featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
+        // case FAQEnums.Services:
+        //     return (
+        //         <ErrorBoundary>
+        //             <Suspense fallback={<Loader />}>
+        //                 <ImpersonateService
+        //                     uniqueName={'feature-services'}
+        //                     featureId={featureContainerProps.featureId}
+        //                     headerText={featureContainerProps.headerText}
+        //                     selectedFeatureData={featureContainerProps.selectedFeatureData}
+        //                 />
+        //             </Suspense>
+        //         </ErrorBoundary>
+        //     );
 
-        case ServicesEnums.CatalogAndDiscounts:
+        case FAQEnums.CatalogAndDiscounts:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
@@ -291,7 +292,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case ServicesEnums.DownloadExcelTempates:
+        case FAQEnums.DownloadExcelTemplates:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
@@ -304,6 +305,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
+        case FAQEnums.FAQEnums:
         case FAQEnums.FAQ:
             return (
                 <ErrorBoundary>
@@ -326,6 +328,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
+        case AboutEnums.About:
         case AboutEnums.AboutNetZoom:
             return (
                 <ErrorBoundary>
@@ -335,54 +338,54 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-       default:             
-       {
-        const parentName = featureContainerProps.selectedFeatureData?.parentName?.toLowerCase();
-            const featureName = featureContainerProps.selectedFeatureData?.featureName?.toLowerCase();
-            const label = featureContainerProps.selectedFeatureData?.Label?.toLowerCase();
-            const isClientExceptMcs = (parentName === 'client' || parentName === 'clients') && featureContainerProps.featureId !== ClientEnums.Mcs;
-            const isProspect = parentName === 'prospect' || parentName === 'prospects';
+        default:
+            {
+                const parentName = featureContainerProps.selectedFeatureData?.parentName?.toLowerCase();
+                const featureName = featureContainerProps.selectedFeatureData?.featureName?.toLowerCase();
+                const label = featureContainerProps.selectedFeatureData?.Label?.toLowerCase();
+                const isClientExceptMcs = (parentName === 'client' || parentName === 'clients') && featureContainerProps.featureId !== ClientEnums.Mcs;
+                const isProspect = parentName === 'prospect' || parentName === 'prospects';
 
-            if (featureName === 'orders' || featureName === 'order' || label === 'orders' || label === 'order') {
-                return (
-                    <ErrorBoundary>
-                        <Suspense fallback={<Loader />}>
-                            <OrderList
-                                uniqueName={`feature-orders-${featureContainerProps.featureId}`}
-                                headerText="Orders"
-                                selectedNode={selectedNode}
-                                featureId={featureContainerProps.featureId}
-                            />
-                        </Suspense>
-                    </ErrorBoundary>
-                );
-            }
-
-            if (isClientExceptMcs || isProspect) {
-                return (
-                    <ErrorBoundary>
-                        <Suspense fallback={<Loader />}>
-                            {isBusinessNode(selectedNode) ? (
-                                <FqaNotes
-                                    key={`feature-notes-${featureContainerProps.featureId}-${selectedNode?.key ?? selectedNode?.NodeEntID ?? ''}`}
-                                    uniqueName={`feature-notes-${featureContainerProps.featureId}`}
-                                    hideSearchControl={false}
-                                    hideSubHeader={true}
-                                    selectedNode={selectedNode!}
+                if (featureName === 'orders' || featureName === 'order' || label === 'orders' || label === 'order') {
+                    return (
+                        <ErrorBoundary>
+                            <Suspense fallback={<Loader />}>
+                                <OrderList
+                                    uniqueName={`feature-orders-${featureContainerProps.featureId}`}
+                                    headerText="Orders"
+                                    selectedNode={selectedNode}
+                                    featureId={featureContainerProps.featureId}
                                 />
-                            ) : (
-                                <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-center" style={{ padding: '20px', textAlign: 'center' }}>
-                                    <Label uniqueName="no-business-selected" label="Select a Business to view notes" />
-                                </div>
-                            )}
-                        </Suspense>
-                    </ErrorBoundary>
-                );
+                            </Suspense>
+                        </ErrorBoundary>
+                    );
+                }
+
+                if (isClientExceptMcs || isProspect) {
+                    return (
+                        <ErrorBoundary>
+                            <Suspense fallback={<Loader />}>
+                                {isBusinessNode(selectedNode) ? (
+                                    <FqaNotes
+                                        key={`feature-notes-${featureContainerProps.featureId}-${selectedNode?.key ?? selectedNode?.NodeEntID ?? ''}`}
+                                        uniqueName={`feature-notes-${featureContainerProps.featureId}`}
+                                        hideSearchControl={false}
+                                        hideSubHeader={true}
+                                        selectedNode={selectedNode!}
+                                    />
+                                ) : (
+                                    <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-center" style={{ padding: '20px', textAlign: 'center' }}>
+                                        <Label uniqueName="no-business-selected" label="Select a Business to view notes" />
+                                    </div>
+                                )}
+                            </Suspense>
+                        </ErrorBoundary>
+                    );
+                }
+                return null;
             }
-            return null;
-        }
     }
-  }
+}
 
 
 export { FeatureRenderContainer, FeaturesWithOwnLayout }

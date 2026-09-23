@@ -19,6 +19,7 @@ import { useHelpTipContext } from '../context/hooks/HelptipHooks'
 import { AlertLog } from './alertlog/AlertLog'
 import { ContactList } from './contactlist/ContactList'
 import { OrderList } from './orderlist/OrderList'
+import { AddToDo } from './todo/AddToDo'
 import { buildPropertyFormDataFromSelectedNode } from './propertyformcontainer/PropertySampleData'
 import { IMenuItem } from '../allinterface/menu/IMainMenu'
 import { FnIsRootBusinessNode } from '../allcommon/tree/FnIsRootBusinessNode'
@@ -306,11 +307,8 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                         selectedNode={sidebarProps.selectedNode}
                     />
                 );
-
             case SidebarEnum.List:
             case SidebarEnum.ListContacts:
-            case "List":
-            case "List Contacts":
                 return (
                     <ContactList
                         uniqueName="sidebar-contact-list"
@@ -320,16 +318,22 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                     />
                 );
 
-            case "Order":
-            case "Orders":
-            case "order":
-            case "orders":
+            case SidebarEnum.Orders:
                 return (
                     <OrderList
                         uniqueName="sidebar-order-list"
                         headerText="Orders"
                         selectedNode={selectedNode}
                         featureId={sidebarProps.featureId}
+                    />
+                );
+
+            case SidebarEnum.ToDo:
+                return (
+                    <AddToDo
+                        uniqueName={`sidebar-todo-${sidebarProps.uniqueName}`}
+                        featureId={sidebarProps.featureId}
+                        selectedNode={selectedNode ?? sidebarProps.selectedNode}
                     />
                 );
             default:

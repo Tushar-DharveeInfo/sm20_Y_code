@@ -102,6 +102,14 @@ const buildContactCardFields = (contact: IContactDoc): ICardLayoutField[] => {
         });
     }
 
+    if (contact.verified || contact.monitor) {
+        fields.push({
+            Name: "Verified",
+            Value: "✓ Verified",
+            Group: "type-status",
+        });
+    }
+
     const addressParts = [
         contact.address1,
         contact.address2,

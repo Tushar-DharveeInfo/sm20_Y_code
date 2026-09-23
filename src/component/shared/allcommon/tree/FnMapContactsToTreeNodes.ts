@@ -16,7 +16,8 @@ const FnMapContactsToTreeNodes = (
     contacts: IContactDoc[],
     featureTreeProps?: IFeatureTree,
     featureId?: string,
-    parentEntID?: string | null
+    parentEntID?: string | null,
+    handleKebabMenuSelect?: (selectedItem: any) => void
 ): ITreeNode[] => {
     if (!contacts?.length) {
         return [];
@@ -66,7 +67,12 @@ const FnMapContactsToTreeNodes = (
         if (featureTreeProps && featureId) {
             treeNode.title = TreeNodeTitle(
                 treeNode,
-                featureTreeProps
+                featureTreeProps,
+                featureId,
+                !featureTreeProps.hideKebabMenu,
+                !featureTreeProps.hideCopyIcon,
+                undefined,
+                handleKebabMenuSelect
             );
         }
 
