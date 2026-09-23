@@ -1,4 +1,4 @@
-import { FnConvertDateToUtcOrUtcToDate } from "./FnConvertDateToUtcOrUtcToDate";
+import { FnConvertDateToUtcOrUtcToLocalDate } from "../../shared/allcommon/FnConvertDateToUtcOrUtcToLocalDate";
 
 type TTimestampDateInput =
     | string
@@ -90,7 +90,7 @@ const FnConvertTimestampToDate = (
     if (!isoString) {
         return "";
     }
-    return FnConvertDateToUtcOrUtcToDate(isoString, toUTC, showTime);
+    return FnConvertDateToUtcOrUtcToLocalDate(isoString, toUTC, showTime);
 };
 
 export { FnConvertTimestampToDate, FnParseTimestampToISO };

@@ -7,11 +7,12 @@ import { Filter24x24 } from '@n20a/libicon'
 import { useFirestore } from '@n20a/libfsdb'
 import { Label } from '../../../shared/basic/label/Label'
 import { ActionImage } from '../../../shared/basic/actionimage/ActionImage'
+import { DisplayControlEnums } from '../../../shared/alldefaultprops/basic/DefaultPropsFormContainer'
 import { BasicGrid } from '../../../shared/tablegrid/BasicGrid'
 import type { IBasicGridColDef } from '../../../shared/allinterface/tablegrid/IBasicGrid'
 import type { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks'
-import { FnConvertDateToUtcOrUtcToDate } from '../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate'
+import { FnConvertDateToUtcOrUtcToLocalDate } from '../../../shared/allcommon/FnConvertDateToUtcOrUtcToLocalDate'
 import { FnGetCssVariable } from '../../../shared/allcommon/FnGetCssVariable'
 import { PopupFilterForm } from '../../../shared/searchfilter/popupfilterform/PopupFilterForm'
 import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer'
@@ -23,16 +24,20 @@ interface ILog {
     featureId: string; // feature id
     headerText?: string; // header text coming from the selected menu item
     allowSort?: boolean; // allow grid column sort, defaults to true
-    selectedNode?: ITreeNode; // selected node data
+    selectedNode?: ITreeNode; // current selected tree node
     handleShowUserMessage?: (messageText: string) => void;
 }
 
+interface ILogFilter {
+    startDate?: string;
+    endDate?: string;
+    message?: string;
+}
+
 function formatActivityDate(value: unknown): string {
-    if (value == null || value === '') {
-        return '';
-    }
+    if (value == null || value === '') return '';
     if (typeof value === 'string') {
-        return FnConvertDateToUtcOrUtcToDate(value, false, true) || value;
+        return FnConvertDateToUtcOrUtcToLocalDate(value, false, true) || value;
     }
     if (typeof value === 'object' && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
         return (value as { toDate: () => Date }).toDate().toLocaleString();
@@ -45,12 +50,8 @@ function formatActivityDate(value: unknown): string {
 
 function parseActivityDate(value: unknown, row?: Record<string, unknown>): number {
     if (value != null && value !== '') {
-        if (typeof value === 'number') {
-            return value;
-        }
-        if (value instanceof Date) {
-            return value.getTime();
-        }
+        if (typeof value === 'number') return value;
+        if (value instanceof Date) return value.getTime();
         if (typeof value === 'object') {
             if ('toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
                 return (value as { toDate: () => Date }).toDate().getTime();
@@ -61,43 +62,35 @@ function parseActivityDate(value: unknown, row?: Record<string, unknown>): numbe
         }
         if (typeof value === 'string') {
             const parsed = Date.parse(value);
-            if (!isNaN(parsed)) {
-                return parsed;
-            }
+            if (!isNaN(parsed)) return parsed;
         }
     }
-    // Fallback: extract timestamp if activityid ends with numeric timestamp (e.g. activity_cid_1788857795000)
     if (row && typeof row.activityid === 'string') {
         const match = row.activityid.match(/_(\d{10,13})$/);
         if (match) {
             const ts = Number(match[1]);
-            if (!isNaN(ts)) {
-                return ts;
-            }
+            if (!isNaN(ts)) return ts;
         }
     }
     return 0;
 }
 
 /**
- * Parse a filter date string to start/end of that calendar day (local time)
- * using the common FnConvertDateToUtcOrUtcToDate function.
+ * Parse a filter date string to start or end of that calendar day (local time timestamp).
  */
-function parseFilterDateRange(raw: string): { start: number; end: number } | null {
+function parseFilterDateBoundary(raw: string, isEndOfDay: boolean): number | null {
     if (!raw?.trim()) return null;
     const str = raw.trim();
 
     try {
         let utcIsoString = '';
-        // If input is in ISO format (YYYY-MM-DD), convert to local date format first
         if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(str)) {
-            const localFormatted = FnConvertDateToUtcOrUtcToDate(str, false, false);
+            const localFormatted = FnConvertDateToUtcOrUtcToLocalDate(str, false, false);
             if (localFormatted) {
-                utcIsoString = FnConvertDateToUtcOrUtcToDate(localFormatted, true, true);
+                utcIsoString = FnConvertDateToUtcOrUtcToLocalDate(localFormatted, true, true);
             }
         } else {
-            // Local date input (e.g. 21-09-2026 or 09/21/2026) -> convert using common function
-            utcIsoString = FnConvertDateToUtcOrUtcToDate(str, true, true);
+            utcIsoString = FnConvertDateToUtcOrUtcToLocalDate(str, true, true);
         }
 
         if (utcIsoString) {
@@ -106,23 +99,20 @@ function parseFilterDateRange(raw: string): { start: number; end: number } | nul
                 const year = dateObj.getFullYear();
                 const month = dateObj.getMonth();
                 const day = dateObj.getDate();
-                return {
-                    start: new Date(year, month, day, 0, 0, 0, 0).getTime(),
-                    end: new Date(year, month, day, 23, 59, 59, 999).getTime(),
-                };
+                return isEndOfDay
+                    ? new Date(year, month, day, 23, 59, 59, 999).getTime()
+                    : new Date(year, month, day, 0, 0, 0, 0).getTime();
             }
         }
     } catch (err) {
-        console.error('Error in parseFilterDateRange using FnConvertDateToUtcOrUtcToDate:', err);
+        console.error('Error in parseFilterDateBoundary using FnConvertDateToUtcOrUtcToLocalDate:', err);
     }
 
-    // Direct fallback if conversion did not produce a valid date
     const d = new Date(str);
     if (!isNaN(d.getTime())) {
-        return {
-            start: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0).getTime(),
-            end: new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime(),
-        };
+        return isEndOfDay
+            ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime()
+            : new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0).getTime();
     }
 
     return null;
@@ -149,6 +139,32 @@ function extractFieldValue(data: Record<string, unknown>, fieldName: string): st
     }
 
     return '';
+}
+
+function extractDateRangeValues(data: Record<string, unknown>): { startDate: string; endDate: string } {
+    let startDate = '';
+    let endDate = '';
+
+    for (const [key, value] of Object.entries(data)) {
+        if ((key === 'dateRange' || key.toLowerCase().includes('daterange')) && value && typeof value === 'object') {
+            const range = value as { startDate?: unknown; endDate?: unknown };
+            if (range.startDate != null && String(range.startDate).trim() !== '') {
+                startDate = String(range.startDate).trim();
+            }
+            if (range.endDate != null && String(range.endDate).trim() !== '') {
+                endDate = String(range.endDate).trim();
+            }
+        }
+    }
+
+    if (!startDate) {
+        startDate = extractFieldValue(data, 'StartDate') || extractFieldValue(data, 'startDate');
+    }
+    if (!endDate) {
+        endDate = extractFieldValue(data, 'EndDate') || extractFieldValue(data, 'endDate');
+    }
+
+    return { startDate, endDate };
 }
 
 const Log = (logProps: ILog) => {
@@ -182,7 +198,7 @@ const Log = (logProps: ILog) => {
 
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [isFilterIconVisible, setIsFilterIconVisible] = useState(false);
-    const [appliedFilter, setAppliedFilter] = useState<{ datecreated?: string; message?: string }>({});
+    const [appliedFilter, setAppliedFilter] = useState<ILogFilter>({});
     const [popupMessage, setPopupMessage] = useState<string>('');
     const [isPopupOpen, setIsPopupOpen] = useState<boolean>(false);
 
@@ -191,11 +207,11 @@ const Log = (logProps: ILog) => {
     const latestFilterValuesRef = useRef<Record<string, unknown>>({});
 
     const triggerOver500Popup = useCallback(() => {
-        if (hasShownOver500PopupRef.current) return;
-        hasShownOver500PopupRef.current = true;
-        const msg = "More than 500 records exist. Please use filter to refine your search.";
-        setPopupMessage(msg);
-        setIsPopupOpen(true);
+        if (!hasShownOver500PopupRef.current) {
+            hasShownOver500PopupRef.current = true;
+            setPopupMessage("More than 500 records exist. Please use filter to refine your search.");
+            setIsPopupOpen(true);
+        }
     }, []);
 
     const fetchActivitiesData = useCallback(async () => {
@@ -210,7 +226,6 @@ const Log = (logProps: ILog) => {
                 pathSegments: ['businesses', bid, 'activities'],
                 limit: 501,
             });
-
             if (res && res.success === false) {
                 setError(res.error || res.details || 'Failed to fetch activities');
                 setActivities([]);
@@ -247,10 +262,11 @@ const Log = (logProps: ILog) => {
 
     // Build profileString from appliedFilter so PopupFilterForm pre-populates on reopen.
     const filterProfileString = useMemo(() => {
-        const hasFilter = appliedFilter.datecreated || appliedFilter.message;
+        const hasFilter = appliedFilter.startDate || appliedFilter.endDate || appliedFilter.message;
         if (!hasFilter) return '';
         return JSON.stringify([{
-            datecreated: appliedFilter.datecreated ?? '',
+            StartDate: appliedFilter.startDate ?? '',
+            EndDate: appliedFilter.endDate ?? '',
             message: appliedFilter.message ?? '',
         }]);
     }, [appliedFilter]);
@@ -264,26 +280,56 @@ const Log = (logProps: ILog) => {
             SubGroupEntID: '',
             SubGroupName: 'FormControl',
             SubGroupNameDesc: '',
-            _AP: 'datecreated',
+            _AP: 'StartDate',
             PropertyLabel: 'Date Created',
-            NameDesc: 'Filter by date created',
-            DefaultAPValue: appliedFilter.datecreated ?? '',
-            Value: appliedFilter.datecreated || null,
+            NameDesc: 'Filter activities by start date',
+            DefaultAPValue: appliedFilter.startDate ?? '',
+            Value: appliedFilter.startDate || null,
             ValueDesc: '',
             SortOrder: 1,
             MaxInstances: 0,
             InputMask: null,
             RegEx: null,
             DisplayGroupControl: 'Filter Activities',
-            DisplayControl: 'DateControl',
+            DisplayControl: DisplayControlEnums.DateControl,
             ChangeEvent: '',
             Secured: false,
             IsNZ: true,
-            EntID: 'datecreated',
-            RecID: 'datecreated',
+            EntID: 'StartDate',
+            RecID: 'StartDate',
             LastUpdated: '',
             EntityName: 'Activity',
-            Name: 'datecreated',
+            Name: 'StartDate',
+            disabled: false,
+        },
+        {
+            CanChange: 1,
+            IsRequired: 0,
+            GroupName: 'FilterDetails',
+            GroupNameDesc: 'Filter Activities',
+            SubGroupEntID: '',
+            SubGroupName: 'FormControl',
+            SubGroupNameDesc: '',
+            _AP: 'EndDate',
+            PropertyLabel: 'End Date',
+            NameDesc: 'Filter activities by end date',
+            DefaultAPValue: appliedFilter.endDate ?? '',
+            Value: appliedFilter.endDate || null,
+            ValueDesc: '',
+            SortOrder: 2,
+            MaxInstances: 0,
+            InputMask: null,
+            RegEx: null,
+            DisplayGroupControl: 'Filter Activities',
+            DisplayControl: DisplayControlEnums.DateControl,
+            ChangeEvent: '',
+            Secured: false,
+            IsNZ: true,
+            EntID: 'EndDate',
+            RecID: 'EndDate',
+            LastUpdated: '',
+            EntityName: 'Activity',
+            Name: 'EndDate',
             disabled: false,
         },
         {
@@ -300,12 +346,12 @@ const Log = (logProps: ILog) => {
             DefaultAPValue: appliedFilter.message ?? '',
             Value: appliedFilter.message || null,
             ValueDesc: '',
-            SortOrder: 2,
+            SortOrder: 3,
             MaxInstances: 0,
             InputMask: null,
             RegEx: null,
             DisplayGroupControl: 'Filter Activities',
-            DisplayControl: 'EditTextControl',
+            DisplayControl: DisplayControlEnums.EditTextControl,
             ChangeEvent: '',
             Secured: false,
             IsNZ: true,
@@ -349,39 +395,19 @@ const Log = (logProps: ILog) => {
         if (!activities?.length) return [];
         let list = [...activities];
 
-        if (appliedFilter.datecreated?.trim()) {
-            const filterDateRaw = appliedFilter.datecreated.trim();
-            const dateRange = parseFilterDateRange(filterDateRaw);
-            const normalizedFilterDate = (/^\d{4}[-/]/.test(filterDateRaw)
-                ? FnConvertDateToUtcOrUtcToDate(filterDateRaw, false, false)
-                : filterDateRaw
-            ).replace(/[-]/g, '/').toLowerCase();
+        const hasStartDate = Boolean(appliedFilter.startDate?.trim());
+        const hasEndDate = Boolean(appliedFilter.endDate?.trim());
+
+        if (hasStartDate || hasEndDate) {
+            const startTs = hasStartDate ? parseFilterDateBoundary(appliedFilter.startDate!.trim(), false) : null;
+            const endTs = hasEndDate ? parseFilterDateBoundary(appliedFilter.endDate!.trim(), true) : null;
 
             list = list.filter((row) => {
-                // 1. Check timestamp range from parseFilterDateRange
-                if (dateRange) {
-                    const ts = parseActivityDate(row.datecreated, row as Record<string, unknown>);
-                    if (ts >= dateRange.start && ts <= dateRange.end) {
-                        return true;
-                    }
-                }
-
-                // 2. Direct day comparison using FnConvertDateToUtcOrUtcToDate
-                if (row.datecreated) {
-                    const rowLocalDate = FnConvertDateToUtcOrUtcToDate(
-                        String(row.datecreated),
-                        false,
-                        false
-                    ).replace(/[-]/g, '/').toLowerCase();
-                    if (rowLocalDate && rowLocalDate === normalizedFilterDate) {
-                        return true;
-                    }
-                }
-
-                // 3. Fallback: formatted display string or raw string includes filter text
-                const fmt = formatActivityDate(row.datecreated).toLowerCase();
-                const raw = String(row.datecreated || '').toLowerCase();
-                return fmt.includes(filterDateRaw.toLowerCase()) || raw.includes(filterDateRaw.toLowerCase());
+                const ts = parseActivityDate(row.datecreated, row as Record<string, unknown>);
+                if (!ts) return false;
+                if (startTs != null && ts < startTs) return false;
+                if (endTs != null && ts > endTs) return false;
+                return true;
             });
         }
 
@@ -445,39 +471,23 @@ const Log = (logProps: ILog) => {
         // Merge parsedData with the real-time tracked values from latestFilterValuesRef.
         const merged = { ...latestFilterValuesRef.current, ...parsedData };
 
-        const datecreated = extractFieldValue(merged, 'datecreated').trim();
+        const { startDate, endDate } = extractDateRangeValues(merged);
         const message = extractFieldValue(merged, 'message').trim();
 
-        setAppliedFilter({ datecreated, message });
+        setAppliedFilter({ startDate, endDate, message });
         setIsFilterOpen(false);
 
         let list = activities ? [...activities] : [];
-        if (datecreated) {
-            const dateRange = parseFilterDateRange(datecreated);
-            const normalizedFilterDate = (/^\d{4}[-/]/.test(datecreated)
-                ? FnConvertDateToUtcOrUtcToDate(datecreated, false, false)
-                : datecreated
-            ).replace(/[-]/g, '/').toLowerCase();
+        if (startDate || endDate) {
+            const startTs = startDate ? parseFilterDateBoundary(startDate, false) : null;
+            const endTs = endDate ? parseFilterDateBoundary(endDate, true) : null;
 
             list = list.filter((row) => {
-                if (dateRange) {
-                    const ts = parseActivityDate(row.datecreated, row as Record<string, unknown>);
-                    if (ts >= dateRange.start && ts <= dateRange.end) {
-                        return true;
-                    }
-                }
-                if (row.datecreated) {
-                    const rowLocalDate = FnConvertDateToUtcOrUtcToDate(
-                        String(row.datecreated),
-                        false,
-                        false
-                    ).replace(/[-]/g, '/').toLowerCase();
-                    if (rowLocalDate && rowLocalDate === normalizedFilterDate) {
-                        return true;
-                    }
-                }
-                const fmt = formatActivityDate(row.datecreated).toLowerCase();
-                return fmt.includes(datecreated.toLowerCase()) || String(row.datecreated || '').toLowerCase().includes(datecreated.toLowerCase());
+                const ts = parseActivityDate(row.datecreated, row as Record<string, unknown>);
+                if (!ts) return false;
+                if (startTs != null && ts < startTs) return false;
+                if (endTs != null && ts > endTs) return false;
+                return true;
             });
         }
         if (message) {
@@ -563,7 +573,10 @@ const Log = (logProps: ILog) => {
             {/* Conditionally render PopupFilterForm so it unmounts/remounts on each open */}
             {isFilterOpen && (() => {
                 latestFilterValuesRef.current = {
-                    datecreated: appliedFilter.datecreated ?? '',
+                    StartDate: appliedFilter.startDate ?? '',
+                    EndDate: appliedFilter.endDate ?? '',
+                    startDate: appliedFilter.startDate ?? '',
+                    endDate: appliedFilter.endDate ?? '',
                     message: appliedFilter.message ?? '',
                 };
                 return (
@@ -573,15 +586,16 @@ const Log = (logProps: ILog) => {
                         headerText="Filter Activities"
                         controls={filterFormControls}
                         profileString={filterProfileString}
-                        isFilterChange={Boolean(appliedFilter.datecreated || appliedFilter.message)}
+                        isFilterChange={Boolean(appliedFilter.startDate || appliedFilter.endDate || appliedFilter.message)}
                         onApplyFilter={handleApplyFilter}
                         onFilterChange={(values) => {
-                            const dateVal = extractFieldValue(values, 'datecreated');
+                            const { startDate, endDate } = extractDateRangeValues(values);
                             const msgVal = extractFieldValue(values, 'message');
                             latestFilterValuesRef.current = {
                                 ...latestFilterValuesRef.current,
                                 ...values,
-                                ...(dateVal ? { datecreated: dateVal } : {}),
+                                ...(startDate ? { StartDate: startDate, startDate } : {}),
+                                ...(endDate ? { EndDate: endDate, endDate } : {}),
                                 ...(msgVal ? { message: msgVal } : {}),
                             };
                         }}

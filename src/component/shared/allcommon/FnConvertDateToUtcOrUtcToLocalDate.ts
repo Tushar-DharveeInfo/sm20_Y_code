@@ -1,6 +1,19 @@
-import { FnGetAppDateFormat } from "../../shared/allcommon/basic/FnGetAppDateFormat";
+/*
+When toUTC is true, the function assumes dateInput is in the app's local display format (e.g. "03/15/2024 14:30:00"). 
 
-const FnConvertDateToUtcOrUtcToDate = (
+A Date object is built using the local timezone constructor (new Date(year, month - 1, day, hours, minutes, seconds)) — note month - 1 because JavaScript's Date months are zero-indexed. Calling .toISOString() on this Date converts it to UTC representation; it strips off the milliseconds portion (e.g., .000Z → Z) if showTime is true; 
+otherwise, it just returns the date portion (substring(0, 10), i.e., "yyyy-MM-dd").
+
+The else branch (UTC → local), When toUTC is false, the function expects dateInput to represent a UTC timestamp (utcDate) and needs to render it in local format. 
+
+After validating utcDate isn't NaN 
+Finally, it builds the display string in either MM/dd/yyyy or dd/MM/yyyy order based on format, and if showTime is true, appends a 12-hour clock time with AM/PM produced by the earlier formatAMPM helper (which converts 24-hour hours to 12-hour format, treating 0 as 12).
+
+*/
+
+import { FnGetAppDateFormat } from "./basic/FnGetAppDateFormat";
+
+const FnConvertDateToUtcOrUtcToLocalDate = (
     dateInput: string,
     toUTC: boolean,
     showTime: boolean = true
@@ -97,4 +110,4 @@ const FnConvertDateToUtcOrUtcToDate = (
 };
 
 
-export { FnConvertDateToUtcOrUtcToDate };
+export { FnConvertDateToUtcOrUtcToLocalDate };

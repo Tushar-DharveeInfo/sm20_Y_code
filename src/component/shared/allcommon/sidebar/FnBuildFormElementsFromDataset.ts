@@ -16,7 +16,7 @@ interface IRefItem {
     LastUpdated: string;
 }
 import { DELIMITER } from "../../alldefaultprops/basic/DefaultPropsChekedListBoxControl";
-import { FnConvertDateToUtcOrUtcToDate } from "../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate";
+import { FnConvertDateToUtcOrUtcToLocalDate } from "../FnConvertDateToUtcOrUtcToLocalDate";
 import { hideGridData } from "../../alldefaultprops/tablegrid/DefaultPropsBasicGrid";
 import { IControlProperties } from "../../allinterface/settingsform/ISettingsLibForm";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
@@ -283,11 +283,11 @@ const FnBuildFormElementsFromDataset = (
                     const fieldName = col.PName?.toLowerCase();
                     let controlLabel = col.PropertyLabel;
                     if (fieldName.includes("lastupdated") && value && !isFormattedDate(value)) {
-                        value = FnConvertDateToUtcOrUtcToDate(value, false, true)
+                        value = FnConvertDateToUtcOrUtcToLocalDate(value, false, true)
                     }
                     else if (fieldName !== "dateformat" && (fieldName.startsWith("date") || fieldName.endsWith("date") || fieldName.endsWith("updated") || fieldName.includes("date")) && value) {
 
-                        value = FnConvertDateToUtcOrUtcToDate(value, false, false)// getDateOnly(value)
+                        value = FnConvertDateToUtcOrUtcToLocalDate(value, false, false)// getDateOnly(value)
                     }
                     else if (fieldName.endsWith("time") && value) {
                         const FnExtractTimeFromDateTime = (
@@ -311,7 +311,7 @@ const FnBuildFormElementsFromDataset = (
                         value = FnExtractTimeFromDateTime(value || null)
                     }
                     else if (displayControl === "date") {
-                        value = FnConvertDateToUtcOrUtcToDate(value, false, false)
+                        value = FnConvertDateToUtcOrUtcToLocalDate(value, false, false)
                     }
 
                     else if (col?.PName?.toLowerCase() === "entityname" && !value) {

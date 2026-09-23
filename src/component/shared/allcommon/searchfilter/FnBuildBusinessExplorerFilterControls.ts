@@ -37,6 +37,23 @@ const DATE_TYPE_FIELDS = [
     "onpremexpirydate",
 ];
 
+const BUSINESS_DATE_FIELDS_CONFIG = [
+    { name: "contactsupdated", label: "Contacts updated", isExpiry: false },
+    { name: "notesupdated", label: "Notes updated", isExpiry: false },
+    { name: "ticketsupdated", label: "Tickets updated", isExpiry: false },
+    { name: "ticketnotesupdated", label: "Ticket notes updated", isExpiry: false },
+    { name: "activitiesupdated", label: "Activities updated", isExpiry: false },
+    { name: "ordersupdated", label: "Orders updated", isExpiry: false },
+    { name: "subsupdated", label: "Subscriptions updated", isExpiry: false },
+    { name: "downloadupdated", label: "Download updated", isExpiry: false },
+    { name: "amcexpirydate", label: "AMC expiry date", isExpiry: true },
+    { name: "mcsexpirydate", label: "MCS expiry date", isExpiry: true },
+    { name: "saasexpirydate", label: "SaaS expiry date", isExpiry: true },
+    { name: "onpremexpirydate", label: "On-prem expiry date", isExpiry: true },
+    { name: "datecreated", label: "Date created", isExpiry: false },
+    { name: "dateupdated", label: "Date updated", isExpiry: false },
+] as const;
+
 // Date-range max is today so start/end stay in the past.
 function todayIsoDate(): string {
     return new Date().toISOString().slice(0, 10);
@@ -193,38 +210,36 @@ function FnBuildBusinessExplorerFilterControls(
             value: comboValue(applied, "mmfinyear"),
             options: FnWithAnyOption(FIN_YEAR_QUARTERS),
         }),
-        makeControl({
-            name: "selectdatetype",
-            label: "Date type",
-            group: businessGroup,
-            sortOrder: 11,
-            displayControl: DisplayControlEnums.ComboBoxControl,
-            value: comboValue(applied, "selectdatetype"),
-            options: FnWithAnyOption(DATE_TYPE_FIELDS),
-        }),
-        makeControl({
-            name: "StartDate",
-            label: "Start date",
-            group: businessGroup,
-            sortOrder: 12,
-            displayControl: DisplayControlEnums.DateControl,
-            value: applied.StartDate ?? "",
-            maxDate: todayIsoDate(),
-        }),
-        makeControl({
-            name: "EndDate",
-            label: "End date",
-            group: businessGroup,
-            sortOrder: 13,
-            displayControl: DisplayControlEnums.DateControl,
-            value: applied.EndDate ?? "",
-            maxDate: todayIsoDate(),
+        ...BUSINESS_DATE_FIELDS_CONFIG.flatMap((df, idx) => {
+            const startVal = applied[`${df.name}_StartDate`] ?? applied[`${df.name}StartDate`] ?? "";
+            const endVal = applied[`${df.name}_EndDate`] ?? applied[`${df.name}EndDate`] ?? "";
+            const maxDate = df.isExpiry ? undefined : todayIsoDate();
+            return [
+                makeControl({
+                    name: `${df.name}_StartDate`,
+                    label: df.label,
+                    group: businessGroup,
+                    sortOrder: 11 + idx * 2,
+                    displayControl: DisplayControlEnums.DateControl,
+                    value: startVal,
+                    maxDate,
+                }),
+                makeControl({
+                    name: `${df.name}_EndDate`,
+                    label: df.label,
+                    group: businessGroup,
+                    sortOrder: 12 + idx * 2,
+                    displayControl: DisplayControlEnums.DateControl,
+                    value: endVal,
+                    maxDate,
+                }),
+            ];
         }),
         makeControl({
             name: "cverified",
             label: "Contact verified",
             group: contactGroup,
-            sortOrder: 14,
+            sortOrder: 11 + BUSINESS_DATE_FIELDS_CONFIG.length * 2,
             displayControl: DisplayControlEnums.TrueFalseControl,
             value: applied.cverified === "true" || applied.cverified === "1" ? "true" : "false",
         }),
@@ -232,7 +247,7 @@ function FnBuildBusinessExplorerFilterControls(
             name: "contacttype",
             label: "Contact type",
             group: contactGroup,
-            sortOrder: 15,
+            sortOrder: 12 + BUSINESS_DATE_FIELDS_CONFIG.length * 2,
             displayControl: DisplayControlEnums.ComboBoxControl,
             value: comboValue(applied, "contacttype"),
             options: FnWithAnyOption(FnGetDistinctContactType(contacts)),
@@ -241,7 +256,7 @@ function FnBuildBusinessExplorerFilterControls(
             name: "cstatus",
             label: "Contact status",
             group: contactGroup,
-            sortOrder: 16,
+            sortOrder: 13 + BUSINESS_DATE_FIELDS_CONFIG.length * 2,
             displayControl: DisplayControlEnums.ComboBoxControl,
             value: comboValue(applied, "cstatus"),
             options: FnWithAnyOption(FnGetDistinctContactStatus(contacts)),
@@ -250,7 +265,7 @@ function FnBuildBusinessExplorerFilterControls(
             name: "ctags",
             label: "Contact tags",
             group: contactGroup,
-            sortOrder: 17,
+            sortOrder: 14 + BUSINESS_DATE_FIELDS_CONFIG.length * 2,
             displayControl: DisplayControlEnums.ComboBoxControl,
             value: comboValue(applied, "ctags"),
             options: FnWithAnyOption(FnGetDistinctContactTag(contacts)),
@@ -259,6 +274,7 @@ function FnBuildBusinessExplorerFilterControls(
 }
 
 export {
+    BUSINESS_DATE_FIELDS_CONFIG,
     DATE_TYPE_FIELDS,
     FIN_YEAR_QUARTERS,
     FnBuildBusinessExplorerFilterControls,

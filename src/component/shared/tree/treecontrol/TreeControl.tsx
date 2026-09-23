@@ -292,7 +292,7 @@ const TreeControl = (treeControlProps: ITreeControl) => {
 
   const handleNodeSelect = useCallback((selectedKeys: Key[], info: ISelectedNodeInfo) => {
     if (isDraggingRef.current) return;
-
+    if (!info.selected) return;
     if (treeControlProps.disableSelection)
       return;
 

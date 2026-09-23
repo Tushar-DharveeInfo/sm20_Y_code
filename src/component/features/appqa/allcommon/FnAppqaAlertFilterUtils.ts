@@ -13,7 +13,7 @@ import { IControl } from '../../../shared/allinterface/settingsform/ISettingsLib
 import { ISession } from '../../../shared/context/allinterface/ISession';
 import { IAppqaAlertFilterValues, IAppqaAlertRawRecord } from '../alerts/IAlerts';
 import { FnGetAppDateFormat } from '../../../shared/allcommon/basic/FnGetAppDateFormat';
-import { FnConvertDateToUtcOrUtcToDate } from '../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate';
+import { FnConvertDateToUtcOrUtcToLocalDate } from '../../../shared/allcommon/FnConvertDateToUtcOrUtcToLocalDate';
 import { filterEnabledUsers } from '../../../shared/allcommon/basic/FnIsAuthorizedUser';
 
 /* Formats a date for alert filter StartDate / EndDate — same rules as ForensicLog. */
@@ -344,7 +344,7 @@ const formatDate = (dateValue: unknown): string => {
         );
     }
 
-    return FnConvertDateToUtcOrUtcToDate(dateText, false, false);
+    return FnConvertDateToUtcOrUtcToLocalDate(dateText, false, false);
 };
 export const buildDefaultAppqaAlertFilters = (
     sessionList: ISession[]

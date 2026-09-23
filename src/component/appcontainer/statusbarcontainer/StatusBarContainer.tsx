@@ -12,7 +12,7 @@ import { Label } from '../../shared/basic/label/Label';
 import { StatusBarCard } from './statusbarcard/StatusBarCard';
 import { StatusBarTitleContainer } from './statusbartitlecontainer/StatusBarTitleContainer';
 import { YesNoFormContainer } from '../../shared/basic/yesnoformcontainer/YesNoFormContainer';
-import { FnConvertDateToUtcOrUtcToDate } from '../allcommon/FnConvertDateToUtcOrUtcToDate';
+import { FnConvertDateToUtcOrUtcToLocalDate } from '../../shared/allcommon/FnConvertDateToUtcOrUtcToLocalDate';
 import { FnGetAppDateFormat } from '../../shared/allcommon/basic/FnGetAppDateFormat';
 import { FnSortStatusBarCards } from '../allcommon/FnSortStatusBarCards';
 import { FnParseJsonSafely } from '../allcommon/FnParseJsonSafely';
@@ -144,7 +144,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
                         attemptCount: element.AttemptCount,
                         html: element.HTML,
                         lastDelivered: element.LastDelivered,
-                        lastUpdated: element.LastUpdated ? FnConvertDateToUtcOrUtcToDate(element.LastUpdated, false, true) : undefined,
+                        lastUpdated: element.LastUpdated ? FnConvertDateToUtcOrUtcToLocalDate(element.LastUpdated, false, true) : undefined,
                         entID: element.EntID,
                         recID: element.RecID,
                         messageSource: element.MessageSource
@@ -383,7 +383,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
         //                                         attemptCount: element.AttemptCount,
         //                                         html: element.HTML,
         //                                         lastDelivered: element.LastDelivered,
-        //                                         lastUpdated: element.LastUpdated ? FnConvertDateToUtcOrUtcToDate(element.LastUpdated, false, true) : undefined,
+        //                                         lastUpdated: element.LastUpdated ? FnConvertDateToUtcOrUtcToLocalDate(element.LastUpdated, false, true) : undefined,
         //                                         entID: element.EntID,
         //                                         recID: element.RecID,
         //                                         messageSource: element.MessageSource
@@ -448,7 +448,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
                 contentData: cardContent,
                 html: cardContent,
                 messageSource: "Error",
-                lastUpdated: FnConvertDateToUtcOrUtcToDate(new Date().toISOString(), false, true)
+                lastUpdated: FnConvertDateToUtcOrUtcToLocalDate(new Date().toISOString(), false, true)
             };
             setStatusBarCards((prevCards) => {
                 const isExists = prevCards.some((card) =>
@@ -718,7 +718,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
                     format === "MM/DD/YYYY"
                         ? `${pad(now.getMonth() + 1)}/${pad(now.getDate())}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
                         : `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-                return FnConvertDateToUtcOrUtcToDate(dateInput, true, true);
+                return FnConvertDateToUtcOrUtcToLocalDate(dateInput, true, true);
             };
             const currentDate = getCurrentUtc();
             for (let index = 0; index < statusBarCards.length; index++) {

@@ -4,7 +4,7 @@ import { IRefData } from "../../allinterface/basic/IRefData";
 import { FnGetRefList } from "../basic/FnGetRefList";
 import { IStatusBar } from "../../context/allinterface/IStatusBar";
 import { DELIMITER } from "../../alldefaultprops/basic/DefaultPropsChekedListBoxControl";
-import { FnConvertDateToUtcOrUtcToDate } from "../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate";
+import { FnConvertDateToUtcOrUtcToLocalDate } from "../FnConvertDateToUtcOrUtcToLocalDate";
 import { hideGridData } from "../../alldefaultprops/tablegrid/DefaultPropsBasicGrid";
 import { IControl, IControlProperties } from "../../allinterface/settingsform/ISettingsLibForm";
 import { FnGetPrefixedPropertyValue } from "./FnGetPrefixedPropertyValue";
@@ -44,6 +44,11 @@ const FnGetDisplayControlForForm = (controlName: string): ControlType => {
         [DisplayControlEnums.HTMLEditControl]: 'htmlEdit',
         [DisplayControlEnums.HiddenEditTextControl]: 'hiddenEditText',
         [DisplayControlEnums.EmailControl]: 'email',
+        [DisplayControlEnums.PeriodControl]: 'dateRange',
+        DateRangeControl: 'dateRange',
+        dateRange: 'dateRange',
+        EuropeanDateRangeControl: 'europeanDateRange',
+        europeanDateRange: 'europeanDateRange',
     };
 
     return map[controlName] ?? 'text';
@@ -268,6 +273,7 @@ const FnBuildFormElementsFromControls = (
             );
             if (filteredControls.length) {
                 let isDateRangeCreated = false;
+                const mergedDateRangePrefixes = new Set<string>();
                 TableSections[groupName?.length ? groupName : "Default"] = filteredControls.sort((a, b) => {
                     const aOrder = a.SortOrder ?? Number.MAX_SAFE_INTEGER;
                     const bOrder = b.SortOrder ?? Number.MAX_SAFE_INTEGER;
@@ -277,6 +283,7 @@ const FnBuildFormElementsFromControls = (
 
                     if (!col.Name || !col.PropertyLabel) return null;
                     const fieldName = col.Name?.toLowerCase();
+
 
                     if (diagnosticLevel === "0" && hideGridData.includes(col.Name)) return null;
 
@@ -315,7 +322,7 @@ const FnBuildFormElementsFromControls = (
                     if (!displayControl) return null;
                     let controlLabel = col.PropertyLabel;
                     if (fieldName.includes("lastupdated") && value && !isFormattedDate(value)) {
-                        value = FnConvertDateToUtcOrUtcToDate(value, false, true)
+                        value = FnConvertDateToUtcOrUtcToLocalDate(value, false, true)
                     }
                     else if ((fieldName.startsWith("date") || fieldName.endsWith("date") || fieldName.endsWith("updated") || fieldName.includes("date")) && value) {
                         const getDateOnly = (value: unknown): string => {
@@ -350,7 +357,7 @@ const FnBuildFormElementsFromControls = (
                         value = FnExtractTimeFromDateTime(value || null)
                     }
                     else if (displayControl === "date") {
-                        value = FnConvertDateToUtcOrUtcToDate(value, false, false)
+                        value = FnConvertDateToUtcOrUtcToLocalDate(value, false, false)
                     }
                     else if (col?.Name?.toLowerCase() === "entityname" && !value) {
                         value = entityName;
@@ -378,34 +385,88 @@ const FnBuildFormElementsFromControls = (
                     if (col.IsRequired) {
                         isRequired = true;
                     }
-                    if (import.meta.env.DEV)
-                        // console.log('displayControl :', displayControl, value);
-                        // Merge StartDate + EndDate into dateRange
+                    // Merge date range pairs (*_StartDate + *_EndDate) or handle PeriodControl into dateRange
+                        const isPeriodControl = col.DisplayControl === DisplayControlEnums.PeriodControl || col.DisplayControl === "DateRangeControl";
+                        if (isPeriodControl) {
+                            const rawVal = selectedProfile?.[col.Name];
+                            const rawStart = (typeof rawVal === "object" && rawVal !== null)
+                                ? (rawVal as any).startDate
+                                : (selectedProfile?.[`${col.Name}_StartDate`] ?? selectedProfile?.[`${col.Name}StartDate`] ?? col.Value);
+                            const rawEnd = (typeof rawVal === "object" && rawVal !== null)
+                                ? (rawVal as any).endDate
+                                : (selectedProfile?.[`${col.Name}_EndDate`] ?? selectedProfile?.[`${col.Name}EndDate`]);
+
+                            const startValue = rawStart ? FnFormatDateWithAppFormat(String(rawStart), false) : undefined;
+                            const endValue = rawEnd ? FnFormatDateWithAppFormat(String(rawEnd), false) : undefined;
+
+                            return {
+                                key: `${groupName ?? "default"}_${col.Name}_dateRange_${index}`,
+                                field: col.Name,
+                                label: col.PropertyLabel || col.Name,
+                                startLabel: "Start Date",
+                                endLabel: "End Date",
+                                datatype: '',
+                                defaultvalue: (startValue || endValue) ? { startDate: startValue ?? '', endDate: endValue ?? '' } : undefined,
+                                displaycontrol: isDisabled ? 'text' : measurementUnit?.toLowerCase() === "europe" ? 'europeanDateRange' : 'dateRange',
+                                required: col.IsRequired ? true : false,
+                                disabled: isDisabled,
+                                displayunit: displayUnit,
+                                max: col.MaxDate || undefined,
+                                onChangedValue: isReadOnlyControl ? undefined : handleChangedControlValue
+                            };
+                        }
+
+                        const isGenericStartOrEnd = col.Name === "StartDate" || col.Name === "EndDate";
+                        const isPrefixedStart = col.Name.endsWith("_StartDate") || col.Name.endsWith("StartDate");
+                        const isPrefixedEnd = col.Name.endsWith("_EndDate") || col.Name.endsWith("EndDate");
 
                         if (
-                            (col.Name === "StartDate" || col.Name === "EndDate") &&
+                            (isGenericStartOrEnd || isPrefixedStart || isPrefixedEnd) &&
                             col.DisplayControl === DisplayControlEnums.DateControl
                         ) {
+                            const prefix = isGenericStartOrEnd
+                                ? ""
+                                : col.Name.replace(/_?(?:StartDate|EndDate)$/, "");
 
-                            if (col.Name === "EndDate" && isDateRangeCreated) {
+                            const isEnd = isGenericStartOrEnd ? col.Name === "EndDate" : isPrefixedEnd;
+                            const isStart = isGenericStartOrEnd ? col.Name === "StartDate" : isPrefixedStart;
+
+                            if (isEnd && (prefix === "" ? isDateRangeCreated : mergedDateRangePrefixes.has(prefix))) {
                                 return null; // skip EndDate since it is already merged
                             }
 
-                            if (col.Name === "StartDate") {
+                            if (isStart) {
+                                if (prefix === "") {
+                                    isDateRangeCreated = true;
+                                } else {
+                                    mergedDateRangePrefixes.add(prefix);
+                                }
 
-                                const startValue = selectedProfile?.StartDate ? FnFormatDateWithAppFormat(selectedProfile?.StartDate, false) : undefined;
-                                const endValue = selectedProfile?.EndDate ? FnFormatDateWithAppFormat(selectedProfile?.EndDate, false) : undefined;
+                                const startKey = prefix ? `${prefix}_StartDate` : "StartDate";
+                                const altStartKey = prefix ? `${prefix}StartDate` : "startDate";
+                                const endKey = prefix ? `${prefix}_EndDate` : "EndDate";
+                                const altEndKey = prefix ? `${prefix}EndDate` : "endDate";
 
-                                isDateRangeCreated = true;
+                                const rawStart = selectedProfile?.[startKey] ?? selectedProfile?.[altStartKey] ?? (prefix && typeof selectedProfile?.[prefix] === "object" ? (selectedProfile[prefix] as any)?.startDate : undefined) ?? col.Value;
+                                const rawEnd = selectedProfile?.[endKey] ?? selectedProfile?.[altEndKey] ?? (prefix && typeof selectedProfile?.[prefix] === "object" ? (selectedProfile[prefix] as any)?.endDate : undefined);
+
+                                const startValue = rawStart ? FnFormatDateWithAppFormat(String(rawStart), false) : undefined;
+                                const endValue = rawEnd ? FnFormatDateWithAppFormat(String(rawEnd), false) : undefined;
+
+                                const rangeLabel = (col.PropertyLabel && !['start date', 'startdate', 'start_date'].includes(col.PropertyLabel.toLowerCase()))
+                                    ? col.PropertyLabel
+                                    : (prefix || "Period");
+
+                                const fieldName = prefix || "dateRange";
 
                                 return {
-                                    key: `${groupName ?? "default"}_dateRange_${index}`,
-                                    field: "dateRange",
-                                    label: "Period",
+                                    key: `${groupName ?? "default"}_${fieldName}_dateRange_${index}`,
+                                    field: fieldName,
+                                    label: rangeLabel,
                                     startLabel: "Start Date",
                                     endLabel: "End Date",
                                     datatype: '',
-                                    defaultvalue: startValue && endValue ? { startDate: startValue, endDate: endValue } : undefined,
+                                    defaultvalue: (startValue || endValue) ? { startDate: startValue ?? '', endDate: endValue ?? '' } : undefined,
                                     displaycontrol: isDisabled ? 'text' : measurementUnit?.toLowerCase() === "europe" ? 'europeanDateRange' : 'dateRange',
                                     required: col.IsRequired ? true : false,
                                     disabled: isDisabled,

@@ -9,7 +9,7 @@ import { BasicGrid } from '../../../shared/tablegrid/BasicGrid'
 import type { IBasicGridColDef } from '../../../shared/allinterface/tablegrid/IBasicGrid'
 import type { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks'
-import { FnConvertDateToUtcOrUtcToDate } from '../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate'
+import { FnConvertDateToUtcOrUtcToLocalDate } from '../../../shared/allcommon/FnConvertDateToUtcOrUtcToLocalDate'
 import './Log.css'
 
 interface ILog {
@@ -26,7 +26,7 @@ function formatActivityDate(value: unknown): string {
         return '';
     }
     if (typeof value === 'string') {
-        return FnConvertDateToUtcOrUtcToDate(value, false, true) || value;
+        return FnConvertDateToUtcOrUtcToLocalDate(value, false, true) || value;
     }
     if (typeof value === 'object' && 'toDate' in value && typeof (value as { toDate: () => Date }).toDate === 'function') {
         return (value as { toDate: () => Date }).toDate().toLocaleString();

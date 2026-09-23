@@ -71,6 +71,23 @@ function normalizeStateKey(value: unknown): string {
     return aliases[raw] ?? raw;
 }
 
+export const BUSINESS_DATE_FILTER_FIELDS = [
+    "contactsupdated",
+    "notesupdated",
+    "ticketsupdated",
+    "ticketnotesupdated",
+    "activitiesupdated",
+    "ordersupdated",
+    "subsupdated",
+    "downloadupdated",
+    "amcexpirydate",
+    "mcsexpirydate",
+    "saasexpirydate",
+    "onpremexpirydate",
+    "datecreated",
+    "dateupdated",
+] as const;
+
 const KNOWN_FILTER_FIELDS = [
     "bname",
     "status",
@@ -97,6 +114,76 @@ const KNOWN_FILTER_FIELDS = [
     "contactStatus",
     "contactVerified",
     "contactTag",
+    "contactsupdated",
+    "contactsupdated_StartDate",
+    "contactsupdated_EndDate",
+    "contactsupdatedStartDate",
+    "contactsupdatedEndDate",
+    "notesupdated",
+    "notesupdated_StartDate",
+    "notesupdated_EndDate",
+    "notesupdatedStartDate",
+    "notesupdatedEndDate",
+    "ticketsupdated",
+    "ticketsupdated_StartDate",
+    "ticketsupdated_EndDate",
+    "ticketsupdatedStartDate",
+    "ticketsupdatedEndDate",
+    "ticketnotesupdated",
+    "ticketnotesupdated_StartDate",
+    "ticketnotesupdated_EndDate",
+    "ticketnotesupdatedStartDate",
+    "ticketnotesupdatedEndDate",
+    "activitiesupdated",
+    "activitiesupdated_StartDate",
+    "activitiesupdated_EndDate",
+    "activitiesupdatedStartDate",
+    "activitiesupdatedEndDate",
+    "ordersupdated",
+    "ordersupdated_StartDate",
+    "ordersupdated_EndDate",
+    "ordersupdatedStartDate",
+    "ordersupdatedEndDate",
+    "subsupdated",
+    "subsupdated_StartDate",
+    "subsupdated_EndDate",
+    "subsupdatedStartDate",
+    "subsupdatedEndDate",
+    "downloadupdated",
+    "downloadupdated_StartDate",
+    "downloadupdated_EndDate",
+    "downloadupdatedStartDate",
+    "downloadupdatedEndDate",
+    "amcexpirydate",
+    "amcexpirydate_StartDate",
+    "amcexpirydate_EndDate",
+    "amcexpirydateStartDate",
+    "amcexpirydateEndDate",
+    "mcsexpirydate",
+    "mcsexpirydate_StartDate",
+    "mcsexpirydate_EndDate",
+    "mcsexpirydateStartDate",
+    "mcsexpirydateEndDate",
+    "saasexpirydate",
+    "saasexpirydate_StartDate",
+    "saasexpirydate_EndDate",
+    "saasexpirydateStartDate",
+    "saasexpirydateEndDate",
+    "onpremexpirydate",
+    "onpremexpirydate_StartDate",
+    "onpremexpirydate_EndDate",
+    "onpremexpirydateStartDate",
+    "onpremexpirydateEndDate",
+    "datecreated",
+    "datecreated_StartDate",
+    "datecreated_EndDate",
+    "datecreatedStartDate",
+    "datecreatedEndDate",
+    "dateupdated",
+    "dateupdated_StartDate",
+    "dateupdated_EndDate",
+    "dateupdatedStartDate",
+    "dateupdatedEndDate",
 ] as const;
 
 // Map libform keys like "Filter Business_status_0" to the control name ("status").
@@ -216,10 +303,40 @@ function matchesDateInRange(
         if (!Number.isNaN(startTime) && recordTime < startTime) return false;
     }
     if (endDate) {
-        const endTime = new Date(endDate).getTime();
+        let endTime = new Date(endDate).getTime();
+        if (!endDate.includes("T")) {
+            const endOfDay = new Date(endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            endTime = endOfDay.getTime();
+        }
         if (!Number.isNaN(endTime) && recordTime > endTime) return false;
     }
     return true;
+}
+
+function getDateFieldRange(form: IDCFilterControlValues, field: string): { start?: string; end?: string } {
+    let start = form[`${field}_StartDate`] ?? form[`${field}StartDate`];
+    let end = form[`${field}_EndDate`] ?? form[`${field}EndDate`];
+
+    if (!start && !end && form[field]) {
+        const val = form[field];
+        if (typeof val === "object" && val !== null) {
+            start = (val as any).startDate;
+            end = (val as any).endDate;
+        } else if (typeof val === "string" && val.startsWith("{")) {
+            try {
+                const parsed = JSON.parse(val);
+                start = parsed.startDate;
+                end = parsed.endDate;
+            } catch {
+                // ignore
+            }
+        }
+    }
+    return {
+        start: isAppliedValue(start) ? String(start) : undefined,
+        end: isAppliedValue(end) ? String(end) : undefined,
+    };
 }
 
 function hasActiveFilter(filter: Record<string, unknown>): boolean {
@@ -311,11 +428,27 @@ export function filterBusinessRecords(
         if (!matchesBusinessFilters(business, filter)) {
             return false;
         }
-        if (!dateField || (!form.StartDate && !form.EndDate)) {
-            return true;
+
+        // Apply dedicated date-range filters for business date fields
+        for (const field of BUSINESS_DATE_FILTER_FIELDS) {
+            const { start, end } = getDateFieldRange(form, field);
+            if (start || end) {
+                const dateValue = String((business as unknown as Record<string, unknown>)[field] ?? "");
+                if (!matchesDateInRange(dateValue, start, end)) {
+                    return false;
+                }
+            }
         }
-        const dateValue = String((business as unknown as Record<string, unknown>)[dateField] ?? "");
-        return matchesDateInRange(dateValue, form.StartDate, form.EndDate);
+
+        // Backward compatibility for generic StartDate / EndDate with optional selectdatetype
+        if (dateField && (form.StartDate || form.EndDate)) {
+            const dateValue = String((business as unknown as Record<string, unknown>)[dateField] ?? "");
+            if (!matchesDateInRange(dateValue, form.StartDate, form.EndDate)) {
+                return false;
+            }
+        }
+
+        return true;
     });
 }
 

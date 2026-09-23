@@ -1,4 +1,4 @@
-import { FnConvertDateToUtcOrUtcToDate } from '../../../appcontainer/allcommon/FnConvertDateToUtcOrUtcToDate';
+import { FnConvertDateToUtcOrUtcToLocalDate } from '../FnConvertDateToUtcOrUtcToLocalDate';
 import { FnGetAppDateFormat } from './FnGetAppDateFormat';
 
 const padDatePart = (value: number): string => value.toString().padStart(2, '0');
@@ -52,7 +52,7 @@ export const formatFilterLogDate = (dateValue: unknown): string => {
         );
     }
 
-    return FnConvertDateToUtcOrUtcToDate(dateText, false, false);
+    return FnConvertDateToUtcOrUtcToLocalDate(dateText, false, false);
 };
 
 const getYesterdayDate = (): Date => {

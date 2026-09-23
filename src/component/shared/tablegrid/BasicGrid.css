@@ -86,7 +86,7 @@
 }
 
 .ag-root-wrapper.ag-layout-normal {
-    height: auto;
+    height: 100%;
 }
 
 .ag-root-wrapper {
@@ -334,6 +334,10 @@
 .ag-sticky-top-container,
 .ag-sticky-bottom-container {
     position: relative;
+}
+
+.ag-full-width-container {
+    width: auto !important;
 }
 
 .ag-body-vertical-scroll-container {

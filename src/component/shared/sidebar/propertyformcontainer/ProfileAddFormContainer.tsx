@@ -146,6 +146,7 @@ const ALLOWED_CONTACT_FIELDS = new Set([
     'cid',
     'monitorupdated',
     'monitor',
+    'verified',
     'contacttype',
     'role',
     'status',
@@ -493,6 +494,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         contacttype: 'contact',
         status: 'Active',
         monitor: false,
+        verified: false,
         email: '',
         phone: '',
         address1: '',
@@ -565,6 +567,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 contacttype: selectedContact.contacttype || (selectedContact as any).ctype || 'contact',
                 status: selectedContact.status || 'Active',
                 monitor: toBoolean(selectedContact.monitor ?? (selectedContact as any).verified, false),
+                verified: toBoolean((selectedContact as any).verified ?? selectedContact.monitor, false),
                 email: selectedContact.email || '',
                 phone: selectedContact.phone || (selectedContact as any).phone1 || '',
                 address1: selectedContact.address1 || (selectedContact as any).address_street || '',
@@ -895,12 +898,12 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 value: String(contactValuesRef.current.status ?? 'Active'),
             }),
             makeControl({
-                name: 'monitor',
-                label: 'Verified / Monitor',
+                name: 'verified',
+                label: 'Verified',
                 group,
                 sortOrder: 9,
                 displayControl: DisplayControlEnums.TrueFalseControl,
-                value: toBoolean(contactValuesRef.current.monitor, false) ? 'true' : 'false',
+                value: toBoolean(contactValuesRef.current.verified !== undefined ? contactValuesRef.current.verified : contactValuesRef.current.monitor, false) ? 'true' : 'false',
             }),
             makeControl({
                 name: 'address1',
@@ -1015,6 +1018,12 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
     const handleContactValuesChangeExternal = useCallback((values: Record<string, unknown>) => {
         const extracted = extractValuesFromForm(values, contactControls);
         Object.assign(contactValuesRef.current, extracted);
+        if (extracted.verified !== undefined || extracted.monitor !== undefined) {
+            const v = extracted.verified !== undefined ? extracted.verified : extracted.monitor;
+            const b = toBoolean(v, false);
+            contactValuesRef.current.verified = b;
+            contactValuesRef.current.monitor = b;
+        }
         if (extracted.bid) {
             setSelectedParentBid(String(extracted.bid));
         }
@@ -1050,6 +1059,10 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             normalizedValue = value.value;
         }
         contactValuesRef.current[name] = normalizedValue;
+        if (name === 'verified' || name === 'monitor') {
+            contactValuesRef.current.verified = normalizedValue;
+            contactValuesRef.current.monitor = normalizedValue;
+        }
 
         if (name === 'bid' && normalizedValue) {
             setSelectedParentBid(String(normalizedValue));
@@ -1192,7 +1205,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     parsedData.first_contact_type ?? businessValuesRef.current.first_contact_type ?? 'primary'
                 ).trim();
 
-                const firstContactDoc: IContactDoc = {
+                const firstContactDoc: IContactDoc & { verified?: boolean } = {
                     bid: effectiveBid,
                     cid: primaryCid, // Unique primary contact ID, e.g. cid_bid_544_1
                     cname: firstContactName,
@@ -1200,7 +1213,8 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     phone: firstContactPhone,
                     contacttype: firstContactType,
                     status: 'Active',
-                    monitor: true,
+                    monitor: false,
+                    verified: false,
                     ctag: 'primary',
                     address1: String(merged.address1 ?? '').trim(),
                     address2: String(merged.address2 ?? '').trim(),
@@ -1375,13 +1389,19 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             country,
         };
 
+        const isVerified = toBoolean(
+            merged.verified !== undefined ? merged.verified : merged.monitor,
+            false
+        );
+
         const rawData: Record<string, unknown> = {
             bid: parentBid,
             cid: effectiveCid,
             cname,
             contacttype: String(merged.contacttype ?? 'contact'),
             status: String(merged.status ?? 'Active'),
-            monitor: toBoolean(merged.monitor !== undefined ? merged.monitor : merged.verified, false),
+            verified: isVerified,
+            monitor: isVerified,
             monitorupdated: toIsoString(merged.monitorupdated, new Date().toISOString()),
             email,
             phone,
@@ -1415,8 +1435,10 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 }
             }
 
-            const newDoc: IContactDoc = {
+            const newDoc: IContactDoc & { verified?: boolean } = {
                 ...(rawData as unknown as IContactDoc),
+                verified: isVerified,
+                monitor: isVerified,
             };
 
             if (smDataContext?.updateDataset) {
@@ -1466,6 +1488,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     contacttype: 'contact',
                     status: 'Active',
                     monitor: false,
+                    verified: false,
                     email: '',
                     phone: '',
                     address1: '',

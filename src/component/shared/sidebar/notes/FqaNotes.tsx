@@ -216,7 +216,7 @@ const FqaNotes = (props: IFqaNotes) => {
 	const getStoragePath = useCallback((filename: string): string => {
 		if (!filename) return '';
 		if (filename.includes('/')) return filename;
-		return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
+		return `${bucketName}/${baseFolder}/nz-notes-error/tickets/${filename}`;
 	}, [bucketName, baseFolder]);
 
 	const { loading, error, getNotes, notes, deleteNote, createNote, updateNote } = useBusinessNotes(businessId);
@@ -1037,11 +1037,11 @@ const FqaNotes = (props: IFqaNotes) => {
 								<Label uniqueName="notes-loading" label="Loading notes..." />
 							</div>
 						)}
-						{error && (
+						{/* {error && (
 							<div className="nz-notes-error" style={{ padding: '10px', color: 'var(--danger, #ff4d4f)' }}>
 								<Label uniqueName="notes-error" label={typeof error === 'string' ? error : 'Failed to load notes'} />
 							</div>
-						)}
+						)} */}
 						{!loading && !error && notesItems.length === 0 && (
 							<div className="nz-notes-empty" style={{ padding: '10px', textAlign: 'center', opacity: 0.7 }}>
 								<Label uniqueName="notes-empty" label="No notes available" />

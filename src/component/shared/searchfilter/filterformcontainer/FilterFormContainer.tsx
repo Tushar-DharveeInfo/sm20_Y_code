@@ -183,14 +183,41 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
     const handleValueChange = useCallback((value: unknown, name: string | undefined, isDefault?: boolean): void => {
         if (!name || isDefault) return;
 
-        if (name === "dateRange" && value && typeof value === "object") {
+        if (value && typeof value === "object" && ("startDate" in (value as any) || "endDate" in (value as any))) {
             const range = value as { startDate?: unknown; endDate?: unknown };
-            storeFilterKeyValue("StartDate", range.startDate != null ? String(range.startDate) : "");
-            storeFilterKeyValue("EndDate", range.endDate != null ? String(range.endDate) : "");
+            const s = range.startDate != null ? String(range.startDate) : "";
+            const e = range.endDate != null ? String(range.endDate) : "";
+            if (name === "dateRange") {
+                storeFilterKeyValue("StartDate", s);
+                storeFilterKeyValue("EndDate", e);
+            } else {
+                storeFilterKeyValue(`${name}_StartDate`, s);
+                storeFilterKeyValue(`${name}_EndDate`, e);
+                storeFilterKeyValue(name, s || e ? JSON.stringify({ startDate: s, endDate: e }) : "");
+            }
             return;
         }
 
         storeFilterKeyValue(name, toFilterValueString(value, name));
+    }, []);
+
+    const handleValueChangeExternal = useCallback((values: Record<string, unknown>) => {
+        if (!values || typeof values !== "object") return;
+        for (const [k, v] of Object.entries(values)) {
+            if (v && typeof v === "object" && ("startDate" in (v as any) || "endDate" in (v as any))) {
+                const range = v as { startDate?: unknown; endDate?: unknown };
+                const s = range.startDate != null ? String(range.startDate) : "";
+                const e = range.endDate != null ? String(range.endDate) : "";
+                if (k === "dateRange") {
+                    storeFilterKeyValue("StartDate", s);
+                    storeFilterKeyValue("EndDate", e);
+                } else {
+                    storeFilterKeyValue(`${k}_StartDate`, s);
+                    storeFilterKeyValue(`${k}_EndDate`, e);
+                    storeFilterKeyValue(k, s || e ? JSON.stringify({ startDate: s, endDate: e }) : "");
+                }
+            }
+        }
     }, []);
 
     const filterIcon: IDirtyFlagImage = {
@@ -254,6 +281,7 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
                         isAddressFormRequired={false}
                         handleActionImageClick={handleActionImageClick}
                         handleValueChange={handleValueChange}
+                        handleValueChangeExternal={handleValueChangeExternal}
                         isDisableForm={false}
                     />
                 )}

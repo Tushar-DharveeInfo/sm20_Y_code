@@ -112,7 +112,12 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
         handleShowUserMessage,
         selectedNode,
         treeData,
+        asRightPane,
     } = featureRenderContainerProps;
+
+    if (asRightPane && FeaturesWithOwnLayout.includes(featureContainerProps.featureId)) {
+        return null;
+    }
 
     switch (featureContainerProps.featureId) {
         case HomeEnums.Home:

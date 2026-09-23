@@ -77,6 +77,7 @@ const ALLOWED_CONTACT_FIELDS = new Set([
     "cid",
     "monitorupdated",
     "monitor",
+    "verified",
     "contacttype",
     "role",
     "status",
@@ -154,6 +155,7 @@ function buildFirestoreContactPayload(
         zip: String(source.zip ?? source.address_zip ?? ""),
         countrycode: source.countrycode !== undefined && source.countrycode !== "" ? String(source.countrycode) : undefined,
         status: String(source.status ?? "Active"),
+        verified: Boolean(source.verified ?? source.monitor ?? false),
         monitor: Boolean(source.monitor ?? source.verified ?? false),
         monitorupdated: String(source.monitorupdated ?? new Date().toISOString()),
         dateupdated: new Date().toISOString(),
@@ -851,9 +853,17 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                 if (updates.cname && !updates.contact) updates.contact = updates.cname;
                 if (updates.contact && !updates.cname) updates.cname = updates.contact;
 
+                const isVerified = updates.verified !== undefined
+                    ? Boolean(updates.verified)
+                    : updates.monitor !== undefined
+                    ? Boolean(updates.monitor)
+                    : (oldPgClassRow?.verified !== undefined ? Boolean(oldPgClassRow.verified) : Boolean(oldPgClassRow?.monitor));
+
                 const mergedRecord: Record<string, unknown> = {
                     ...oldPgClassRow,
                     ...updates,
+                    verified: isVerified,
+                    monitor: isVerified,
                     cid: contactId,
                     bid: parentBid,
                     dateUpdated: new Date().toISOString(),

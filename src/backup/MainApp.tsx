@@ -1,11 +1,11 @@
 import { createContext, useEffect, useMemo, useState, useCallback } from "react";
-import { IFeatureForHelp, IFeatureItem, IMainApp, IUserAuthSession, IAp } from "../allinterface/IMainApp";
+import { IFeatureForHelp, IFeatureItem, IMainApp, IUserAuthSession } from "../allinterface/IMainApp";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { IStatusBar } from "../allinterface/IStatusBar";
 import { useActivities } from "@n20a/libfsdb";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { fnFilterPermittedFeatures } from "../../allcommon/menu/FnFeatureNodeType";
-import { LoadJson } from "../../allcommon/LoadJson";
+
 
 let featuresData: IFeatureItem[] | null = null;
 let deploymentVarData: Record<string, any>[] | null = null;
@@ -22,18 +22,7 @@ function MainAppProvider({ children }: IAppContextWrapper) {
     const [deploymentVars, setDeploymentVars] = useState<Record<string, any>[]>([]);
     const [selectedFeatureForHelp, setSelectedFeatureForHelpState] = useState<IFeatureForHelp>()
     const [authSession, setAuthSession] = useState<IUserAuthSession>()
-    const [ap, setAp] = useState<IAp[]>();
     const [businessSelectedNode, setBusinessSelectedNode] = useState<ITreeNode>()
-
-
-    const folderName = authSession?.baseFolder ?? "";
-    const { JsonFile: apJson } = LoadJson(folderName ? `n20-bucket-01/sm/ap/apsm.json` : "");
-
-    useEffect(() => {
-        // apJson resolves asynchronously once authSession/folderName are available.
-        if (!apJson) return;
-        setAp(apJson as unknown as IAp[]);
-    }, [apJson]);
 
     const setFeatureRecords = useCallback((value: React.SetStateAction<IFeatureItem[]>) => {
         setRawFeatureRecords(value);
@@ -136,11 +125,6 @@ function MainAppProvider({ children }: IAppContextWrapper) {
         }
     }, [authSession, bid, createActivity]);
 
-    const getApValue = (apName: string): string | undefined => {
-        return ap?.find((item) => item.apName === apName)?.apValue;
-    };
-
-
     const providers = useMemo(
         (): IMainApp => ({
             featureRecords,
@@ -153,22 +137,17 @@ function MainAppProvider({ children }: IAppContextWrapper) {
             setAuthSession,
             deploymentVars,
             setDeploymentVars,
-            ap,
-            setAp,
-            getApValue,
             selectedFeatureForHelp,
             setSelectedFeatureForHelp,
             businessSelectedNode,
             setBusinessSelectedNode,
             createActivityLog,
-
         }),
         [
             featureRecords,
             setFeatureRecords,
             alertRecords,
             isInternetAvailable,
-            ap,
             deploymentVars,
             selectedFeatureForHelp,
             setSelectedFeatureForHelp,

@@ -54,21 +54,12 @@ interface IUserAuthSession {
     licenseDetails?: Record<string, any>;
 }
 
-interface IAp {
-    apName: string; //application parameter like tax-il or tax-fl
-    apValue: string; //value for the application parameter like 7.25 in percent
-}
-
 interface IMainApp {
     featureRecords: IFeatureItem[];
     setFeatureRecords: React.Dispatch<React.SetStateAction<IFeatureItem[]>>;
 
     authSession?: IUserAuthSession;
     setAuthSession: React.Dispatch<React.SetStateAction<IUserAuthSession | undefined>>;
-
-    ap?: IAp[];
-    setAp: React.Dispatch<React.SetStateAction<IAp[] | undefined>>;
-    getApValue: (apName: string) => string | undefined;
 
     alertRecords: Record<string, any>[];
     setAlertRecords: React.Dispatch<
@@ -105,10 +96,10 @@ interface IMainApp {
     createActivityLog: (message: string) => Promise<void>;
 }
 
+
 export type {
     IMainApp,
     IFeatureItem,
     IFeatureForHelp,
-    IUserAuthSession,
-    IAp
+    IUserAuthSession
 };

@@ -97,18 +97,41 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
         }
     }, [formValuesState, onApplyFilter]);
 
+    const applyFieldToState = (target: Record<string, unknown>, key: string, value: unknown): void => {
+        target[key] = value;
+        const kLower = key.toLowerCase();
+        if (kLower.includes('datecreated')) {
+            target['datecreated'] = value;
+        }
+        if (kLower.includes('message')) {
+            target['message'] = value;
+        }
+        if ((key === 'dateRange' || kLower.includes('daterange')) && value && typeof value === 'object') {
+            const range = value as { startDate?: unknown; endDate?: unknown };
+            const s = range.startDate != null ? String(range.startDate) : '';
+            const e = range.endDate != null ? String(range.endDate) : '';
+            target['dateRange'] = range;
+            target['StartDate'] = s;
+            target['EndDate'] = e;
+            target['startDate'] = s;
+            target['endDate'] = e;
+        } else if (kLower === 'startdate') {
+            const s = value != null ? String(value) : '';
+            target['StartDate'] = s;
+            target['startDate'] = s;
+        } else if (kLower === 'enddate') {
+            const e = value != null ? String(value) : '';
+            target['EndDate'] = e;
+            target['endDate'] = e;
+        }
+    };
+
     const handleSaveFormInternal = useCallback(
         (profileDataJson: string) => {
             const parsed = parseProfileJsonSafely(profileDataJson);
-            const merged = { ...formValuesState, ...parsed };
+            const merged = { ...formValuesState };
             for (const [k, v] of Object.entries(parsed)) {
-                const kLower = k.toLowerCase();
-                if (kLower.includes('datecreated')) {
-                    merged['datecreated'] = v;
-                }
-                if (kLower.includes('message')) {
-                    merged['message'] = v;
-                }
+                applyFieldToState(merged, k, v);
             }
             setIsDirty(false);
             if (onApplyFilter) {
@@ -125,14 +148,8 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
             }
             if (name) {
                 setFormValuesState((prev) => {
-                    const next = { ...prev, [name]: value };
-                    const nameLower = name.toLowerCase();
-                    if (nameLower.includes('datecreated')) {
-                        next['datecreated'] = value;
-                    }
-                    if (nameLower.includes('message')) {
-                        next['message'] = value;
-                    }
+                    const next = { ...prev };
+                    applyFieldToState(next, name, value);
                     if (onFilterChange) {
                         onFilterChange(next);
                     }
@@ -148,15 +165,9 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
             if (!values || typeof values !== 'object') return;
             setIsDirty(true);
             setFormValuesState((prev) => {
-                const next = { ...prev, ...values };
+                const next = { ...prev };
                 for (const [k, v] of Object.entries(values)) {
-                    const kLower = k.toLowerCase();
-                    if (kLower.includes('datecreated')) {
-                        next['datecreated'] = v;
-                    }
-                    if (kLower.includes('message')) {
-                        next['message'] = v;
-                    }
+                    applyFieldToState(next, k, v);
                 }
                 if (onFilterChange) {
                     onFilterChange(next);
@@ -264,5 +275,4 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
 };
 
 export { PopupFilterForm };
-export type { IPopupFilterFormProps };
 export default PopupFilterForm;
