@@ -1,5 +1,5 @@
 import React from 'react';
-import DashboardChartsContainer from '../dashboardchartscontainer/DashboardChartsContainer';
+import DashboardChartsContainer from './dashboardchartscontainer/DashboardChartsContainer';
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu';
 import { HomeEnums } from '../../../constants/Feature';

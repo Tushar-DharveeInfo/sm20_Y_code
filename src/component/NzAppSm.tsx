@@ -187,8 +187,8 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
 
             let cid = user.email ?? user.id;
             const bidCid = {
-                bid: "bid_109",
-                cid: "cid_bid_109_1"
+                bid: "bid_108",
+                cid: "cid_bid_108_1"
             };
             bid = bidCid?.bid;
             cid = bidCid?.cid;

@@ -149,7 +149,7 @@ const featureIconMap: IconMap = {
     Eula24x24,
     EULA24x24: Eula24x24,
     FAQ24x24: Help24x24,
-    Knowledgebase24x24: Help24x24,
+    FAQEnums24x24: Help24x24,
     About24x24: Info24x24,
     AboutNetZoom24x24: N,
     MyProfile24x24,

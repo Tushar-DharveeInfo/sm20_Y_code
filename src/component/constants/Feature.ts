@@ -58,12 +58,15 @@ enum ProspectEnums {
 }
 
 // Library menu feature ids — match public/smFeatures.json MenuID 300
-enum LibraryEnums {
-    Library = "300",
+enum TicketsEnums {
+    Tickets = "300",
     DeviceLibrary = "304",
     RequestsReceived = "308",
     ApprovedTickets = "312",
-    McsDevelopment = "316",
+}
+
+enum RmsEnums {
+    McsDevelopment = "404",
 }
 
 // Services menu feature ids — match public/smFeatures.json MenuID 500
@@ -74,22 +77,11 @@ enum ServicesEnums {
     DownloadExcelTempates = "506",
 }
 
-// Knowledge base menu feature ids — match public/smFeatures.json MenuID 600
-enum KnowledgeBaseEnums {
-    KnowledgeBase = "600",
+// FAQ menu feature ids — match public/smFeatures.json MenuID 600
+enum FAQEnums {
+    FAQEnums = "600",
     FAQ = "602",
-    EULA = "604",
-    NetZoomBrochure = "606",
-    VisioStencilsBrochure = "608",
-}
-
-// Settings menu feature ids — match public/smFeatures.json MenuID 900
-enum SettingsEnums {
-    Settings = "900",
-    ClientIdentityManagement = "904",
-    DailySchedular = "908",
-    Instance = "912",
-    Import = "916",
+    KBDOCS = "604",
 }
 
 // About menu feature ids — match public/smFeatures.json MenuID 990
@@ -123,9 +115,9 @@ export {
     , ClientEnums
     , ProspectEnums
     , ServicesEnums
-    , LibraryEnums
-    , KnowledgeBaseEnums
-    , SettingsEnums
+    , TicketsEnums
+    , RmsEnums
+    , FAQEnums
     , AboutEnums
     , deviceModelTabs
     , FeatureQARange

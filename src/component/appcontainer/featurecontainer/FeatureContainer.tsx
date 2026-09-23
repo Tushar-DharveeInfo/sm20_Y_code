@@ -271,23 +271,23 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
                 display: allowAppQaToRender || doNotRenderExplorerTree ? 'none' : 'flex'
             }} className='nz-wh-100 nz-feature-content'>
 
-                {!doNotRenderExplorerTree && (
-                    <ExplorerContainer uniqueName={`${featureContainerProps.uniqueName}-explorer-container`}
-                        featureId={featureContainerProps.featureId}
-                        bid={featureContainerProps.bid}
-                        cid={featureContainerProps.cid}
-                        originalTreeData={originalTreeData}
-                        allowShowHeader={true}
-                        featureData={mainAppContext.featureRecords}
-                        headerText={featureContainerProps.headerText}
-                        clearCacheTreeData={handleClearCacheTreeData}
-                        selectedFeatureData={featureContainerProps.selectedFeatureData}
-                        updateOriginalTreeDataset={updateOriginalTreeDataset}
-                        handleShowUserMessage={handleShowUserMessage}
-                        updateStatusBarData={featureContainerProps.updateStatusBarData}
-                        handleReloadTree={handleReloadTree}
-                    />
-                )}
+            {!doNotRenderExplorerTree && (
+                <ExplorerContainer uniqueName={`${featureContainerProps.uniqueName}-explorer-container`}
+                    featureId={featureContainerProps.featureId}
+                    bid={featureContainerProps.bid}
+                    cid={featureContainerProps.cid}
+                    originalTreeData={originalTreeData}
+                    allowShowHeader={true}
+                    featureData={mainAppContext.featureRecords}
+                    headerText={featureContainerProps.headerText}
+                    clearCacheTreeData={handleClearCacheTreeData}
+                    selectedFeatureData={featureContainerProps.selectedFeatureData}
+                    updateOriginalTreeDataset={updateOriginalTreeDataset}
+                    handleShowUserMessage={handleShowUserMessage}
+                    updateStatusBarData={featureContainerProps.updateStatusBarData}
+                    handleReloadTree={handleReloadTree}
+                />
+            )}
             </div>
             {/* Renders feature modules dynamically based on featureId.
                 Returns null if no matching feature module exists */}

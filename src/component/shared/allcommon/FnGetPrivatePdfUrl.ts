@@ -15,8 +15,8 @@ const FnGetPrivatePdfUrl = (fileName: string): string => {
         documentName = "NetZoom Enterprise Brochure.pdf";
     } else if (documentName === "brochure-visiostencils.pdf" || documentName === "Visio Stencils Brochure.pdf") {
         documentName = "Visio Stencils Brochure.pdf";
-    } else if (documentName === "knowledge-base.pdf" || documentName === "Knowledge Base.pdf") {
-        documentName = "Knowledge Base.pdf";
+    } else if (documentName === "FAQEnums.pdf" || documentName === "FAQ.pdf") {
+        documentName = "FAQ.pdf";
     } else if (documentName === "about-netzoom.pdf" || documentName === "About NetZoom.pdf") {
         documentName = "About NetZoom.pdf";
     }

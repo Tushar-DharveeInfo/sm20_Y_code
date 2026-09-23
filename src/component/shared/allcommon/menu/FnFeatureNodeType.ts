@@ -156,6 +156,28 @@ export function fnAdmin(authUser?: IUserAuthSession, context?: unknown): boolean
     return normalized === "admin" || normalized === "administrator";
 }
 
+export function fnMcs(authUser?: IUserAuthSession, context?: unknown): boolean {
+    const role = fnGetAuthRole(authUser, context);
+    const normalized = role.trim().toLowerCase();
+    return normalized === "mcs";
+}
+export function fnGd(authUser?: IUserAuthSession, context?: unknown): boolean {
+    const role = fnGetAuthRole(authUser, context);
+    const normalized = role.trim().toLowerCase();
+    return normalized === "gd";
+}
+
+export function fnSe(authUser?: IUserAuthSession, context?: unknown): boolean {
+    const role = fnGetAuthRole(authUser, context);
+    const normalized = role.trim().toLowerCase();
+    return normalized === "se";
+}
+
+export function fnSse(authUser?: IUserAuthSession, context?: unknown): boolean {
+    const role = fnGetAuthRole(authUser, context);
+    const normalized = role.trim().toLowerCase();
+    return normalized === "sse";
+}
 /** Registry of NodeType evaluation functions. */
 export const nodeTypeFnRegistry: Record<
     string,
@@ -167,6 +189,14 @@ export const nodeTypeFnRegistry: Record<
     fnvss: fnVss,
     fnAdmin,
     fnadmin: fnAdmin,
+    fnGd,
+    fngd: fnGd,
+    fnMcs,
+    fnmcs: fnMcs,
+    fnSe,
+    fnse: fnSe,
+    fnSse,
+    fnsse: fnSse,
 };
 
 /**
@@ -193,6 +223,19 @@ export function fnEvaluateNodeType(
     if (normalized === "fnadmin") {
         return fnAdmin(authUser, context);
     }
+    if (normalized === "fngd") {
+        return fnGd(authUser, context);
+    }
+    if (normalized === "fnmcs") {
+        return fnMcs(authUser, context);
+    }
+    if (normalized === "fnse") {
+        return fnSe(authUser, context);
+    }
+    if (normalized === "fnsse") {
+        return fnSse(authUser, context);
+    }
+
 
     const fn = nodeTypeFnRegistry[normalized] ?? nodeTypeFnRegistry[nodeType.trim()];
     if (typeof fn === "function") {

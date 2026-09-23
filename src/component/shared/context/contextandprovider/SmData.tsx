@@ -14,7 +14,35 @@ import { FnLoadScopedDatasets } from "../../allcommon/dataset/FnFilterScopedData
 import { FnMapToBusinessDocs } from "../../allcommon/dataset/FnMapToBusinessDoc";
 import { filterContactRecords } from "../../allcommon/searchfilter/FnFilterBusinessContactRecords";
 
+import {useLoadRemoteJson, type IUseLoadRemoteJsonOptions } from "../../allcommon/LoadRemoteJsonHooks";
+
 const FILTER_OP = "==" as const;
+
+////////////////////////////////////////////////////////////////////
+interface IEqidVsStencil {
+    EQID: string;
+    StencilName: string;
+}
+
+type IEqidVsStencils = IEqidVsStencil[];
+
+function normalizeEqidVsStencils(value: unknown): IEqidVsStencils {
+    if (Array.isArray(value)) {
+        return value as IEqidVsStencils;
+    }
+    if (value && typeof value === "object") {
+        const maybeEqidVsStencil = (value as { EQIDvsStencil?: unknown }).EQIDvsStencil;
+        if (Array.isArray(maybeEqidVsStencil)) {
+            return maybeEqidVsStencil as IEqidVsStencils;
+        }
+        const maybeRows = (value as { rows?: unknown }).rows;
+        if (Array.isArray(maybeRows)) {
+            return maybeRows as IEqidVsStencils;
+        }
+    }
+    return [];
+}
+/////////////////////////////////////////////////////////////////
 
 function toFilterJsonString(values: IFilterControlValues): string {
     return JSON.stringify(
@@ -90,6 +118,47 @@ function SmDataProvider({ children }: IAppContextWrapper) {
     const [isScopedDatasetsLoaded, setIsScopedDatasetsLoaded] = useState(true);
     const businessesLoadedRef = useRef(false);
     const selectionKeyRef = useRef(selectionCacheKey(emptySelection()));
+
+////////////////////////////////////////////load eqid vs stencils
+    const [eqidVsStencils, setEqidVsStencils] = useState<IEqidVsStencils>([]);
+    const [eqidVsStencilsError, setEqidVsStencilsError] = useState<string | null>(null);
+
+    const options: IUseLoadRemoteJsonOptions<IEqidVsStencils> = {
+        // specify the options here
+        bucket: "n20-bucket-01",
+        baseFolder: "vssfolder-01",
+        fileName: "eqidvsstencil.json",
+        onSuccess: (data) => {
+            setEqidVsStencils(normalizeEqidVsStencils(data));
+            setEqidVsStencilsError(null);
+        },
+        onError: (message) => {
+            setEqidVsStencilsError(message);
+            console.error("Failed to load eqidvsstencil.json:", message);
+        }
+    };
+
+    useLoadRemoteJson(options);
+//////////////////////////////////////////////////////////////
+
+    const getStencilName = useCallback((EQID: string): string | null => {
+      console.log("Y-ServiceData: Getting stencil name for EQID:", EQID);
+        try 
+        {
+          if (!EQID || !Array.isArray(eqidVsStencils) || eqidVsStencils.length == 0) 
+          {
+            return null;
+          }
+          const match = eqidVsStencils.find((item) => item.EQID === EQID);
+          return match?.StencilName ?? null;
+        } 
+        catch (error) 
+        {
+          console.log("Y-ServiceData: Error occurred while getting stencil name for EQID:", EQID, "Error:", error);
+          
+          return null;
+        }
+    }, [eqidVsStencils]);
 
     const { getBusinesses, businesses, loading, error } = useBusinesses();
 
@@ -184,6 +253,7 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         updateDataset,
         getContactsForTree,
         setDatasets,
+        getStencilName
     }), [
         datasets,
         selection,
@@ -197,6 +267,7 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         updateDataset,
         getContactsForTree,
         setDatasets,
+        getStencilName
     ]);
 
     return (

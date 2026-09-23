@@ -24,6 +24,7 @@ function MainAppProvider({ children }: IAppContextWrapper) {
     const [authSession, setAuthSession] = useState<IUserAuthSession>()
     const [ap, setAp] = useState<IAp[]>();
     const [businessSelectedNode, setBusinessSelectedNode] = useState<ITreeNode>()
+    const [purchasedSkus, setPurchasedSkus] = useState<string[]>();
 
 
     const folderName = authSession?.baseFolder ?? "";
@@ -84,6 +85,10 @@ function MainAppProvider({ children }: IAppContextWrapper) {
 
     const fetchApRecords = useCallback(async (_statusBarContext?: IStatusBar) => {
         // SAMPLE DATA: AP records API not called.
+    }, []);
+
+    const setPurchasedSkusCallback = useCallback((value: React.SetStateAction<string[] | undefined>) => {
+        setPurchasedSkus(value);
     }, []);
 
 
@@ -161,6 +166,9 @@ function MainAppProvider({ children }: IAppContextWrapper) {
             businessSelectedNode,
             setBusinessSelectedNode,
             createActivityLog,
+            purchasedSkus,
+            setPurchasedSkus: setPurchasedSkusCallback,
+            getPurchasedSkus: () => purchasedSkus,
 
         }),
         [
@@ -176,6 +184,9 @@ function MainAppProvider({ children }: IAppContextWrapper) {
             businessSelectedNode,
             fetchApRecords,
             createActivityLog,
+            purchasedSkus,
+            setPurchasedSkus,
+            setPurchasedSkusCallback,
         ]
     );
 

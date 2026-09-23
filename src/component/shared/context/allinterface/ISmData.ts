@@ -52,6 +52,8 @@ interface ISmData {
     getContactsForTree: (bid: string, filterJson: IFilterControlValues) => IContactDoc[];
     /** Direct dataset cache state setter. */
     setDatasets: Dispatch<SetStateAction<ISmDatasetCache>>;
+    /** Returns stencil name for a given EQID, or null when not found/unavailable. */
+    getStencilName: (EQID: string) => string | null;
 }
 
 export type {

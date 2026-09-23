@@ -1,13 +1,28 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useFileDownload } from '@n20a/libfsdb';
-import { SimplePdfViewer, type SimplePdfViewerProps } from '@n20a/libflippdf';
+import { SimplePdfViewer } from '@n20a/libflippdf';
 import '@n20a/libflippdf/style.css';
+import { PdfDownloadOverlay } from './pdfviewer/PdfDownloadOverlay';
+import { Label } from '../basic/label/Label';
+import './Help.css';
 
 /*
 How to use:
-<RenderPdfWithoutToc bucketName="n20-bucket-01" baseFolder="sm" fileName="/help/eula-service.pdf" />
+<RenderPdfWithoutToc
+  uniqueName="about-netzoom"
+  headerText="[About] NetZoom"
+  bucketName="n20-bucket-01"
+  baseFolder="sm"
+  fileName="/help/about-netzoom.pdf"
+/>
+Or by passing a direct pdfUrl or File/Blob object:
+<RenderPdfWithoutToc
+  uniqueName="custom-pdf"
+  headerText="Document Title"
+  file={fileObject}
+/>
 */
-// Fills its parent so FlipPdf's 100%/100% shell has a size to fill
+
 const pdfViewerStyle: CSSProperties = {
   flex: 1,
   minHeight: 0,
@@ -33,10 +48,16 @@ const pdfErrorStyle: CSSProperties = {
 };
 
 export interface IRenderPdfWithoutToc { 
-  bucketName: string;
-  baseFolder: string;
-  fileName: string;
+  bucketName?: string;
+  baseFolder?: string;
+  fileName?: string;
+  pdfUrl?: string;
+  file?: File | Blob;
   documentTitle?: string;
+  headerText?: string;
+  downloadFileName?: string;
+  hideDownloadIcon?: boolean;
+  uniqueName?: string;
   tocWidthPercent?: number;
   initialTocItem?: string;
   initialPageNumber?: number;
@@ -46,27 +67,46 @@ export function RenderPdfWithoutToc({
   bucketName,
   baseFolder,
   fileName,
+  pdfUrl: directPdfUrl,
+  file,
   documentTitle,
-  tocWidthPercent,
-  initialTocItem,
-  initialPageNumber,
+  headerText,
+  downloadFileName,
+  hideDownloadIcon = false,
+  uniqueName = 'pdf-viewer-without-toc',
 }: IRenderPdfWithoutToc) {
   const { getDownloadUrl, downloading, error } = useFileDownload();
-  const [pdfUrl, setPdfUrl] = useState<string | undefined>();
-  const storagePath = `${bucketName}/${baseFolder}${fileName}`;
+  const [cloudPdfUrl, setCloudPdfUrl] = useState<string | undefined>();
+  const [blobPdfUrl, setBlobPdfUrl] = useState<string | undefined>();
+
+  const storagePath = bucketName && baseFolder && fileName ? `${bucketName}/${baseFolder}${fileName}` : '';
+
+  useEffect(() => {
+    if (!file) {
+      setBlobPdfUrl(undefined);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setBlobPdfUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
 
   useEffect(() => {
     let isMounted = true;
-    setPdfUrl(undefined);
+    setCloudPdfUrl(undefined);
+
+    if (!storagePath) return;
 
     async function loadPdfUrl() {
       try {
         const response = await getDownloadUrl(storagePath);
         if (isMounted && response?.downloadUrl) {
-          setPdfUrl(response.downloadUrl);
+          setCloudPdfUrl(response.downloadUrl);
         }
       } catch {
-        // error state is already captured by useFileDownload
+        // error state captured by useFileDownload
       }
     }
 
@@ -77,11 +117,14 @@ export function RenderPdfWithoutToc({
     };
   }, [storagePath, getDownloadUrl]);
 
-  if (downloading) {
+  const resolvedPdfUrl = directPdfUrl || blobPdfUrl || cloudPdfUrl;
+  const isFetchingCloud = Boolean(storagePath && !directPdfUrl && !blobPdfUrl && downloading);
+
+  if (isFetchingCloud) {
     return <div style={pdfStatusStyle}>Loading…</div>;
   }
 
-  if (!pdfUrl) {
+  if (!resolvedPdfUrl) {
     return (
       <div style={pdfStatusStyle}>
         {error ? (
@@ -93,15 +136,47 @@ export function RenderPdfWithoutToc({
     );
   }
 
-  const flipPdfProps: SimplePdfViewerProps = {
-    pdfUrl,
-    documentTitle: documentTitle ?? fileName.split(/[\\/]/).pop() ?? 'Document',
-    scale: 1.0,
-  };
+  const effectiveFileName = fileName?.split(/[\\/]/).pop() ?? (file instanceof File ? file.name : 'document.pdf');
+  const effectiveDocumentTitle = documentTitle ?? headerText ?? effectiveFileName.replace(/\.pdf$/i, '');
+  const effectiveDownloadName = downloadFileName ?? effectiveFileName;
 
-  return (
+  const viewerNode = (
     <div style={pdfViewerStyle}>
-      <SimplePdfViewer {...flipPdfProps} />
+      <SimplePdfViewer
+        pdfUrl={resolvedPdfUrl}
+        documentTitle={effectiveDocumentTitle}
+        scale={1.0}
+      />
     </div>
   );
+
+  if (headerText) {
+    return (
+      <div className="nz-help-container">
+        <div className="nz-help-header">
+          {!hideDownloadIcon ? (
+            <PdfDownloadOverlay
+              uniqueName={`${uniqueName}-download`}
+              headerText={headerText}
+              pdfUrl={resolvedPdfUrl}
+              downloadFileName={effectiveDownloadName}
+            />
+          ) : (
+            <div className="nz-sub-header">
+              <Label
+                uniqueName={`${uniqueName}-header`}
+                label={headerText}
+                fontWeight="bold"
+              />
+            </div>
+          )}
+        </div>
+        <div className="nz-help-body">
+          {viewerNode}
+        </div>
+      </div>
+    );
+  }
+
+  return viewerNode;
 }

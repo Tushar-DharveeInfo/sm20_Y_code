@@ -1,6 +1,6 @@
 
 import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
-import { ClientEnums, LibraryEnums, SettingsEnums } from "../../../constants/Feature";
+import { ClientEnums, TicketsEnums, RmsEnums,  } from "../../../constants/Feature";
 
 /**
  * Default explorer filter for Client menu features and MCS Development.
@@ -23,10 +23,10 @@ const FnGetClientExplorerAutoFilter = (
         case ClientEnums.Reseller:
             return { btype: "reseller" };
         case ClientEnums.Mcs:
-        case LibraryEnums.McsDevelopment:
+        case RmsEnums.McsDevelopment:
         case "feature-mcsdevelopment":
             return { btype: "mcs" };
-        case SettingsEnums.ClientIdentityManagement:
+
         default:
             return {};
     }

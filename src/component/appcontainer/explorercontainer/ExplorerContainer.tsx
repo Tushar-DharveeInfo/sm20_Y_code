@@ -4,7 +4,7 @@ import { OpenSidebar24x24 } from '@n20a/libicon'
 import { Splitter, SplitterPanel, SplitterResizeEndEvent } from 'primereact/splitter'
 import { Key } from 'rc-tree/lib/interface'
 import './ExplorerContainer.css'
-import { FeatureQARange, LibraryEnums, SettingsEnums } from '../../constants/Feature';
+import { FeatureQARange, TicketsEnums, RmsEnums, } from '../../constants/Feature';
 // import { FnFindNearestNodeByType } from '../../shared/allcommon/FnFindNearestNodeByType'
 import { useCommonVariableContext } from '../../shared/context/hooks/CommonVariableHooks'
 import { useSelectedNodeContext } from '../../shared/context/hooks/SelectedNodeHooks'
@@ -110,14 +110,15 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     useEffect(() => {
         featureIdRef.current = explorerContainerProps.featureId;
         setDefaultCheckedKeys([])
-        const MSCTree = [LibraryEnums.McsDevelopment, LibraryEnums.ApprovedTickets, LibraryEnums.RequestsReceived] as string[]
-        if (explorerContainerProps.featureId === SettingsEnums.Instance) {
-            setExplorerToRender("SAASINSTANCE");
-        } else if (explorerContainerProps.featureId === SettingsEnums.ClientIdentityManagement) {
-            setExplorerToRender("CLIENTIDENTITY");
-        } else if (explorerContainerProps.featureId && MSCTree.includes(explorerContainerProps.featureId)) {
+        const MSCTree = [RmsEnums.McsDevelopment, TicketsEnums.ApprovedTickets, TicketsEnums.RequestsReceived] as string[]
+        if (explorerContainerProps.featureId && MSCTree.includes(explorerContainerProps.featureId)) {
             setExplorerToRender("MCS");
-        } else {
+        //     else if (explorerContainerProps.featureId === SettingsEnums.Instance) {
+        //     setExplorerToRender("SAASINSTANCE");
+        // } else if (explorerContainerProps.featureId === SettingsEnums.ClientIdentity) {
+        //     setExplorerToRender("CLIENTIDENTITY");
+        } 
+    else {
             setExplorerToRender("BUSINESSTREE");
         }
     }, [explorerContainerProps.featureId]);

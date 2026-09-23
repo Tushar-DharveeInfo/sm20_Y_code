@@ -48,6 +48,8 @@ interface IUserAuthSession {
     toolboxRole?: string;
     isAuthenticated?: boolean;
     permittedapps?: string[];
+    purchasedSkus?: string[];// netzoom, vss, amc, ssi, ...
+
     claims?: Record<string, unknown> | null;
     ProductName?: string;
     licenseKey?: string;
@@ -69,6 +71,10 @@ interface IMainApp {
     ap?: IAp[];
     setAp: React.Dispatch<React.SetStateAction<IAp[] | undefined>>;
     getApValue: (apName: string) => string | undefined;
+
+    purchasedSkus?: string[];
+    setPurchasedSkus: React.Dispatch<React.SetStateAction<string[] | undefined>>;
+    getPurchasedSkus: () => string[] | undefined;
 
     alertRecords: Record<string, any>[];
     setAlertRecords: React.Dispatch<

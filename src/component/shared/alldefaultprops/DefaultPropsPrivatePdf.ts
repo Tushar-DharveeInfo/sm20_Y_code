@@ -5,8 +5,8 @@ enum BuyBrochureDocs {
     NetZoom = "brochure-netzoom.pdf",
     VisioStencils = "brochure-visiostencils.pdf",
 }
-enum knowledgeBaseDocs {
-    knowledgeBase = "knowledge-base.pdf",
+enum FAQEnumsDocs {
+    FAQEnums = "FAQEnums.pdf",
 }
 
 enum AboutNetZoomDocs {
@@ -18,7 +18,7 @@ enum PrivatePdfDocs {
     Eula = "NetZoom End User License Agreement.pdf",
     EnterpriseBrochure = "NetZoom Enterprise Brochure.pdf",
     VisioStencilsBrochure = "Visio Stencils Brochure.pdf",
-    knowledgeBase = "Knowledge Base.pdf",
+    FAQEnums = "FAQ.pdf",
     AboutNetZoom = "About NetZoom.pdf",
 }
 
@@ -28,4 +28,4 @@ const PrivatePdfFolder = "/privatepdf";
 /* Render scale used when a feature does not ask for its own. */
 const DefaultPdfScale = 1.6;
 
-export { BuyBrochureDocs, PrivatePdfDocs, PrivatePdfFolder, DefaultPdfScale, knowledgeBaseDocs, AboutNetZoomDocs }
+export { BuyBrochureDocs, PrivatePdfDocs, PrivatePdfFolder, DefaultPdfScale, FAQEnumsDocs, AboutNetZoomDocs }

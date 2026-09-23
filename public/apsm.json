@@ -1,0 +1,37 @@
+[
+  {
+    "app": "sm20",
+    "apname": "tax-il",
+    "value": "7.25"
+  },
+  {
+    "app": "sm20",
+    "apname": "tax-fl",
+    "value": "0"
+  },
+  {
+    "app": "sm20",
+    "apname": "maxbusinessesdocs",
+    "value": "1000"
+  },
+  {
+    "app": "sm20",
+    "apname": "maxcontactsdocs",
+    "value": "100"
+  },
+  {
+    "app": "sm20",
+    "apname": "maxlogdocs",
+    "value": "200"
+  },
+  {
+    "app": "sm20",
+    "apname": "maxnotesdocs",
+    "value": "50"
+  },
+  {
+    "app": "sm20",
+    "apname": "maxquerydocs",
+    "value": "500"
+  }
+]
