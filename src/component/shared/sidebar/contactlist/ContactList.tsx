@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { User24x24 } from "@n20a/libicon";
+import { User24x24, Send24x24, Close24x24, Cross } from "@n20a/libicon";
 import { EditTextXControl } from "@n20a/libform";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
 import { handleNestedZoneContainerKeyDown } from "../../allcommon/basic/FnHandleContainerKeyDown";
@@ -16,6 +16,8 @@ import { useContacts } from "@n20a/libfsdb";
 import { FnMapToContactDocs } from "../../allcommon/dataset/FnMapToContactDoc";
 import { isPrimaryCompanyContact } from "../propertyformcontainer/ProfileAddFormContainer";
 import { FqaNotes } from "../notes/FqaNotes";
+import { SendEmailToContact } from "./SendEmailToContact";
+import { ActionImage } from "../../basic/actionimage/ActionImage";
 
 interface IContactList {
     uniqueName: string;
@@ -54,7 +56,11 @@ function resolveBidCid(selection: { bid?: string; cid?: string }, node?: ITreeNo
     };
 }
 
-const buildContactCardFields = (contact: IContactDoc): ICardLayoutField[] => {
+const buildContactCardFields = (
+    contact: IContactDoc,
+    onSendEmail?: (contact: IContactDoc) => void,
+    onDeleteContact?: (contact: IContactDoc) => void
+): ICardLayoutField[] => {
     const fields: ICardLayoutField[] = [
         {
             Name: "Contact",
@@ -62,6 +68,69 @@ const buildContactCardFields = (contact: IContactDoc): ICardLayoutField[] => {
             Header: 1,
         },
     ];
+
+    if (onSendEmail || onDeleteContact) {
+        const isDeleteDisabled = isPrimaryCompanyContact(contact.cid, contact.bid);
+        fields.push({
+            Name: "",
+            Value: "",
+            Header: 2,
+            ValueContent: (
+                <div className="nz-contact-card-actions">
+                    {onSendEmail && (
+                        <button
+                            type="button"
+                            className="nz-contact-send-email-btn"
+                            title={contact.email ? `Send Email to ${contact.cname || contact.email}` : "No email address for contact"}
+                            disabled={!contact.email}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSendEmail(contact);
+                            }}
+                        >
+                            <Send24x24 size="12px" fill="none" strokeWidth={1} />
+                            <span>Email</span>
+                        </button>
+                    )}
+                    {onDeleteContact && (
+                        <ActionImage
+                            image={{
+                                uniqueName: "cancel",
+                                source: <Cross
+                                    size={FnGetCssVariable('--image-size-2')}
+                                    fill='red' />,
+                                type: "svg",
+                                w: "var(--image-size-2)",
+                                h: "var(--image-size-2)",
+                                tooltip: isDeleteDisabled ? "Primary contact created with company cannot be deleted" : `Delete contact ${contact.cname || contact.cid}`
+                            }}
+                            w='var(--node_height)'
+                            actionCode='delete click'
+                            uniqueName='deleteicon'
+                            disabled={isDeleteDisabled}
+                            h='var(--node_height)'
+                            handleMouse={() => {
+                                onDeleteContact(contact);
+                            }}
+                        />
+                        // <button
+                        //     type="button"
+                        //     className="nz-contact-delete-btn"
+                        //     title={isDeleteDisabled ? "Primary contact created with company cannot be deleted" : `Delete contact ${contact.cname || contact.cid}`}
+                        //     disabled={isDeleteDisabled}
+                        //     onClick={(e) => {
+                        //         e.stopPropagation();
+                        //         onDeleteContact(contact);
+                        //     }}
+                        // >
+                        //     <Close24x24 size="12px" fill="none" strokeWidth={1.5} />
+                        // </button>
+                    )}
+                </div>
+            ),
+        });
+    }
+
     if (contact.email) {
         fields.push({
             Name: "Email",
@@ -134,6 +203,14 @@ const ContactList = (props: IContactList) => {
     const commonVariableContext = useCommonVariableContext();
     const [selectedContactId, setSelectedContactId] = useState<string>("");
     const [filterKeyword, setFilterKeyword] = useState<string>("");
+
+    const [selectedEmailContact, setSelectedEmailContact] = useState<IContactDoc | null>(null);
+    const [isSendEmailOpen, setIsSendEmailOpen] = useState<boolean>(false);
+
+    const handleOpenSendEmail = (contact: IContactDoc) => {
+        setSelectedEmailContact(contact);
+        setIsSendEmailOpen(true);
+    };
 
     const [contactToDelete, setContactToDelete] = useState<IContactDoc | null>(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
@@ -331,12 +408,10 @@ const ContactList = (props: IContactList) => {
                                 uniqueName={`${props.uniqueName}-contact-card-${contact.cid}`}
                                 className="nz-contact-card"
                                 data={contact}
-                                fields={buildContactCardFields(contact)}
+                                fields={buildContactCardFields(contact, handleOpenSendEmail, handleDeleteContact)}
                                 isSelected={selectedContactId === contact.cid}
                                 hideRightMouseMenu={true}
-                                allowDeleteButton={true}
-                                isDeleteDisabled={isPrimaryCompanyContact(contact.cid, contact.bid)}
-                                handleMouseForDelete={() => handleDeleteContact(contact)}
+                                allowDeleteButton={false}
                                 onClick={() => setSelectedContactId(contact.cid)}
                                 ContentImage={{
                                     uniqueName: `${props.uniqueName}-contact-avatar-${contact.cid}`,
@@ -384,6 +459,19 @@ const ContactList = (props: IContactList) => {
                     setContactToDelete(null);
                 }}
             />
+
+            {isSendEmailOpen && selectedEmailContact && (
+                <SendEmailToContact
+                    uniqueName={`${props.uniqueName}-send-email-contact`}
+                    contact={selectedEmailContact}
+                    isOpen={isSendEmailOpen}
+                    onClose={() => {
+                        setIsSendEmailOpen(false);
+                        setSelectedEmailContact(null);
+                    }}
+                    handleShowUserMessage={props.handleShowUserMessage}
+                />
+            )}
         </div>
     );
 };

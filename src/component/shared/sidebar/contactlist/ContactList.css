@@ -67,4 +67,71 @@
 
 .nz-contact-card:hover {
     border-color: var(--textprimary);
-}
+}
+
+.nz-contact-card .nz-cardlayout-header-row {
+    padding-top: 2px;
+    padding-right: var(--spacing-1);
+}
+
+/* Contact Card Action Buttons */
+.nz-contact-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nz-contact-send-email-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--textprimary, #2563eb);
+    background-color: var(--bgfeaturepane1, #ffffff);
+    border: 1px solid var(--borderandscrollbar, #cbd5e1);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.nz-contact-send-email-btn:hover:not(:disabled) {
+    background-color: var(--hover, #eff6ff);
+    border-color: var(--borderandscrollbar);
+    font-weight: 500;
+}
+
+.nz-contact-send-email-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.nz-contact-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 4px;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--textsecondary, #64748b);
+    transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.nz-contact-delete-btn:hover:not(:disabled) {
+    color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.nz-contact-delete-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.nz-contact-card .nz-cardlayout-header-field-with-content {
+    min-width: 85px;
+}

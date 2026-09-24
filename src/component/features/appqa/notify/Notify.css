@@ -57,6 +57,46 @@
     flex-shrink: 0;
 }
 
+.nz-appqa-notify-container .nz-emailtemplate-combobox-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.nz-appqa-notify-container .nz-emailtemplate-combobox-container .nz-emailtemplate-combobox-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.nz-appqa-notify-container .nz-emailtemplate-combobox-container .nz-email-preview-btn {
+    background: #0070f3;
+    color: white;
+    border: none;
+    padding: 0 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 28px;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.2s ease;
+}
+
+.nz-appqa-notify-container .nz-emailtemplate-combobox-container .nz-email-preview-btn:hover:not(:disabled) {
+    background: #005bb5;
+}
+
+.nz-appqa-notify-container .nz-emailtemplate-combobox-container .nz-email-preview-btn:disabled {
+    background: #a0aec0;
+    cursor: not-allowed;
+}
+
 .nz-appqa-notify-container .nz-severity-combobox-container .nz-form-control-labeled,
 .nz-appqa-notify-container .nz-emailtemplate-combobox-container .nz-form-control-labeled {
     padding: 0;

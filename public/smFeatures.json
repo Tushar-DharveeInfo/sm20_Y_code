@@ -63,18 +63,6 @@
     "Secured": "",
     "EntityName": "Feature",
     "MenuID": "10",
-    "Feature": "46",
-    "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Review Alerts",
-    "SortOrder": "6",
-    "DefaultQA": "",
-    "Alias": ""
-  },
-  {
-    "Secured": "",
-    "EntityName": "Feature",
-    "MenuID": "10",
     "Feature": "47",
     "NodeType": "",
     "Label": "Log",
@@ -88,7 +76,7 @@
     "EntityName": "Feature",
     "MenuID": "10",
     "Feature": "50",
-    "NodeType": "",
+    "NodeType": "fnAdmin",
     "Label": "Report",
     "Tooltip": "Available Reports",
     "SortOrder": "8",
@@ -100,12 +88,12 @@
     "EntityName": "Feature",
     "MenuID": "10",
     "Feature": "52",
-    "NodeType": "",
+    "NodeType": "fnAdmin",
     "Label": "Impersonate",
     "Tooltip": "Impersonate NetZoom user",
     "SortOrder": "9",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "Delegate"
   },
   {
     "Secured": "",
@@ -117,7 +105,7 @@
     "Tooltip": "Your To Do List",
     "SortOrder": "10",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "SelectColumns"
   },
   {
     "Secured": "",
@@ -232,12 +220,12 @@
     "EntityName": "Feature",
     "MenuID": "200",
     "Feature": "220",
-    "NodeType": "fnMcs",
+    "NodeType": "",
     "Label": "MCS",
     "Tooltip": "Explore MCS",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": "Authorized"
+    "Alias": "BusinessServices"
   },
   {
     "Secured": "",
@@ -249,7 +237,7 @@
     "Tooltip": "Not a customer",
     "SortOrder": "250",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "InbountAssets"
   },
   {
     "Secured": "1",
@@ -261,7 +249,7 @@
     "Tooltip": "Followup these Contacts",
     "SortOrder": "1",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "Approve"
   },
   {
     "Secured": "1",
@@ -273,7 +261,7 @@
     "Tooltip": "Updated in last 60 days, to be verified",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "AddBin"
   },
   {
     "Secured": "1",
@@ -285,7 +273,7 @@
     "Tooltip": "Not Updated in last 60 days, to be verified",
     "SortOrder": "3",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "Back"
   },
   {
     "Secured": "1",
@@ -297,7 +285,7 @@
     "Tooltip": "Review Deleted items",
     "SortOrder": "4",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "Delete"
   },
   {
     "Secured": "",
@@ -309,7 +297,7 @@
     "Tooltip": "Support and RMS Tickets",
     "SortOrder": "300",
     "DefaultQA": "",
-    "Alias": "LibraryColor"
+    "Alias": "Manufacturer"
   },
   {
     "Secured": "",
@@ -333,7 +321,7 @@
     "Tooltip": "Explorer Requests for Development",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": "CreateNewDeviceEntity"
+    "Alias": "MyRequests"
   },
   {
     "Secured": "",
@@ -345,14 +333,14 @@
     "Tooltip": "Approved Tickets By Manufacturer",
     "SortOrder": "3",
     "DefaultQA": "",
-    "Alias": "BackgroundTaskProfile"
+    "Alias": "MyRequests"
   },
   {
     "Secured": "",
     "EntityName": "Feature",
     "MenuID": "400",
     "Feature": "400",
-    "NodeType": "fnMcs",
+    "NodeType": "",
     "Label": "RMS",
     "Tooltip": "RMS Development",
     "SortOrder": "400",
@@ -364,7 +352,7 @@
     "EntityName": "Feature",
     "MenuID": "400",
     "Feature": "402",
-    "NodeType": "fnMcs",
+    "NodeType": "",
     "Label": "EQID",
     "Tooltip": "Unpublished EQID Development",
     "SortOrder": "1",
@@ -376,7 +364,7 @@
     "EntityName": "Feature",
     "MenuID": "400",
     "Feature": "404",
-    "NodeType": "fnMcs",
+    "NodeType": "",
     "Label": "RMS Library",
     "Tooltip": "RMS Development library",
     "SortOrder": "2",
@@ -388,7 +376,7 @@
     "EntityName": "Feature",
     "MenuID": "400",
     "Feature": "406",
-    "NodeType": "fnMcs",
+    "NodeType": "",
     "Label": "Review Device Library",
     "Tooltip": "Review Published Device Models",
     "SortOrder": "3",
@@ -400,7 +388,7 @@
     "EntityName": "Feature",
     "MenuID": "400",
     "Feature": "408",
-    "NodeType": "fnMcs",
+    "NodeType": "",
     "Label": "Review Visio Stencils",
     "Tooltip": "Review Published Visio Stencils",
     "SortOrder": "4",
@@ -429,7 +417,7 @@
     "Tooltip": "Frequently Asked Questions",
     "SortOrder": "1",
     "DefaultQA": "1",
-    "Alias": ""
+    "Alias": "FAQ"
   },
   {
     "Secured": "",
@@ -441,7 +429,7 @@
     "Tooltip": "Download Documents",
     "SortOrder": "2",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "File"
   },
   {
     "Secured": "",
@@ -537,7 +525,7 @@
     "Tooltip": "Permanently Delete ",
     "SortOrder": "5",
     "DefaultQA": "",
-    "Alias": ""
+    "Alias": "Delete"
   },
   {
     "Secured": "1",
@@ -605,8 +593,8 @@
     "MenuID": "208",
     "Feature": "2088",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Email",
+    "Tooltip": "Email",
     "SortOrder": "3",
     "DefaultQA": "",
     "Alias": ""
@@ -677,8 +665,8 @@
     "MenuID": "212",
     "Feature": "2128",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Email",
+    "Tooltip": "Email",
     "SortOrder": "3",
     "DefaultQA": "",
     "Alias": ""
@@ -749,8 +737,8 @@
     "MenuID": "216",
     "Feature": "2168",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Email",
+    "Tooltip": "Email",
     "SortOrder": "3",
     "DefaultQA": "",
     "Alias": ""
@@ -821,8 +809,8 @@
     "MenuID": "218",
     "Feature": "2188",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Email",
+    "Tooltip": "Email",
     "SortOrder": "3",
     "DefaultQA": "",
     "Alias": ""
@@ -893,8 +881,8 @@
     "MenuID": "220",
     "Feature": "2208",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Email",
+    "Tooltip": "Email",
     "SortOrder": "3",
     "DefaultQA": "",
     "Alias": ""
@@ -1169,8 +1157,8 @@
     "MenuID": "308",
     "Feature": "3088",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Email",
+    "Tooltip": "Email",
     "SortOrder": "4",
     "DefaultQA": "",
     "Alias": ""
@@ -1253,8 +1241,8 @@
     "MenuID": "312",
     "Feature": "3128",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Email",
+    "Tooltip": "Email",
     "SortOrder": "4",
     "DefaultQA": "",
     "Alias": ""
@@ -1337,8 +1325,8 @@
     "MenuID": "912",
     "Feature": "9128",
     "NodeType": "",
-    "Label": "Alerts",
-    "Tooltip": "Alerts",
+    "Label": "Email",
+    "Tooltip": "Email",
     "SortOrder": "4",
     "DefaultQA": "",
     "Alias": ""

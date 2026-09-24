@@ -54,3 +54,8 @@
 .nz-statusbar-container .nz-statusbar-title-container .nz-statusbar-title-content .nz-action-image-container {
     margin-left: 5px;
 }
+
+.nz-statusbar-container .nz-statusbar-title-container.nz-statusbar-title-impersonating,
+.nz-statusbar-title-container.nz-statusbar-title-impersonating {
+    background-color: #dcfce7;
+}

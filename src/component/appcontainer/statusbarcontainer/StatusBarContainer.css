@@ -141,3 +141,13 @@
 .nz-dynamic-card-main-content {
     width: 100%
 }
+
+/* Impersonating status bar style */
+.nz-statusbar-container.nz-statusbar-impersonating,
+.nz-statusbar-container.nz-statusbar-impersonating .nz-statusbar-content,
+.nz-statusbar-container.nz-statusbar-impersonating .nz-statusbar-card-container,
+.nz-statusbar-container.nz-statusbar-impersonating .nz-statusbar-container-title,
+.nz-statusbar-container.nz-statusbar-impersonating .nz-statusbar-title-container,
+.nz-statusbar-container.nz-statusbar-impersonating .nz-statusbar-loader {
+    background-color: #dcfce7;
+}

@@ -1,5 +1,5 @@
 
-import { JSX, useEffect, useState } from 'react';
+import React, { JSX, useEffect, useState } from 'react';
 import { Close24x24, Copy24x24, Down24x24, NoInternet, Secured24x24, Up24x24 } from '@n20a/libicon';
 import './StatusBarTitleContainer.css';
 import { FnGetCssVariable } from '../../allcommon/FnGetCssVariable.ts';
@@ -16,13 +16,17 @@ interface IStatusBarTitleContainer {
     isOpen: boolean;
     cardsCount: number;
     isInternetAvailable: boolean;
-    isSiteLocked: boolean;
-    isSiteManaged: boolean;
+    isSiteLocked?: boolean;
+    isSiteManaged?: boolean;
     handleOpenCloseStatusBar: () => void;
     criticalAlertCount?: number;
     isShowFullTitle?: boolean;
     handleShowFullTitle?: () => void;
     handleClearClick?: () => void;
+    isImpersonating?: boolean;
+    impersonatedUser?: string;
+    loginUser?: string;
+    handleQuitImpersonate?: () => void;
 }
 const StatusBarTitleContainer = (statusBarTitleContainerProps: IStatusBarTitleContainer) => {
     // console.log('statusBarTitleContainerProps :', statusBarTitleContainerProps);
@@ -32,8 +36,8 @@ const StatusBarTitleContainer = (statusBarTitleContainerProps: IStatusBarTitleCo
     const { isOpen, cardsCount, criticalAlertCount } = statusBarTitleContainerProps;
     useEffect(() => {
         if (typeof statusBarTitleContainerProps.titleData === "string") {
-            setTitleContent(<Label fontWeight='bold' uniqueName={`${statusBarTitleContainerProps.uniqueName}-header`} label={statusBarTitleContainerProps.titleData} />)
-            setContentToCopy(statusBarTitleContainerProps.titleData)
+            setTitleContent(<Label fontWeight='bold' uniqueName={`${statusBarTitleContainerProps.uniqueName}-header`} label={statusBarTitleContainerProps.titleData} />);
+            setContentToCopy(statusBarTitleContainerProps.titleData);
         }
         else if (Array.isArray(statusBarTitleContainerProps.titleData)) {
             const renderTitleContent = () => {
@@ -93,7 +97,7 @@ const StatusBarTitleContainer = (statusBarTitleContainerProps: IStatusBarTitleCo
             // Usage
             setTitleContent(renderTitleContent());
 
-            setContentToCopy(statusBarTitleContainerProps.titleData.join('|'))
+            setContentToCopy(statusBarTitleContainerProps.titleData.join('|'));
         }
 
     }, [statusBarTitleContainerProps.titleData
@@ -101,11 +105,14 @@ const StatusBarTitleContainer = (statusBarTitleContainerProps: IStatusBarTitleCo
         , statusBarTitleContainerProps.uniqueName
         , statusBarTitleContainerProps.isShowFullTitle
         , statusBarTitleContainerProps.handleShowFullTitle
-    ])
+    ]);
 
 
     return (
-        <div className={"nz-statusbar-title-container"}>
+        <div
+            className={`nz-statusbar-title-container ${statusBarTitleContainerProps.isImpersonating ? "nz-statusbar-title-impersonating" : ""}`}
+            style={statusBarTitleContainerProps.isImpersonating ? { backgroundColor: '#dcfce7' } : undefined}
+        >
             <div className='nz-statusbar-title-left'>
                 {statusBarTitleContainerProps.cardsCount > 0 && <ActionImage
                     image={{
@@ -152,7 +159,30 @@ const StatusBarTitleContainer = (statusBarTitleContainerProps: IStatusBarTitleCo
 
                 <div className='nz-statusbar-title-content'>
                     {!isOpen ? titleContent : `Notification${cardsCount > 0 ? ` (${cardsCount}${criticalAlertCount ? `, Critical : ${criticalAlertCount}` : ""})` : ""}`}
-
+                    {!isOpen && statusBarTitleContainerProps.isImpersonating && (
+                        <ActionImage
+                            uniqueName={`${statusBarTitleContainerProps.uniqueName}-quit-impersonate`}
+                            image={{
+                                uniqueName: `${statusBarTitleContainerProps.uniqueName}-quit-impersonate-img`,
+                                source: <Close24x24
+                                    size={FnGetCssVariable('--image-size-1', '16px')}
+                                    fill='none'
+                                    strokeWidth={1} />,
+                                type: "svg",
+                                w: "var(--image-size-1)",
+                                h: "var(--image-size-1)",
+                                tooltip: "Quit Impersonating",
+                            }}
+                            w="var(--node_height)"
+                            h="var(--node_height)"
+                            actionCode={'quitImpersonate'}
+                            tooltip="Quit Impersonating"
+                            handleMouse={(event: any) => {
+                                event?.stopPropagation?.();
+                                statusBarTitleContainerProps.handleQuitImpersonate?.();
+                            }}
+                        />
+                    )}
                 </div>
 
             </div>

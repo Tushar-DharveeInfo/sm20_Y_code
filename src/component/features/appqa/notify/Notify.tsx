@@ -721,31 +721,11 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             onKeyDown={handleContainerKeyDown}
             key={appqaMessageProps.uniqueName}
         >
-            <div className="nz-sub-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="nz-sub-header">
                 <Label
                     uniqueName={`${appqaMessageProps.uniqueName}-task-header`}
                     label={appqaMessageProps.headerText ?? "Notify"}
                 />
-                <button
-                    type="button"
-                    onClick={openModal}
-                    disabled={!htmlContent.trim()}
-                    style={{
-                        background: htmlContent.trim() ? '#0070f3' : '#a0aec0',
-                        color: 'white',
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        cursor: htmlContent.trim() ? 'pointer' : 'not-allowed',
-                        fontWeight: 'bold',
-                        fontSize: '12px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                    }}
-                >
-                    Preview
-                </button>
             </div>
             <Splitter tabIndex={-1} className="nz-w-100 nz-h-100">
                 <SplitterPanel
@@ -756,14 +736,24 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                 >
                     {/* Email template combobox above severity */}
                     <div className="nz-w-100 nz-emailtemplate-combobox-container">
-                        <ComboBoxControl
-                            options={templateOptions}
-                            label={"Email Template"}
-                            value={selectedTemplateName}
-                            onChange={(value) => {
-                                void handleTemplateChange(value?.toString() ?? "");
-                            }}
-                        />
+                        <div className="nz-emailtemplate-combobox-wrapper">
+                            <ComboBoxControl
+                                options={templateOptions}
+                                label={"Email Template"}
+                                value={selectedTemplateName}
+                                onChange={(value) => {
+                                    void handleTemplateChange(value?.toString() ?? "");
+                                }}
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            className="nz-email-preview-btn"
+                            onClick={openModal}
+                            disabled={!htmlContent.trim()}
+                        >
+                            Preview
+                        </button>
                     </div>
                     <div className="nz-w-100 nz-severity-combobox-container">
                         <ComboBoxControl

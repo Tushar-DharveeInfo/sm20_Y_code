@@ -1,0 +1,166 @@
+.nz-send-email-contact-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--bgfeaturepane1, #ffffff);
+    color: var(--textprimary, #333333);
+    box-sizing: border-box;
+}
+
+.nz-send-email-dialog .MuiDialog-paper {
+    width: 720px;
+    max-width: 90vw;
+    height: 650px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 4px;
+    background-color: var(--bgfeaturepane1, #ffffff);
+    color: var(--textprimary, #333333);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.nz-send-email-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--bgtitlebarandstatusbar, #f3f4f6);
+    border-bottom: 1px solid var(--borderandscrollbar, #e5e7eb);
+    flex-shrink: 0;
+}
+
+.nz-send-email-header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--textprimary, #111827);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nz-send-email-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nz-send-email-close-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    color: var(--textprimary, #374151);
+}
+
+.nz-send-email-close-btn:hover {
+    background-color: var(--hover, rgba(0, 0, 0, 0.08));
+}
+
+.nz-send-email-content {
+    flex: 1 1 0;
+    min-height: 0;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.nz-send-email-recipient-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background-color: var(--hover);
+    border: 1px solid var(--borderandscrollbar);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--textprimary);
+    flex-shrink: 0;
+}
+
+.nz-send-email-combobox-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.nz-send-email-contact-container .nz-notes-message-box-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    margin: 0px;
+}
+
+.nz-send-email-contact-container .nz-notes-message-box-container .nz-notes-textarea {
+    flex-grow: 1;
+}
+
+.nz-send-email-contact-container .nz-notes-message-box-container .nz-notes-action-strip {
+    height: var(--submenu_height, 32px);
+}
+
+.nz-send-email-contact-container .nz-notes-message-box-container .nz-notes-textarea .nz-fc-textarea-control {
+    margin: 0px;
+    padding: 0px;
+    height: 100%;
+}
+
+.nz-send-email-contact-container .nz-notes-message-box-container .nz-notes-textarea textarea {
+    height: 100% !important;
+    padding: var(--spacing-1, 8px);
+}
+
+.nz-send-email-messagebox {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Contact Card Action Button */
+.nz-contact-send-email-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--textprimary, #2563eb);
+    background-color: var(--bgfeaturepane1, #ffffff);
+    border: 1px solid var(--borderandscrollbar, #cbd5e1);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.nz-contact-send-email-btn:hover {
+    background-color: var(--hover, #eff6ff);
+    border-color: var(--borderandscrollbar);
+    font-weight: 500;
+}
+
+.nz-html-editor-action-strip {
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    background-color: yellow;
+    border: 2px solid rgb(0, 122, 204);
+    border-radius: 0px 0px 6px 6px;
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 2px 8px;
+    user-select: none;
+    display: flex;
+    justify-content: end;
+}

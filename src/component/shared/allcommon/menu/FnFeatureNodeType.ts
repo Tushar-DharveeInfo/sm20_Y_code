@@ -4,38 +4,19 @@ import { IFeatureItem, IUserAuthSession } from "../../context/allinterface/IMain
  * Extracts normalized permitted application names for the given auth user or context in memory.
  * Checks authUser properties, claims, raw payload, context authSession, and fallback defaults.
  */
-export function fnGetPermittedApps(authUser?: unknown, context?: unknown): string[] {
+export function fnGetPermittedApps(authUser?: unknown): string[] {
     const candidateValues: unknown[] = [];
 
     const userObj = authUser as Record<string, any> | undefined;
-    const ctxObj = context as Record<string, any> | undefined;
 
     if (userObj) {
         candidateValues.push(
-            userObj.permittedapps,
-            userObj.permitted_apps,
-            userObj.permittedApps,
+
             userObj.claims?.permittedapps,
-            userObj.claims?.permitted_apps,
-            userObj.claims?.permittedApps,
-            userObj.claims?.apps,
-            userObj.apps,
-            userObj.raw?.permittedapps,
-            userObj.raw?.permitted_apps,
-            userObj.raw?.permittedApps
+
         );
     }
 
-    if (ctxObj) {
-        candidateValues.push(
-            ctxObj.authSession?.permittedapps,
-            ctxObj.authSession?.permitted_apps,
-            ctxObj.authSession?.permittedApps,
-            ctxObj.authSession?.claims?.permittedapps,
-            ctxObj.authSession?.claims?.permittedApps,
-            ctxObj.authSession?.claims?.apps
-        );
-    }
 
     for (const val of candidateValues) {
         if (val === undefined || val === null) continue;
@@ -72,65 +53,13 @@ export function fnGetPermittedApps(authUser?: unknown, context?: unknown): strin
     return ["netzoom", "visiostencils"];
 }
 
-/**
- * Resolves the authenticated user role from authUser or context in memory.
- * Checks user object, claims (toolboxRole, authrole, role), and context authSession.
- */
-export function fnGetAuthRole(authUser?: unknown, context?: unknown): string {
-    const userObj = authUser as Record<string, any> | undefined;
-    const ctxObj = context as Record<string, any> | undefined;
-
-    const candidateValues: unknown[] = [];
-
-    if (userObj) {
-        candidateValues.push(
-            userObj.claims?.toolboxRole,
-            userObj.toolboxRole,
-            userObj.claims?.authrole,
-            userObj.claims?.role,
-            userObj.authrole,
-            userObj.role,
-            userObj.raw?.claims?.toolboxRole,
-            userObj.raw?.toolboxRole,
-            userObj.raw?.authrole,
-            userObj.raw?.role
-        );
-    }
-
-    if (ctxObj) {
-        candidateValues.push(
-            ctxObj.authSession?.claims?.toolboxRole,
-            ctxObj.authSession?.toolboxRole,
-            ctxObj.authSession?.claims?.authrole,
-            ctxObj.authSession?.claims?.role,
-            ctxObj.authSession?.authrole,
-            ctxObj.authSession?.role,
-            ctxObj.sessionVarsForTreeNode?.basicRole
-        );
-    }
-
-    for (const val of candidateValues) {
-        if (typeof val === "string" && val.trim()) {
-            return val.trim().toLowerCase();
-        }
-    }
-
-    // Fallback: Check username/email heuristics
-    const username = String(userObj?.username || userObj?.displayName || "").toLowerCase();
-    const email = String(userObj?.email || "").toLowerCase();
-    if (username === "admin" || email.startsWith("admin@") || email.includes("admin")) {
-        return "admin";
-    }
-
-    return "";
-}
 
 /**
  * NodeType function for NetZoom features:
  * Gets permittedapps for authuser; if 'netzoom' is NOT in permitted list do not offer these features.
  */
-export function fnNetzoom(authUser?: IUserAuthSession, context?: unknown): boolean {
-    const permittedApps: string[] = authUser?.permittedapps ?? fnGetPermittedApps(authUser, context);
+export function fnNetzoom(authUser?: IUserAuthSession): boolean {
+    const permittedApps: string[] = authUser?.permittedapps ?? fnGetPermittedApps(authUser);
     return permittedApps.includes("netzoom");
 }
 
@@ -138,8 +67,8 @@ export function fnNetzoom(authUser?: IUserAuthSession, context?: unknown): boole
  * NodeType function for VisioStencils features:
  * Gets permittedapps for authuser; if 'visiostencils' is NOT in permitted list do not offer these features.
  */
-export function fnVss(authUser?: IUserAuthSession, context?: unknown): boolean {
-    const permittedApps: string[] = authUser?.permittedapps ?? fnGetPermittedApps(authUser, context);
+export function fnVss(authUser?: IUserAuthSession): boolean {
+    const permittedApps: string[] = authUser?.permittedapps ?? fnGetPermittedApps(authUser);
     return permittedApps.includes("visiostencils") || permittedApps.includes("vss");
 }
 
@@ -150,31 +79,31 @@ export function fnVss(authUser?: IUserAuthSession, context?: unknown): boolean {
  * - settings/schedular
  * - settings/import
  */
-export function fnAdmin(authUser?: IUserAuthSession, context?: unknown): boolean {
-    const role = fnGetAuthRole(authUser, context);
+export function fnAdmin(authUser?: IUserAuthSession): boolean {
+    const role = authUser?.toolboxRole ?? "";
     const normalized = role.trim().toLowerCase();
     return normalized === "admin" || normalized === "administrator";
 }
 
-export function fnMcs(authUser?: IUserAuthSession, context?: unknown): boolean {
-    const role = fnGetAuthRole(authUser, context);
+export function fnMcs(authUser?: IUserAuthSession): boolean {
+    const role = authUser?.toolboxRole ?? "";
     const normalized = role.trim().toLowerCase();
     return normalized === "mcs";
 }
-export function fnGd(authUser?: IUserAuthSession, context?: unknown): boolean {
-    const role = fnGetAuthRole(authUser, context);
+export function fnGd(authUser?: IUserAuthSession): boolean {
+    const role = authUser?.toolboxRole ?? "";
     const normalized = role.trim().toLowerCase();
     return normalized === "gd";
 }
 
-export function fnSe(authUser?: IUserAuthSession, context?: unknown): boolean {
-    const role = fnGetAuthRole(authUser, context);
+export function fnSe(authUser?: IUserAuthSession): boolean {
+    const role = authUser?.toolboxRole ?? "";
     const normalized = role.trim().toLowerCase();
     return normalized === "se";
 }
 
-export function fnSse(authUser?: IUserAuthSession, context?: unknown): boolean {
-    const role = fnGetAuthRole(authUser, context);
+export function fnSse(authUser?: IUserAuthSession): boolean {
+    const role = authUser?.toolboxRole ?? "";
     const normalized = role.trim().toLowerCase();
     return normalized === "sse";
 }
@@ -215,25 +144,25 @@ export function fnEvaluateNodeType(
     const normalized = nodeType.trim().toLowerCase();
 
     if (normalized === "fnnetzoom") {
-        return fnNetzoom(authUser, context);
+        return fnNetzoom(authUser);
     }
     if (normalized === "fnvss") {
-        return fnVss(authUser, context);
+        return fnVss(authUser);
     }
     if (normalized === "fnadmin") {
-        return fnAdmin(authUser, context);
+        return fnAdmin(authUser);
     }
     if (normalized === "fngd") {
-        return fnGd(authUser, context);
+        return fnGd(authUser);
     }
     if (normalized === "fnmcs") {
-        return fnMcs(authUser, context);
+        return fnMcs(authUser);
     }
     if (normalized === "fnse") {
-        return fnSe(authUser, context);
+        return fnSe(authUser);
     }
     if (normalized === "fnsse") {
-        return fnSse(authUser, context);
+        return fnSse(authUser);
     }
 
 

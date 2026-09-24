@@ -9,7 +9,7 @@ const FnGetAuthDisplayName = (authSession?: IUserAuthSession | null): string => 
     if (!authSession) {
         return "";
     }
-    return (authSession.displayName || authSession.username || authSession.email || "").trim();
+    return (authSession.ImpersonatedUser || authSession.ImpersonatedEmail || "").trim();
 };
 
 /* Resolves subscriber product name from IUserAuthSession. */
@@ -31,14 +31,18 @@ const FnGetLoggedInStatusMessage = (
     const subscriberProduct = FnGetSubscriberProduct(authSession);
     const bid = String(authSession?.bid ?? "").trim();
     const cid = String(authSession?.cid ?? "").trim();
+    const currentUser = authSession?.username
+    const isImpersonating = Boolean(authSession?.email &&
+        authSession?.ImpersonatedEmail.toLowerCase() !== authSession?.email.toLowerCase()
+    );
 
-    let identity = "You are logged in as a guest user";
-    if (displayName && subscriberProduct) {
+
+
+    let identity = "You are logged in as a guest";
+    if (displayName) {
+        identity = `You are logged in as ${displayName} ${isImpersonating ? ` and Impersonating: ${currentUser}` : ''}`;
+    } else if (displayName && subscriberProduct) {
         identity = `You are logged in as ${displayName} ${subscriberProduct}`;
-    } else if (displayName) {
-        identity = `You are logged in as ${displayName}`;
-    } else if (subscriberProduct) {
-        identity = `You are logged in as a ${subscriberProduct}`;
     } else if (!authSession) {
         identity = "You are logged in as a guest user";
     }

@@ -16,6 +16,9 @@ import { FnConvertDateToUtcOrUtcToLocalDate } from '../../shared/allcommon/FnCon
 import { FnGetAppDateFormat } from '../../shared/allcommon/basic/FnGetAppDateFormat';
 import { FnSortStatusBarCards } from '../allcommon/FnSortStatusBarCards';
 import { FnParseJsonSafely } from '../allcommon/FnParseJsonSafely';
+import { FnGetLoggedInStatusMessage } from '../allcommon/FnGetLoggedInStatusMessage';
+import usersData from '../../../smsampledata/datasets/users.json';
+import { IUserAuthSession } from '../../shared/context/allinterface/IMainApp';
 import { IStatusBarContainer } from '../componentswrappercontainer/ComponentsWrapperContainer';
 
 // Builds markdown content for error and log sections in status bar cards.
@@ -108,6 +111,41 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
             tagName: get("tagname"),
         };
     }, [sessionContext.SessionList]);
+
+    const authSession = mainAppContext.authSession;
+    const loginUser = authSession?.displayName || authSession?.username || '';
+    const currentUser = authSession?.ImpersonatedUser || '';
+    const isImpersonating = Boolean(
+        authSession?.email &&
+        authSession?.ImpersonatedEmail &&
+        authSession.ImpersonatedEmail.toLowerCase() !== authSession.email.toLowerCase()
+    );
+
+    const handleQuitImpersonate = useCallback(() => {
+        if (!authSession) return;
+
+        let loginBid = authSession.bid;
+        let loginCid = authSession.cid;
+        if (authSession.email && Array.isArray(usersData)) {
+            const match = (usersData as { bid: string; cid: string; email: string }[]).find(
+                (u) => u.email.toLowerCase() === authSession.email?.toLowerCase()
+            );
+            if (match) {
+                loginBid = match.bid;
+                loginCid = match.cid;
+            }
+        }
+
+        const restoredSession: IUserAuthSession = {
+            ...authSession,
+            ImpersonatedUser: authSession.displayName || authSession.username,
+            ImpersonatedEmail: authSession.email ?? '',
+            bid: loginBid,
+            cid: loginCid,
+        };
+
+        mainAppContext.setAuthSession(restoredSession);
+    }, [authSession, mainAppContext]);
 
 
 
@@ -232,7 +270,11 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
     useEffect(() => {
         if (statusBarType !== "info") return;
         const data = statusBarContainerProps.statusBarData;
-        const loginStatusLines = statusBarContext.statusBarStringData ?? [];
+        const currentLoginStatusLine = FnGetLoggedInStatusMessage(authSession);
+        const rawLoginStatusLines = statusBarContext.statusBarStringData ?? [];
+        const loginStatusLines = rawLoginStatusLines.length
+            ? rawLoginStatusLines.map(l => (l.includes("login user:") || l.includes("logged in as") ? currentLoginStatusLine : l))
+            : (currentLoginStatusLine ? [currentLoginStatusLine] : []);
 
         if (data && typeof data !== "string") {
             const arr: string[] = [];
@@ -249,8 +291,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
             };
 
             for (const key in data) {
-
-                const value = data[key]
+                const value = data[key];
                 if (value) {
                     updateArray(key, value);
                 }
@@ -289,7 +330,8 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
         teamName,
         tenantName,
         tagName,
-        statusBarContext.statusBarStringData
+        statusBarContext.statusBarStringData,
+        authSession
     ]);
 
     // Resizes expanded status bar by mouse/touch drag position.
@@ -831,7 +873,12 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
     }
 
     return (
-        <div id="StatusBarContainer" key={statusBarContainerProps.uniqueName} className={`nz-statusbar-container ${isStatusBarOpen ? "nz-statusbar-container-open" : ""}`}>
+        <div
+            id="StatusBarContainer"
+            key={statusBarContainerProps.uniqueName}
+            className={`nz-statusbar-container ${isStatusBarOpen ? "nz-statusbar-container-open" : ""} ${isImpersonating ? "nz-statusbar-impersonating" : ""}`}
+            style={isImpersonating ? { backgroundColor: '#dcfce7' } : undefined}
+        >
             <div className={`nz-statusbar-content ${IsLoading ? "nz-loading" : ""}`}>
                 {IsLoading && (
                     <div className='nz-statusbar-loader'>
@@ -858,12 +905,16 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
                                 setIsShowFullTitle(!isShowFullTitle);
                             }}
                             handleClearClick={handleClearClick}
+                            loginUser={loginUser}
+                            impersonatedUser={currentUser}
+                            isImpersonating={isImpersonating}
+                            handleQuitImpersonate={handleQuitImpersonate}
                         />
                     </div>
                     {statusBarCards.length ? <div className='nz-statusbar-card-content'>
                         {statusBarCards.map((cardItem: Record<string, any>, index) => {
                             return <React.Fragment key={index}> <StatusBarCard
-                                {...cardItem}
+                                cardPurpose={'testapi'} duration={0} severity={'Normal'} titleData={''} {...cardItem}
                                 uniqueName={`card-item-${index}`}
                                 id={cardItem.titleData}
                                 handleCloseClick={(id: string) => {
