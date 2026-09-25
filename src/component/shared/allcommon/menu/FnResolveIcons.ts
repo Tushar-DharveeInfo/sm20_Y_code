@@ -65,6 +65,20 @@ import {
     Excel24x24,
     XLSX24x24,
 
+    // Newly imported icons for smFeatures Labels & Aliases
+    Delegate24x24,
+    BusinessServices24x24,
+    InboundAssets24x24,
+    AddBin24x24,
+    Back24x24,
+    Delete24x24,
+    Manufacturer24x24,
+    File24x24,
+    FAQ24x24,
+    Send24x24,
+    TestAPI24x24,
+    AssetAssignment24x24,
+
 
     Accessory24x24,
     Appliance24x24,
@@ -149,10 +163,13 @@ const featureIconMap: IconMap = {
     Purchase24x24,
     Eula24x24,
     EULA24x24: Eula24x24,
-    FAQ24x24: Help24x24,
-    FAQEnums24x24: Help24x24,
+    FAQ24x24,
+    FAQEnums24x24: FAQ24x24,
+    FAQ: FAQ24x24,
     About24x24: Info24x24,
+    About: Info24x24,
     AboutNetZoom24x24: N,
+    AboutNetZoom: N,
     MyProfile24x24,
     MyActivities24x24,
     SelectColumns24x24,
@@ -162,10 +179,13 @@ const featureIconMap: IconMap = {
     // Label lookups keep VisioStencils24x24 / NetZoom24x24 / NZIcon24x24 keys.
     VisioStencils24x24: Visio,
     VisioStencilsBrochure24x24: Visio,
+    VisioStencils: Visio,
     Visio,
     NetZoom24x24: N,
     NetZoomBrochure24x24: N,
+    NetZoom: N,
     NZIcon24x24: N,
+    NZIcon: N,
     N,
     Cart24x24,
     DownloadVisioStencils24x24,
@@ -187,6 +207,147 @@ const featureIconMap: IconMap = {
     CreateNewDeviceEntity24x24,
     BackgroundTaskProfile24x24,
     HypervisorNode24x24,
+
+    // Newly imported icons & smFeatures.json Labels / Aliases
+    Delegate24x24,
+    Delegate: Delegate24x24,
+    Impersonate24x24: Delegate24x24,
+    Impersonate: Delegate24x24,
+
+    BusinessServices24x24,
+    BusinessServices: BusinessServices24x24,
+    MCS24x24: BusinessServices24x24,
+    MCS: BusinessServices24x24,
+
+    InboundAssets24x24,
+    InboundAssets: InboundAssets24x24,
+    InbountAssets24x24: InboundAssets24x24,
+    InbountAssets: InboundAssets24x24,
+    Prospect24x24: InboundAssets24x24,
+    Prospect: InboundAssets24x24,
+
+    AddBin24x24,
+    AddBin: AddBin24x24,
+    Recent24x24: AddBin24x24,
+    Recent: AddBin24x24,
+
+    Back24x24,
+    Back: Back24x24,
+    Past24x24: Back24x24,
+    Past: Back24x24,
+
+    Delete24x24,
+    Delete: Delete24x24,
+    ReviewDeleted24x24: Delete24x24,
+    ReviewDeleted: Delete24x24,
+
+    Manufacturer24x24,
+    Manufacturer: Manufacturer24x24,
+    Tickets24x24: Manufacturer24x24,
+    Tickets: Manufacturer24x24,
+
+    File24x24,
+    File: File24x24,
+    Documents24x24: File24x24,
+    Documents: File24x24,
+
+    LibraryColor: LibraryColor128x128,
+    LibraryColor24x24: LibraryColor128x128,
+    DeviceLibrary24x24: LibraryColor128x128,
+    DeviceLibrary: LibraryColor128x128,
+    EQID24x24: LibraryColor128x128,
+    EQID: LibraryColor128x128,
+    RMSLibrary24x24: LibraryColor128x128,
+    RMSLibrary: LibraryColor128x128,
+
+    ReviewDeviceLibrary24x24: N,
+    ReviewDeviceLibrary: N,
+    ReviewVisioStencils24x24: Visio,
+    ReviewVisioStencils: Visio,
+
+    RMS24x24: Theme24x24,
+    RMS: Theme24x24,
+
+    MyRequests: MyRequests24x24,
+    RequestsReceived24x24: MyRequests24x24,
+    RequestsReceived: MyRequests24x24,
+    ApprovedTickets24x24: MyRequests24x24,
+    ApprovedTickets: MyRequests24x24,
+
+    DataTable: DataTable24x24,
+    CatalogandDiscounts24x24: DataTable24x24,
+    CatalogandDiscounts: DataTable24x24,
+
+    xlsx: XLSX24x24,
+    xlsx24x24: XLSX24x24,
+    DownloadExcelTemplates24x24: XLSX24x24,
+    DownloadExcelTemplates: XLSX24x24,
+
+    Tenant: Tenant24x24,
+    ClientIdentityManagement24x24: Tenant24x24,
+    ClientIdentityManagement: Tenant24x24,
+
+    Calendar: Calendar24x24,
+    DailyScheduler24x24: Calendar24x24,
+    DailyScheduler: Calendar24x24,
+    DailySchedular24x24: Calendar24x24,
+    DailySchedular: Calendar24x24,
+
+    HypervisorNode: HypervisorNode24x24,
+    SAASInstance24x24: HypervisorNode24x24,
+    SAASInstance: HypervisorNode24x24,
+
+    Team: Team24x24,
+    Client24x24: Team24x24,
+    Client: Team24x24,
+
+    Diagnostics: Diagnostics24x24,
+    SSIandOtherServices24x24: Diagnostics24x24,
+    SSIandOtherServices: Diagnostics24x24,
+
+    Authorized: Authorized24x24,
+    Reseller24x24: Authorized24x24,
+    Reseller: Authorized24x24,
+
+    Approve: Approve24x24,
+    Followup24x24: Approve24x24,
+    Followup: Approve24x24,
+
+    SelectColumns: SelectColumns24x24,
+
+    orders: Orders24x24,
+    Orders: Orders24x24,
+    Order24x24: Orders24x24,
+    Order: Orders24x24,
+    List24x24: Orders24x24,
+    List: Orders24x24,
+
+    Service: Services24x24,
+    Service24x24: Services24x24,
+
+    Send24x24,
+    Send: Send24x24,
+    Email24x24: Send24x24,
+    Email: Send24x24,
+    Mail24x24: Send24x24,
+    Mail: Send24x24,
+
+    Task: Task24x24,
+    ToDo24x24: Task24x24,
+    ToDo: Task24x24,
+
+    TestAPI24x24,
+    Test: TestAPI24x24,
+    Test24x24: TestAPI24x24,
+
+    Setting: Setting24x24,
+    Settings: Setting24x24,
+    Settings24x24: Setting24x24,
+
+    AssetAssignment24x24,
+    AssetAssignment: AssetAssignment24x24,
+    AssetAssigment24x24: AssetAssignment24x24,
+    AssetAssigment: AssetAssignment24x24,
 
 
     Accessory24x24,
@@ -267,6 +428,7 @@ const sharedIconMap: IconMap = {
     DataTable24x24,
     Task24x24,
     Reminder24x24,
+    AssetAssignment24x24,
 
 };
 
