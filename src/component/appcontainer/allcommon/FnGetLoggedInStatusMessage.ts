@@ -31,7 +31,6 @@ const FnGetLoggedInStatusMessage = (
     const subscriberProduct = FnGetSubscriberProduct(authSession);
     const bid = String(authSession?.bid ?? "").trim();
     const cid = String(authSession?.cid ?? "").trim();
-    const currentUser = authSession?.username
     const isImpersonating = Boolean(authSession?.email &&
         authSession?.ImpersonatedEmail.toLowerCase() !== authSession?.email.toLowerCase()
     );
@@ -40,16 +39,16 @@ const FnGetLoggedInStatusMessage = (
 
     let identity = "You are logged in as a guest";
     if (displayName) {
-        identity = `You are logged in as ${displayName} ${isImpersonating ? ` and Impersonating: ${currentUser}` : ''}`;
+        identity = `You are logged in as ${cid} ${isImpersonating ? ` but impersonating as: ${authSession?.ImpersonatedDetails?.cid}` : ''}`;
     } else if (displayName && subscriberProduct) {
-        identity = `You are logged in as ${displayName} ${subscriberProduct}`;
+        identity = `You are logged in as ${cid}`;
     } else if (!authSession) {
         identity = "You are logged in as a guest user";
     }
 
     const scopeParts: string[] = [];
-    if (bid) scopeParts.push(`bid=${bid}`);
-    if (cid) scopeParts.push(`cid=${cid}`);
+    // if (bid) scopeParts.push(`bid=${bid}`);
+    // if (cid) scopeParts.push(`cid=${cid}`);
     if (!scopeParts.length) {
         return identity;
     }

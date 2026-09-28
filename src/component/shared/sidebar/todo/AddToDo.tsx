@@ -38,7 +38,9 @@ interface ITodoItem extends ITodoDoc {
 }
 
 function getFormattedDate(date: Date): string {
+	if (!date || isNaN(date.getTime())) return '';
 	const year = date.getFullYear();
+	if (year < 1970 || year > 2100) return '';
 	const month = String(date.getMonth() + 1).padStart(2, '0');
 	const day = String(date.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
@@ -61,19 +63,79 @@ function parseToIsoDate(dateStr: string): string {
 		const m = slashMatch[1].padStart(2, '0');
 		const d = slashMatch[2].padStart(2, '0');
 		const y = slashMatch[3];
-		return `${y}-${m}-${d}`;
+		const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+		if (!isNaN(parsed.getTime())) {
+			return getFormattedDate(parsed);
+		}
+		return '';
 	}
 	const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
 	if (isoMatch) {
 		const y = isoMatch[1];
 		const m = isoMatch[2].padStart(2, '0');
 		const d = isoMatch[3].padStart(2, '0');
-		return `${y}-${m}-${d}`;
+		const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+		if (!isNaN(parsed.getTime())) {
+			return getFormattedDate(parsed);
+		}
+		return '';
 	}
 	const parsed = Date.parse(dateStr);
 	if (!isNaN(parsed)) {
 		return getFormattedDate(new Date(parsed));
 	}
+	return '';
+}
+
+function formatDueDateDisplay(raw: unknown): string {
+	if (!raw) return '';
+	let result = '';
+	if (typeof raw === 'string') {
+		const trimmed = raw.trim();
+		if (
+			!trimmed ||
+			trimmed === '[object Object]' ||
+			trimmed.includes('[object') ||
+			trimmed.toLowerCase() === 'undefined' ||
+			trimmed.toLowerCase() === 'null' ||
+			trimmed.toLowerCase() === 'invalid date'
+		) {
+			return '';
+		}
+		result = parseToIsoDate(trimmed);
+	} else if (typeof raw === 'number' && !isNaN(raw) && raw > 0) {
+		const d = new Date(raw);
+		if (!isNaN(d.getTime())) {
+			result = getFormattedDate(d);
+		}
+	} else if (typeof raw === 'object') {
+		if ('toDate' in (raw as Record<string, unknown>) && typeof (raw as Record<string, any>).toDate === 'function') {
+			try {
+				const d = (raw as Record<string, any>).toDate();
+				if (d instanceof Date && !isNaN(d.getTime())) {
+					result = getFormattedDate(d);
+				}
+			} catch {
+				// ignore
+			}
+		} else if ('seconds' in (raw as Record<string, unknown>) && typeof (raw as Record<string, any>).seconds === 'number') {
+			try {
+				const d = new Date((raw as Record<string, any>).seconds * 1000);
+				if (!isNaN(d.getTime())) {
+					result = getFormattedDate(d);
+				}
+			} catch {
+				// ignore
+			}
+		} else if (raw instanceof Date && !isNaN(raw.getTime())) {
+			result = getFormattedDate(raw);
+		}
+	}
+
+	if (result && /^\d{4}-\d{2}-\d{2}$/.test(result) && !result.includes('NaN')) {
+		return result;
+	}
+	// If not able to format, remove the due date (return empty string)
 	return '';
 }
 
@@ -169,7 +231,7 @@ function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBi
 		btype: String(record.btype ?? ''),
 		status: String(record.status ?? 'Open'),
 		whattodo: String(record.whattodo ?? record.title ?? record.message ?? ''),
-		duedate: String(record.duedate ?? ''),
+		duedate: formatDueDateDisplay(record.duedate),
 		addedby: String(record.addedby ?? ''),
 		filename: rawFileName,
 		datecreated: record.datecreated ? String(record.datecreated) : undefined,
@@ -374,11 +436,11 @@ const AddToDo = (props: IAddToDo) => {
 		}
 
 		setSelectedItem(item);
-		if (item.duedate) {
-			const rawDate = String(item.duedate).slice(0, 10);
-			if (rawDate && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
-				setDueDate(rawDate);
-			}
+		const rawDate = formatDueDateDisplay(item.duedate);
+		if (rawDate) {
+			setDueDate(rawDate);
+		} else {
+			setDueDate('');
 		}
 
 		const textContent = String(item.whattodo ?? '');
@@ -843,6 +905,7 @@ const AddToDo = (props: IAddToDo) => {
 							const todoKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
 							const message = item.whattodo ?? '';
 							const isSelected = selectedItem === item || (selectedItem?.id && item.id === selectedItem.id);
+							const formattedDueDate = formatDueDateDisplay(item.duedate);
 							return (
 								<div
 									className={`nz-node-list-box${isSelected ? ' nz-node-list-box-selected' : ''}`}
@@ -871,11 +934,11 @@ const AddToDo = (props: IAddToDo) => {
 												uniqueName={`${props.uniqueName}-status-${index}`}
 												label={item.status || ''}
 											/>
-											{item.duedate && (
-												<span className="nz-todo-badge-duedate" title={`Due Date: ${item.duedate}`}>
-													Due: {String(item.duedate).slice(0, 10)}
+											{formattedDueDate ? (
+												<span className="nz-todo-badge-duedate" title={`Due Date: ${formattedDueDate}`}>
+													Due: {formattedDueDate}
 												</span>
-											)}
+											) : null}
 										</div>
 										<div className="nz-note-user">
 											<Label

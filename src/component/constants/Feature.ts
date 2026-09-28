@@ -151,7 +151,8 @@ enum SidebarEnum {
     List = "List",
     ListContacts = "List Contacts",
     ToDo = "ToDo",
-    Orders = "Order"
+    Orders = "Order",
+    Email = "Email"
 }
 
 export {

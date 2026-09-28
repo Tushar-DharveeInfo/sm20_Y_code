@@ -24,7 +24,7 @@ const AppqaNotify = lazy(() => import('../../features/appqa/notify/Notify.tsx'))
 const AppqaReport = lazy(() => import('../../features/appqa/report/Report.tsx'));
 const AppqaLaunch = lazy(() => import('../../features/appqa/launch/Launch.tsx'));
 const AppqaToDo = lazy(() => import('../../features/appqa/todo/ToDo.tsx'));
-const AppqaImpersonate = lazy(() => import('../../features/appqa/impersonate/Impersonate.tsx'));
+const AppqaImpersonate = lazy(() => import('../../features/appqa/impersonate/ImpersonateUser.tsx'));
 
 function AppQaContainer(appQaContainerProps: IAppqaContainer) {
     const {

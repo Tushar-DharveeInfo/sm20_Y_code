@@ -172,6 +172,23 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         setSelectedTicket(ticket);
     };
 
+    const handleStatusChange = (ticket: ITicketDoc, newStatus: string) => {
+        ticket.status = newStatus;
+        ticket.lastupdated = new Date().toISOString();
+
+        if (selectedTicket?.ticketid === ticket.ticketid) {
+            setSelectedTicket({ ...ticket, status: newStatus, lastupdated: ticket.lastupdated });
+        }
+
+        if (smDataContext.datasets?.tickets) {
+            const updated = smDataContext.datasets.tickets.map((t) =>
+                t.ticketid === ticket.ticketid
+                    ? { ...t, status: newStatus, lastupdated: ticket.lastupdated }
+                    : t
+            );
+            smDataContext.updateDataset?.('tickets', updated);
+        }
+    };
 
     return (
         <div className="nz-ticket-cards-pane-container" key={uniqueName}>
@@ -190,6 +207,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                         selectedTicketId={selectedTicket?.ticketid ?? null}
                         onSelectTicket={handleSelectTicket}
                         onSkuClick={onSkuClick}
+                        onStatusChange={handleStatusChange}
                     />
                 </SplitterPanel>
                 <SplitterPanel

@@ -84,7 +84,6 @@ const TitleContainer = (titleContainerProps: ITitleContainer) => {
     useEffect(() => {
         if (mainAppContext.featureRecords.length > 0) {
             const filteredAppqa = mainAppContext.featureRecords.filter((item) => { return ((item._Feature as unknown as number) > 40 && (item._Feature as unknown as number) <= 59) || ((item._Feature as unknown as number) > 90 && (item._Feature as unknown as number) < 100) });
-            debugger
             if (filteredAppqa.length > 0) {
                 const appqaMenu: IMenuItem[] = []
                 const appqaSubMenu: IMenuItem[] = []

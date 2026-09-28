@@ -147,6 +147,35 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       });
       return;
     }
+    const label = String(payload?.Label ?? '').trim().toLowerCase();
+    const tooltip = String(payload?.Tooltip ?? '').trim().toLowerCase();
+    const alias = String(payload?.Alias ?? '').trim().toLowerCase();
+    const feat = String(payload?.Feature ?? payload?._Feature ?? '');
+
+    const isAddBusiness =
+      label === 'business' ||
+      label === 'add business' ||
+      label === 'add bs' ||
+      label === 'bs' ||
+      tooltip.includes('add business') ||
+      tooltip.includes('add bs') ||
+      alias === 'business' ||
+      alias === 'addbusiness' ||
+      alias === 'addbs' ||
+      feat === '12524' ||
+      feat === '12544' ||
+      feat === '12564';
+
+    const isAddContact =
+      label === 'contact' ||
+      label === 'add contact' ||
+      tooltip.includes('add contact') ||
+      alias === 'contact' ||
+      alias === 'addcontact' ||
+      feat === '12526' ||
+      feat === '12546' ||
+      feat === '12566';
+
     if (payload?.Label?.toLowerCase() === 'services' || payload?.Alias?.toLowerCase() === 'service') {
       const bid = targetNode?.bid ?? '';
       const cid = targetNode?.cid ?? targetNode?.NodeEntID ?? '';
@@ -159,6 +188,12 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       }
     } else if (payload?.Label === 'Copy' && targetNode) {
       FnCopyToClipboard(targetNode.TableLabel ? `${targetNode.TableLabel}` : (targetNode.Name ? targetNode.Name : ''));
+    } else if (isAddBusiness) {
+      const message = payload?.Tooltip || 'Add Business';
+      alert(message);
+    } else if (isAddContact) {
+      const message = payload?.Tooltip || 'Add Contact';
+      alert(message);
     }
   }, [treeExplorerContainerProps.handleKebabMenuSelect, defaultSelectedNodeInfo]);
 

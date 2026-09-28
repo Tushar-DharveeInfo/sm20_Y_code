@@ -20,10 +20,10 @@ import { useSmDataContext } from "../../../shared/context/hooks/SmDataHooks";
 import { FnGetSourceDataset } from "../../../shared/allcommon/FnLoadSampleDatasets";
 import type { IBusinessDoc } from "../../../shared/allinterface/IDatasets";
 import { FnResolvedHtmlVariable } from "../allcommon/FnResolvedHtmlVariable";
+import { FnResolveEmailTemplate } from "../../../shared/allcommon/FnGetEmailVars";
 import { useFileDownload } from "@n20a/libfsdb";
-import { Send24x24 } from "@n20a/libicon";
+import { Attach24x24, Close24x24, Send24x24 } from "@n20a/libicon";
 import notifySampleData from "../../../../smsampledata/appqa/NotifySampleData.json";
-// @ts-ignore
 import prettier from 'prettier/standalone';
 // @ts-ignore
 import parserHtml from 'prettier/parser-html';
@@ -50,6 +50,7 @@ interface IEmailTemplateItem {
     title: string;
     markdown: string;
     comboLabel: string;
+    dataSource: string;
     fileName: string;
     raw: Record<string, unknown>;
 }
@@ -83,6 +84,7 @@ function unwrapEmailTemplates(data: unknown): IEmailTemplateItem[] {
                 title: clean,
                 markdown: "",
                 comboLabel: clean,
+                dataSource: "",
                 fileName: item.endsWith(".html") ? item : `${item}.html`,
                 raw: { name: item },
             };
@@ -107,6 +109,11 @@ function unwrapEmailTemplates(data: unknown): IEmailTemplateItem[] {
         // Format as {Title} – {Markdown}
         const comboLabel = title && markdown ? `${title} – ${markdown}` : title || markdown;
 
+        const dataSource = String(
+            r.DataSource ?? r.dataSource ??
+            r.Datasource ?? r.datasource ?? ""
+        ).trim();
+
         let fileName = String(
             r.Filename ?? r.filename ??
             r.FileName ?? r.fileName ??
@@ -123,6 +130,7 @@ function unwrapEmailTemplates(data: unknown): IEmailTemplateItem[] {
             title,
             markdown,
             comboLabel,
+            dataSource,
             fileName,
             raw: r,
         };
@@ -149,8 +157,18 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
     const [checkedContacts, setCheckedContacts] = useState<ITreeNode[]>([]);
     const [severity, setSeverity] = useState<string>("Critical");
     const [alertProfiles, setAlertProfiles] = useState<any[]>();
-    const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
-    const [confirmMessage, setConfirmMessage] = useState<string>();
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        message: string;
+        showOkButton: boolean;
+        onYes?: () => void;
+        onOk?: () => void;
+        onNo?: () => void;
+    }>({
+        isOpen: false,
+        message: "",
+        showOkButton: true,
+    });
     const [noteDetails, setNoteDetails] = useState<INote>();
     const [optionData, setOptionData] = useState<IOptionItem[]>();
     const [refreshToken, setRefreshToken] = useState(0);
@@ -159,13 +177,26 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
         maxVideoRecordingTime: number;
     }>();
 
-    // Email templates state
+    // Email templates and attachment state
     const [emailTemplates, setEmailTemplates] = useState<IEmailTemplateItem[]>([]);
     const [selectedTemplateName, setSelectedTemplateName] = useState<string>("");
     const [htmlContent, setHtmlContent] = useState<string>("");
     const [formattedHtml, setFormattedHtml] = useState<string>("");
     const [loadingHtml, setLoadingHtml] = useState<boolean>(false);
     const dialogRef = useRef<HTMLDialogElement>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const files = Array.from(e.target.files);
+            setAttachedFiles((prev) => [...prev, ...files]);
+        }
+    };
+
+    const handleRemoveAttachedFile = (index: number) => {
+        setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+    };
 
     // 1. Use Prettier in the browser to fix indentation and clean up syntax
     useEffect(() => {
@@ -262,6 +293,95 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             });
         }
     };
+
+    // Calculate unique contacts with valid email addresses from checked tree nodes/keys
+    const emailContacts = useMemo(() => {
+        const allKnownContacts: IContactDoc[] = (
+            smDataContext?.datasets?.contacts?.length
+                ? smDataContext.datasets.contacts
+                : (FnGetSourceDataset("contacts") || [])
+        ) as IContactDoc[];
+
+        const result: Array<{ name: string; email: string; cid?: string }> = [];
+        const seen = new Set<string>();
+
+        const addContact = (name?: string, email?: string, cid?: string) => {
+            const cleanEmail = String(email ?? "").trim();
+            if (!cleanEmail || !cleanEmail.includes("@")) return;
+            const lowerEmail = cleanEmail.toLowerCase();
+            if (seen.has(lowerEmail)) return;
+            seen.add(lowerEmail);
+            result.push({
+                name: String(name || "Contact").trim(),
+                email: cleanEmail,
+                cid,
+            });
+        };
+
+        // 1. From checkedContacts state
+        for (const node of checkedContacts) {
+            const nodeRec = node as Record<string, unknown>;
+            const email = String(node.email ?? nodeRec.email ?? "").trim();
+            const name = String(node.Name ?? nodeRec.cname ?? nodeRec.contact ?? "Contact");
+            const cid = String(node.cid ?? nodeRec.cid ?? node.NodeEntID ?? node.key ?? "").trim();
+
+            if (email) {
+                addContact(name, email, cid);
+            } else if (cid) {
+                const found = allKnownContacts.find(
+                    (c) => String(c.cid).toLowerCase() === cid.toLowerCase()
+                );
+                if (found?.email) {
+                    addContact(found.cname || found.contact || name, found.email, found.cid);
+                }
+            }
+
+            // If business node was checked, add its child contacts
+            const nodeType = String(node.NodeType ?? nodeRec.treetype ?? "").toLowerCase();
+            if (nodeType === "business" || nodeRec.bid) {
+                const bid = String(nodeRec.bid ?? node.NodeEntID ?? node.key ?? "").trim();
+                if (bid) {
+                    const busContacts = allKnownContacts.filter(
+                        (c) => String(c.bid).toLowerCase() === bid.toLowerCase()
+                    );
+                    for (const bc of busContacts) {
+                        addContact(bc.cname || bc.contact, bc.email, bc.cid);
+                    }
+                }
+            }
+        }
+
+        // 2. From checkedContactKeys
+        for (const key of checkedContactKeys) {
+            const strKey = String(key).trim().toLowerCase();
+            const found = allKnownContacts.find(
+                (c) => String(c.cid).toLowerCase() === strKey || String(c.bid).toLowerCase() === strKey
+            );
+            if (found?.email) {
+                addContact(found.cname || found.contact, found.email, found.cid);
+            }
+        }
+
+        return result;
+    }, [checkedContacts, checkedContactKeys, smDataContext?.datasets?.contacts]);
+
+    // Tooltip string for Send icon
+    const sendButtonTooltip = useMemo(() => {
+        if (emailContacts.length === 0) {
+            return "You must have emails in right pane already checked";
+        }
+        if (emailContacts.length > 9) {
+            return "You cannot send email to more than 9 contacts.";
+        }
+        return `Send email to all ${emailContacts.length} contacts`;
+    }, [emailContacts.length]);
+
+    // Send button disabled state
+    const isSendDisabled = useMemo(() => {
+        if (emailContacts.length === 0) return true;
+        if (selectedTemplateName && !htmlContent.trim()) return true;
+        return false;
+    }, [emailContacts.length, selectedTemplateName, htmlContent]);
 
     useEffect(() => {
         // SAMPLE DATA: replaces FnGetApplicationParameter (AP Configure recording limits).
@@ -366,8 +486,20 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             const content = await FnGetHtmlFromStorage(templatePath);
 
             if (content != null) {
-                // If getting response then use it
-                setHtmlContent(content);
+                // If datasource is missing then do not try to resolve variables;
+                // Otherwise fn will produce value for vars used in email template.
+                // Finally resolve #Signature# using PlainEmailSignature.
+                debugger
+                const resolvedContent = await FnResolveEmailTemplate(
+                    content,
+                    template?.dataSource,
+                    {
+                        authSession,
+                        contacts: checkedContacts,
+                        contact: checkedContacts?.[0],
+                    }
+                );
+                setHtmlContent(resolvedContent);
             } else {
                 // API not working in HTML if no response
                 setHtmlContent("<p>API not working</p>");
@@ -442,8 +574,12 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             // Static success path (no AddToAlertQueue API).
             void _AlertProfile;
             void severity;
-            setIsConfirmOpen(true);
-            setConfirmMessage("Message sent successfully.");
+            setConfirmDialog({
+                isOpen: true,
+                message: "Message sent successfully.",
+                showOkButton: true,
+                onOk: handleOkButtonClick,
+            });
         } catch (error) {
             console.error("Error in create alert message :", error);
             appqaMessageProps.handleShowUserMessage?.(
@@ -452,13 +588,8 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
         }
     };
 
-    const handleSendMessage = async (message: INote) => {
-        if (!checkedContactKeys?.length && !checkedContacts?.length) {
-            setNoteDetails(message);
-            appqaMessageProps.handleShowUserMessage?.(
-                "Please! Select contacts to send message"
-            );
-            setRefreshToken((prev) => prev + 1);
+    const executeSendPlainMessage = async (message: INote) => {
+        if (emailContacts.length > 10) {
             return;
         }
         const alertProfile = alertProfiles?.find(
@@ -579,18 +710,47 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
         }
     };
 
-    // Send HTML template message
-    const handleSendHtmlMessage = async () => {
-        if (!checkedContactKeys?.length && !checkedContacts?.length) {
+    const handleSendMessage = async (message: INote) => {
+        if (emailContacts.length === 0) {
+            setNoteDetails(message);
             appqaMessageProps.handleShowUserMessage?.(
-                "Please! Select contacts to send message"
+                "You must have emails in right pane already checked"
             );
+            setRefreshToken((prev) => prev + 1);
             return;
         }
-        if (!htmlContent.trim()) {
-            appqaMessageProps.handleShowUserMessage?.(
-                "Please enter message content before sending."
-            );
+
+        if (emailContacts.length > 9) {
+            setConfirmDialog({
+                isOpen: true,
+                message: "You cannot send email to more than 9 contacts.",
+                showOkButton: true,
+                onOk: () => {
+                    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                },
+            });
+            return;
+        }
+
+        const emails = emailContacts.map((c) => c.email).join(", ");
+        const count = emailContacts.length;
+        setConfirmDialog({
+            isOpen: true,
+            message: `Are you sure you wish to send email to all ${count} contacts? ${emails}`,
+            showOkButton: false,
+            onYes: () => {
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                void executeSendPlainMessage(message);
+            },
+            onNo: () => {
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+            },
+        });
+    };
+
+    // Send HTML template message
+    const executeSendHtmlMessage = async () => {
+        if (emailContacts.length > 10) {
             return;
         }
         const alertProfile = alertProfiles?.find(
@@ -608,14 +768,11 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             ? smDataContext.datasets.businesses
             : FnGetSourceDataset("businesses");
 
-
-        const primaryContact = checkedContacts[0] || {};
+        const primaryContact = checkedContacts[0] || (emailContacts[0] as any) || {};
         const primaryBid = primaryContact.bid || (primaryContact as any).parentEntID || "";
         const matchedBusiness = allBusinesses.find(
             (b) => b.bid === primaryBid || (b as any).EntID === primaryBid
         );
-
-
 
         // Prepare variables array (including BS information, contact information, subscription details, etc.)
         const variablesArray: Array<Record<string, unknown>> = [
@@ -643,12 +800,12 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                 key: "CONTACT_INFO",
                 cid: primaryContact.cid ?? "",
                 contactid: primaryContact.cid ?? "",
-                cname: checkedContacts.map((c) => c.cname ?? c.Name).filter(Boolean).join(", "),
-                name: checkedContacts.map((c) => c.cname ?? c.Name).filter(Boolean).join(", "),
-                contactname: checkedContacts.map((c) => c.cname ?? c.Name).filter(Boolean).join(", "),
-                fullname: checkedContacts.map((c) => c.cname ?? c.Name).filter(Boolean).join(", "),
-                email: checkedContacts.map((c) => c.email).filter(Boolean).join(", "),
-                contactemail: checkedContacts.map((c) => c.email).filter(Boolean).join(", "),
+                cname: emailContacts.map((c) => c.name).filter(Boolean).join(", "),
+                name: emailContacts.map((c) => c.name).filter(Boolean).join(", "),
+                contactname: emailContacts.map((c) => c.name).filter(Boolean).join(", "),
+                fullname: emailContacts.map((c) => c.name).filter(Boolean).join(", "),
+                email: emailContacts.map((c) => c.email).filter(Boolean).join(", "),
+                contactemail: emailContacts.map((c) => c.email).filter(Boolean).join(", "),
                 phone: primaryContact.phone ?? "",
                 phonenumber: primaryContact.phone ?? "",
                 address1: (primaryContact as any).address1 ?? "",
@@ -676,18 +833,67 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
         // Update editor content with the resolved HTML
         setHtmlContent(resolvedHtml);
 
+        const sampleFileUID = attachedFiles.length > 0 ? `SAMPLE-FILE-${FnGenerateUID()}` : undefined;
+        const fileType = attachedFiles.length > 0 ? "File" : undefined;
+
         // Send prepared notification data to Y Code
         await handleApiForMessageSending(
             alertProfile.EntID,
             resolvedHtml,
-            alertProfile._AlertProfile
+            alertProfile._AlertProfile,
+            sampleFileUID,
+            fileType
         );
     };
 
+    const handleSendHtmlButtonClick = () => {
+        if (emailContacts.length === 0) {
+            appqaMessageProps.handleShowUserMessage?.(
+                "You must have emails in right pane already checked"
+            );
+            return;
+        }
+        if (!htmlContent.trim()) {
+            appqaMessageProps.handleShowUserMessage?.(
+                "Please enter message content before sending."
+            );
+            return;
+        }
+
+        if (emailContacts.length > 9) {
+            setConfirmDialog({
+                isOpen: true,
+                message: "You cannot send email to more than 9 contacts.",
+                showOkButton: true,
+                onOk: () => {
+                    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                },
+            });
+            return;
+        }
+
+        const emails = emailContacts.map((c) => c.email).join(", ");
+        const count = emailContacts.length;
+        setConfirmDialog({
+            isOpen: true,
+            message: `Are you sure you wish to send email to all ${count} contacts? ${emails}`,
+            showOkButton: false,
+            onYes: () => {
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                void executeSendHtmlMessage();
+            },
+            onNo: () => {
+                setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+            },
+        });
+    };
+
     const handleOkButtonClick = () => {
-        setIsConfirmOpen(false);
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
         setCheckedContactKeys([]);
         setCheckedContacts([]);
+        setAttachedFiles([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         setNoteDetails({
             maxAudioRecordingTime:
                 maxRecordingTime?.maxAudioRecordingTime ?? 1000,
@@ -778,7 +984,7 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                                     key={refreshToken}
                                     allowAudio={false}
                                     allowVideo={false}
-                                    sendTooltip={"Send notification"}
+                                    sendTooltip={sendButtonTooltip}
                                     handleDelete={handleDeleteNotes}
                                     sendNote={handleSendMessage}
                                 />
@@ -827,22 +1033,79 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                                             )}
                                         </div>
                                         <div className="nz-html-editor-action-strip">
-                                            <button
-                                                type="button"
-                                                className="libavnotes-button libavnotes-button-success libavnotes-send-button nz-html-send-btn"
-                                                title="Send notification"
-                                                onClick={handleSendHtmlMessage}
-                                                disabled={!htmlContent.trim()}
+                                            <div
+                                                className="nz-html-editor-attachments-left"
                                                 style={{
-                                                    backgroundColor: "transparent",
-                                                    border: "none",
-                                                    cursor: htmlContent.trim() ? "pointer" : "default",
                                                     display: "flex",
                                                     alignItems: "center",
-                                                    gap: "4px",
-                                                    color: htmlContent.trim() ? "#007ACC" : "#d4d4d8",
-                                                    padding: "4px 8px",
+                                                    gap: "6px",
+                                                    flex: 1,
+                                                    minWidth: 0,
+                                                    overflow: "hidden",
                                                 }}
+                                            >
+                                                <input
+                                                    type="file"
+                                                    ref={fileInputRef}
+                                                    onChange={handleFileSelect}
+                                                    style={{ display: "none" }}
+                                                    multiple
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="nz-email-attach-btn"
+                                                    title="Attach files"
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                >
+                                                    <Attach24x24 size="16px" fill="none" strokeWidth={1} />
+                                                </button>
+                                                {attachedFiles.map((file, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        style={{
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            gap: "4px",
+                                                            background: "var(--bgtitlebarandstatusbar, #e5e7eb)",
+                                                            borderRadius: "12px",
+                                                            padding: "2px 8px",
+                                                            fontSize: "11px",
+                                                            maxWidth: "160px",
+                                                        }}
+                                                    >
+                                                        <span
+                                                            style={{
+                                                                overflow: "hidden",
+                                                                textOverflow: "ellipsis",
+                                                                whiteSpace: "nowrap",
+                                                            }}
+                                                        >
+                                                            {file.name}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveAttachedFile(idx)}
+                                                            style={{
+                                                                background: "none",
+                                                                border: "none",
+                                                                cursor: "pointer",
+                                                                padding: 0,
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                            }}
+                                                            title="Remove attachment"
+                                                        >
+                                                            <Close24x24 size={10} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="nz-html-send-btn"
+                                                title={sendButtonTooltip}
+                                                onClick={handleSendHtmlButtonClick}
+                                                disabled={isSendDisabled}
                                             >
                                                 <Send24x24 size={16} />
                                             </button>
@@ -870,13 +1133,27 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                 </SplitterPanel>
             </Splitter>
             <YesNoFormContainer
-                isOpen={isConfirmOpen}
-                uniqueName={`${appqaMessageProps.uniqueName}-confirm-ok`}
-                message={confirmMessage ?? ""}
-                showOkButton={true}
-                handleOkButtonClick={handleOkButtonClick}
-                handleYesButtonClick={function (): void { }}
-                handleNoButtonClick={function (): void { }}
+                isOpen={confirmDialog.isOpen}
+                uniqueName={`${appqaMessageProps.uniqueName}-confirm-dialog`}
+                message={confirmDialog.message}
+                showOkButton={confirmDialog.showOkButton}
+                handleOkButtonClick={() => {
+                    if (confirmDialog.onOk) {
+                        confirmDialog.onOk();
+                    } else {
+                        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                    }
+                }}
+                handleYesButtonClick={() => {
+                    confirmDialog.onYes?.();
+                }}
+                handleNoButtonClick={() => {
+                    if (confirmDialog.onNo) {
+                        confirmDialog.onNo();
+                    } else {
+                        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+                    }
+                }}
             />
             {/* POPUP MODAL (Native HTML Dialog) */}
             <dialog

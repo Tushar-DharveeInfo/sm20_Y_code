@@ -8,7 +8,7 @@ import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
 import { CardLayout, ICardLayoutField } from '../../../shared/cardlayout/CardLayout';
 import usersData from '../../../../smsampledata/datasets/users.json';
 import businessesData from '../../../../smsampledata/datasets/businesses.json';
-import './Impersonate.css';
+import './ImpersonateUser.css';
 import { FnGetLoggedInStatusMessage } from '../../../appcontainer/allcommon/FnGetLoggedInStatusMessage';
 import type { IUserAuthSession } from '../../../shared/context/allinterface/IMainApp';
 
@@ -37,7 +37,7 @@ const formatNameFromEmail = (email: string): string => {
     );
 };
 
-const Impersonate: React.FC<IAppqaImpersonateProps> = (props) => {
+const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
     const [isOpen, setIsOpen] = useState(true);
     const [filterText, setFilterText] = useState('');
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -137,8 +137,14 @@ const Impersonate: React.FC<IAppqaImpersonateProps> = (props) => {
             baseFolder: authSession?.baseFolder ?? 'sm',
             ImpersonatedUser: ImpersonatedUser,
             ImpersonatedEmail: user.email,
-            bid: user.bid,
-            cid: user.cid,
+            ImpersonatedDetails: {
+                bid: user.bid,
+                cid: user.cid,
+                ImpersonatedUser: ImpersonatedUser,
+                ImpersonatedEmail: user.email
+            },
+            bid: authSession?.bid,
+            cid: authSession?.cid,
             isAuthenticated: true,
         };
 
@@ -347,6 +353,6 @@ const Impersonate: React.FC<IAppqaImpersonateProps> = (props) => {
     );
 };
 
-export { Impersonate };
-export default Impersonate;
+export { ImpersonateUser };
+export default ImpersonateUser;
 export type { IAppqaImpersonateProps };

@@ -1,0 +1,23 @@
+.nz-sidebar-email-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--bgfeaturepane1, #ffffff);
+    color: var(--textprimary, #333333);
+    box-sizing: border-box;
+}
+
+.nz-sidebar-email-empty-message {
+    display: flex;
+    align-items: center;
+    justifyContent: center;
+    height: 100%;
+    width: 100%;
+    padding: 24px;
+    text-align: center;
+    color: var(--text-color-secondary, #757575);
+    font-size: 13px;
+    box-sizing: border-box;
+}

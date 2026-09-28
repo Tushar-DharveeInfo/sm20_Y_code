@@ -18,6 +18,7 @@ import { useSmDataContext } from "../../context/hooks/SmDataHooks";
 import { FnGetSourceDataset } from "../../allcommon/FnLoadSampleDatasets";
 import { FnResolvedHtmlVariable } from "../../../features/appqa/allcommon/FnResolvedHtmlVariable";
 import { FnGenerateUID } from "../../allcommon/settingsform/FnGenerateUID";
+import { FnResolveEmailTemplate } from "../../allcommon/FnGetEmailVars";
 import { YesNoFormContainer } from "../../basic/yesnoformcontainer/YesNoFormContainer";
 import type { IBusinessDoc, IContactDoc } from "../../allinterface/IDatasets";
 import notifySampleData from "../../../../smsampledata/appqa/NotifySampleData.json";
@@ -47,6 +48,7 @@ interface IEmailTemplateItem {
     title: string;
     markdown: string;
     comboLabel: string;
+    dataSource: string;
     fileName: string;
     raw: Record<string, unknown>;
 }
@@ -103,6 +105,11 @@ function unwrapEmailTemplates(data: unknown): IEmailTemplateItem[] {
 
         const comboLabel = title && markdown ? `${title} – ${markdown}` : title || markdown;
 
+        const dataSource = String(
+            r.DataSource ?? r.dataSource ??
+            r.Datasource ?? r.datasource ?? ""
+        ).trim();
+
         let fileName = String(
             r.Filename ?? r.filename ??
             r.FileName ?? r.fileName ??
@@ -119,6 +126,7 @@ function unwrapEmailTemplates(data: unknown): IEmailTemplateItem[] {
             title,
             markdown,
             comboLabel,
+            dataSource,
             fileName,
             raw: r,
         };
@@ -314,7 +322,23 @@ const SendEmailToContact = (props: ISendEmailToContactProps) => {
         statusBarContext?.setLoadingLabel?.("Loading email template...");
         try {
             const content = await FnGetHtmlFromStorage(templatePath);
-            setHtmlContent(content ?? "<p>Template content not found</p>");
+            if (content != null) {
+                // If datasource is missing then do not try to resolve variables;
+                // Otherwise fn will produce value for vars used in email template.
+                // Finally resolve #Signature# using PlainEmailSignature.
+                const resolvedContent = await FnResolveEmailTemplate(
+                    content,
+                    template?.dataSource,
+                    {
+                        authSession,
+                        contacts: targetContacts,
+                        contact: targetContacts?.[0],
+                    }
+                );
+                setHtmlContent(resolvedContent);
+            } else {
+                setHtmlContent("<p>Template content not found</p>");
+            }
         } catch (err) {
             console.error("SendEmailToContact: Failed to load template file", err);
             setHtmlContent("<p>Failed to load template file</p>");

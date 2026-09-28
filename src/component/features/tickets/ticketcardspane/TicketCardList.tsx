@@ -13,6 +13,7 @@ interface ITicketCardListProps {
     selectedTicketId: string | null;
     onSelectTicket: (ticket: ITicketDoc) => void;
     onSkuClick?: (sku: string, ticket: ITicketDoc) => void;
+    onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void;
 }
 
 /** Sort tickets newest → oldest by daterequested (Z-A). */
@@ -32,6 +33,7 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
     selectedTicketId,
     onSelectTicket,
     onSkuClick,
+    onStatusChange,
 }) => {
     const [filterText, setFilterText] = useState('');
 
@@ -100,6 +102,7 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
                                 isSelected={ticket.ticketid === selectedTicketId}
                                 onSelect={onSelectTicket}
                                 onSkuClick={onSkuClick}
+                                onStatusChange={onStatusChange}
                             />
                         );
                     })

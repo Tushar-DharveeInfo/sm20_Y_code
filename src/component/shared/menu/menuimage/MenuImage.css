@@ -29,7 +29,7 @@
     border-radius: 50%;
     transform: rotate(90deg);
     transition: all 0.5s ease;
-    background-color: #FFFF99 !important;
+    /* background-color: #FFFF99 !important; */
 }
 
 .nz-menu-active svg {

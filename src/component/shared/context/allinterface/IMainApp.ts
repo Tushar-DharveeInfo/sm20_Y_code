@@ -51,7 +51,7 @@ interface IUserAuthSession {
     isAuthenticated?: boolean;
     permittedapps?: string[];
     purchasedSkus?: string[];// netzoom, vss, amc, ssi, ...
-
+    ImpersonatedDetails?: Record<string, unknown> | null;
     claims?: Record<string, unknown> | null;
     ProductName?: string;
     licenseKey?: string;

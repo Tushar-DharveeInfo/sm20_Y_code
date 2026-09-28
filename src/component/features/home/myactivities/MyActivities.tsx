@@ -5,7 +5,7 @@ import { saveAs } from 'file-saver'
 import { AgGridReact } from 'ag-grid-react'
 import type { ICellRendererParams } from 'ag-grid-community'
 import { Filter24x24 } from '@n20a/libicon'
-import { useFirestore, type IFirestoreQueryFilter } from '@n20a/libfsdb'
+import { useActivities, type IFirestoreQueryFilter } from '@n20a/libfsdb'
 import { DisplayControlEnums } from '../../../shared/alldefaultprops/basic/DefaultPropsFormContainer'
 import { Label } from '../../../shared/basic/label/Label'
 import { ActionImage } from '../../../shared/basic/actionimage/ActionImage'
@@ -171,7 +171,7 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
     const mainAppContext = useMainAppContext();
     const bid = String(mainAppContext.authSession?.bid ?? '').trim();
     const cid = String(mainAppContext.authSession?.cid ?? '').trim();
-    const { queryDocuments } = useFirestore();
+    const { getActivities } = useActivities(bid);
 
     const [activities, setActivities] = useState<Record<string, unknown>[] | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
@@ -187,35 +187,33 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
 
     const hasCheckedInitialLoadRef = useRef(false);
     const latestFilterValuesRef = useRef<Record<string, unknown>>({});
-    const queryDocumentsRef = useRef(queryDocuments);
-    queryDocumentsRef.current = queryDocuments;
+    const bidRef = useRef(bid);
+    bidRef.current = bid;
 
     const fetchActivitiesData = useCallback(async () => {
-        if (!bid) { setActivities([]); return; }
+        if (!bidRef.current) { setActivities([]); return; }
         setLoading(true);
         setError(null);
         try {
-            const filters: IFirestoreQueryFilter[] | undefined = cid
-                ? [{ field: 'cid', op: '==', value: cid }]
-                : undefined;
-            const res = await queryDocumentsRef.current({
-                pathSegments: ['businesses', bid, 'activities'],
-                filters,
-                limit: 501,
-            });
-            if (res && res.success === false) {
-                setError(res.error || res.details || 'Failed to fetch activities');
-                setActivities([]);
-            } else {
-                setActivities(res?.data ?? []);
-            }
+            const limitcount = 501;
+            const data = await (getActivities as (
+                filters?: IFirestoreQueryFilter[],
+                fetchByFilter?: unknown,
+                limit?: number,
+            ) => Promise<Record<string, unknown>[] | null>)(
+                [{ field: 'bid', op: '==', value: bidRef.current }],
+                undefined,
+                limitcount
+            );
+            debugger;
+            setActivities(data ?? []);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch activities');
             setActivities([]);
         } finally {
             setLoading(false);
         }
-    }, [bid, cid]);
+    }, [getActivities]);
 
     useEffect(() => { void fetchActivitiesData(); }, [fetchActivitiesData]);
 

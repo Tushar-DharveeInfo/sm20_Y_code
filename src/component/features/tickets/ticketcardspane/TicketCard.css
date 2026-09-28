@@ -54,3 +54,84 @@
     align-items: center;
     justify-content: center;
 }
+
+.nz-ticket-card .nz-cardlayout-detail-row--inline {
+    flex-wrap: wrap;
+    column-gap: var(--spacing-3, 12px);
+}
+
+/* Header action buttons and status layout */
+.nz-ticket-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.nz-ticket-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    height: 20px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    line-height: 1;
+    background: transparent;
+    transition: all 0.15s ease-in-out;
+    user-select: none;
+}
+
+.nz-ticket-action-btn:hover {
+    transform: scale(1.03);
+}
+
+/* Discard */
+.nz-ticket-action-btn-discard {
+    border: 1px solid #d9534f;
+    color: #d9534f;
+}
+.nz-ticket-action-btn-discard:hover {
+    background: #d9534f;
+    color: #fff;
+}
+
+/* Close */
+.nz-ticket-action-btn-close {
+    border: 1px solid var(--primary, #2c7bb6);
+    color: var(--primary, #2c7bb6);
+}
+.nz-ticket-action-btn-close:hover {
+    background: var(--primary, #2c7bb6);
+    color: #fff;
+}
+
+/* Accept */
+.nz-ticket-action-btn-accept {
+    border: 1px solid #28a745;
+    color: #28a745;
+}
+.nz-ticket-action-btn-accept:hover {
+    background: #28a745;
+    color: #fff;
+}
+
+/* Reopen */
+.nz-ticket-action-btn-reopen {
+    border: 1px solid #17a2b8;
+    color: #17a2b8;
+}
+.nz-ticket-action-btn-reopen:hover {
+    background: #17a2b8;
+    color: #fff;
+}
+
+.nz-ticket-status-label {
+    min-width: 36px;
+    text-align: right;
+    margin-left: 2px;
+}

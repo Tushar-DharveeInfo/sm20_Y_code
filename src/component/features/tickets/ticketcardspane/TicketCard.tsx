@@ -3,6 +3,7 @@ import { CardLayout, ICardLayoutField } from '../../../shared/cardlayout/CardLay
 import { FnFormatTicketDate } from '../../../shared/allcommon/tree/FnFormatTicketDate';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { LibraryColor128x128, NetZoom24x24, Visio } from '@n20a/libicon';
+import { useBusinessTickets } from '@n20a/libfsdb';
 import type { ITicketDoc, IContactDoc } from '../../../shared/allinterface/IDatasets';
 import './TicketCard.css';
 
@@ -14,6 +15,7 @@ interface ITicketCardProps {
     isSelected: boolean;
     onSelect: (ticket: ITicketDoc) => void;
     onSkuClick?: (sku: string, ticket: ITicketDoc) => void;
+    onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void;
 }
 
 /**
@@ -40,7 +42,16 @@ function getStatusColor(status?: string): string {
         return 'orange';
     }
     if (s === 'open') {
-        return 'blue';
+        return '#007ad9';
+    }
+    if (s === 'received') {
+        return '#0288d1';
+    }
+    if (s === 'close' || s === 'closed') {
+        return '#6c757d';
+    }
+    if (s === 'not accepted' || s === 'discarded') {
+        return '#d9534f';
     }
     return 'inherit';
 }
@@ -53,7 +64,15 @@ const TicketCard: React.FC<ITicketCardProps> = ({
     isSelected,
     onSelect,
     onSkuClick,
+    onStatusChange,
 }) => {
+    const { updateTicket } = useBusinessTickets(ticket.bid || '');
+    const [localStatus, setLocalStatus] = React.useState<string>(ticket.status ?? '');
+
+    React.useEffect(() => {
+        setLocalStatus(ticket.status ?? '');
+    }, [ticket.status]);
+
     const handleSkuClick = (
         event: React.MouseEvent<HTMLButtonElement>,
         sku: string
@@ -63,7 +82,58 @@ const TicketCard: React.FC<ITicketCardProps> = ({
         onSkuClick?.(sku, ticket);
     };
 
-    const statusColor = getStatusColor(ticket.status);
+    const handleStatusUpdate = async (newStatus: string) => {
+        setLocalStatus(newStatus);
+        ticket.status = newStatus;
+        const nowIso = new Date().toISOString();
+        ticket.lastupdated = nowIso;
+
+        if (newStatus.toLowerCase() === 'close') {
+            console.log('Sending email on ticket close for ticket:', ticket.ticketid, ticket);
+        }
+
+        const ticketId = ticket.ticketid || ((ticket as unknown as Record<string, unknown>).id as string) || '';
+        if (ticket.bid && ticketId) {
+            try {
+                await updateTicket(ticketId, {
+                    status: newStatus,
+                    lastupdated: nowIso,
+                });
+            } catch (err) {
+                console.error('Failed to update ticket status via hook:', err);
+            }
+        }
+
+        onStatusChange?.(ticket, newStatus);
+    };
+
+    const rawStatus = (localStatus ?? '').trim();
+    let displayedStatus = rawStatus;
+    if (!rawStatus || rawStatus.toLowerCase() === 'received') {
+        displayedStatus = 'Received';
+    } else if (rawStatus.toLowerCase() === 'open') {
+        displayedStatus = 'Open';
+    } else if (rawStatus.toLowerCase() === 'close' || rawStatus.toLowerCase() === 'closed') {
+        displayedStatus = 'Close';
+    } else if (rawStatus.toLowerCase() === 'not accepted') {
+        displayedStatus = 'Not Accepted';
+    }
+
+    let actionButton: 'Accept' | 'Close' | 'Reopen' | null = null;
+    const lowerStatus = displayedStatus.toLowerCase();
+    if (lowerStatus === 'received' || lowerStatus === 'not accepted') {
+        actionButton = 'Accept';
+    } else if (lowerStatus === 'open' || lowerStatus === 'in progress') {
+        actionButton = 'Close';
+    } else if (lowerStatus === 'close') {
+        actionButton = 'Reopen';
+    }
+
+    const isClose = lowerStatus === 'close';
+    const isNotAccepted = lowerStatus === 'not accepted';
+    const showDiscardButton = !isClose && !isNotAccepted;
+
+    const statusColor = getStatusColor(displayedStatus);
 
     const fields: ICardLayoutField[] = [
         {
@@ -73,18 +143,51 @@ const TicketCard: React.FC<ITicketCardProps> = ({
         },
         {
             Name: '',
-            Value: ticket.status || '—',
+            Value: displayedStatus || '—',
             Header: 2,
             ValueContent: (
-                <span
-                    style={{
-                        color: statusColor,
-                        fontWeight: 600,
-                        fontSize: '12px',
-                    }}
-                >
-                    {ticket.status || '—'}
-                </span>
+                <div className="nz-ticket-header-actions">
+                    {showDiscardButton && (
+                        <button
+                            type="button"
+                            className="nz-ticket-action-btn nz-ticket-action-btn-discard"
+                            title="Discard ticket"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusUpdate('Not Accepted');
+                            }}
+                        >
+                            Discard
+                        </button>
+                    )}
+                    {actionButton && (
+                        <button
+                            type="button"
+                            className={`nz-ticket-action-btn nz-ticket-action-btn-${actionButton.toLowerCase()}`}
+                            title={`${actionButton} ticket`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (actionButton === 'Accept' || actionButton === 'Reopen') {
+                                    handleStatusUpdate('Open');
+                                } else if (actionButton === 'Close') {
+                                    handleStatusUpdate('Close');
+                                }
+                            }}
+                        >
+                            {actionButton}
+                        </button>
+                    )}
+                    <span
+                        className="nz-ticket-status-label"
+                        style={{
+                            color: statusColor,
+                            fontWeight: 600,
+                            fontSize: '12px',
+                        }}
+                    >
+                        {displayedStatus}
+                    </span>
+                </div>
             ),
         },
     ];
@@ -120,10 +223,28 @@ const TicketCard: React.FC<ITicketCardProps> = ({
         });
     }
 
-    if (ticket.daterequested) {
+    const rawTicket = ticket as unknown as Record<string, unknown>;
+    const dateReceived = ticket.daterequested || (rawTicket.datecreated as string) || (rawTicket.createdAt as string) || '';
+    const dateUpdated = ticket.lastupdated || (rawTicket.dateupdated as string) || (rawTicket.updatedAt as string) || (rawTicket.monitorupdated as string) || dateReceived;
+
+    const formattedReceived = FnFormatTicketDate(dateReceived);
+    const formattedUpdated = FnFormatTicketDate(dateUpdated);
+
+    if (formattedReceived) {
         fields.push({
-            Name: 'Date',
-            Value: FnFormatTicketDate(ticket.daterequested),
+            Name: 'Received',
+            Value: formattedReceived,
+            Group: 'ticket-dates-row',
+            Row: 'inline',
+        });
+    }
+
+    if (formattedUpdated) {
+        fields.push({
+            Name: 'Updated',
+            Value: formattedUpdated,
+            Group: 'ticket-dates-row',
+            Row: 'inline',
         });
     }
 
@@ -159,7 +280,7 @@ const TicketCard: React.FC<ITicketCardProps> = ({
     return (
         <CardLayout
             uniqueName={uniqueName}
-            className="nz-contact-card"
+            className="nz-contact-card nz-ticket-card"
             data={ticket}
             fields={fields}
             isSelected={isSelected}

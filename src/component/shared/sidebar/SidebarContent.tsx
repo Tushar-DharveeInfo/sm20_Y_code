@@ -20,6 +20,7 @@ import { AlertLog } from './alertlog/AlertLog'
 import { ContactList } from './contactlist/ContactList'
 import { OrderList } from './orderlist/OrderList'
 import { AddToDo } from './todo/AddToDo'
+import { Email } from './email/Email'
 import { buildPropertyFormDataFromSelectedNode } from './propertyformcontainer/PropertySampleData'
 import { IMenuItem } from '../allinterface/menu/IMainMenu'
 import { FnIsRootBusinessNode } from '../allcommon/tree/FnIsRootBusinessNode'
@@ -334,6 +335,17 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                         uniqueName={`sidebar-todo-${sidebarProps.uniqueName}`}
                         featureId={sidebarProps.featureId}
                         selectedNode={selectedNode ?? sidebarProps.selectedNode}
+                    />
+                );
+
+            case SidebarEnum.Email:
+            case "Email":
+                return (
+                    <Email
+                        uniqueName={`sidebar-email-${sidebarProps.uniqueName}`}
+                        featureId={sidebarProps.featureId}
+                        selectedNode={selectedNode ?? sidebarProps.selectedNode}
+                        handleShowUserMessage={sidebarProps.handleShowErrorDialog ? (msg) => sidebarProps.handleShowErrorDialog?.(msg, true) : undefined}
                     />
                 );
             default:

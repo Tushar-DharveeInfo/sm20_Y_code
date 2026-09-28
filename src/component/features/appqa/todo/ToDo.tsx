@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Notes } from '@n20a/libavnotes';
 import type { INote } from '@n20a/libavnotes';
 import '@n20a/libavnotes/style.css';
-import { Attach24x24, Delete24x24, Info24x24 } from '@n20a/libicon';
+import { Attach24x24, Bin24x24, Cross, Delete24x24, DeleteBin24x24, Info24x24 } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { handleContainerKeyDown } from '../../../shared/allcommon/basic/FnHandleContainerKeyDown';
 import { IImage } from '../../../shared/allinterface/basic/IImage';
@@ -86,6 +86,97 @@ function parseTodoDate(item: Record<string, any>): number {
 	return 0;
 }
 
+function getFormattedDate(date: Date): string {
+	if (!date || isNaN(date.getTime())) return '';
+	const year = date.getFullYear();
+	if (year < 1970 || year > 2100) return '';
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
+function parseToIsoDate(dateStr: string): string {
+	if (!dateStr) return '';
+	const slashMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+	if (slashMatch) {
+		const m = slashMatch[1].padStart(2, '0');
+		const d = slashMatch[2].padStart(2, '0');
+		const y = slashMatch[3];
+		const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+		if (!isNaN(parsed.getTime())) {
+			return getFormattedDate(parsed);
+		}
+		return '';
+	}
+	const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+	if (isoMatch) {
+		const y = isoMatch[1];
+		const m = isoMatch[2].padStart(2, '0');
+		const d = isoMatch[3].padStart(2, '0');
+		const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+		if (!isNaN(parsed.getTime())) {
+			return getFormattedDate(parsed);
+		}
+		return '';
+	}
+	const parsed = Date.parse(dateStr);
+	if (!isNaN(parsed)) {
+		return getFormattedDate(new Date(parsed));
+	}
+	return '';
+}
+
+function formatDueDateDisplay(raw: unknown): string {
+	if (!raw) return '';
+	let result = '';
+	if (typeof raw === 'string') {
+		const trimmed = raw.trim();
+		if (
+			!trimmed ||
+			trimmed === '[object Object]' ||
+			trimmed.includes('[object') ||
+			trimmed.toLowerCase() === 'undefined' ||
+			trimmed.toLowerCase() === 'null' ||
+			trimmed.toLowerCase() === 'invalid date'
+		) {
+			return '';
+		}
+		result = parseToIsoDate(trimmed);
+	} else if (typeof raw === 'number' && !isNaN(raw) && raw > 0) {
+		const d = new Date(raw);
+		if (!isNaN(d.getTime())) {
+			result = getFormattedDate(d);
+		}
+	} else if (typeof raw === 'object') {
+		if ('toDate' in (raw as Record<string, unknown>) && typeof (raw as Record<string, any>).toDate === 'function') {
+			try {
+				const d = (raw as Record<string, any>).toDate();
+				if (d instanceof Date && !isNaN(d.getTime())) {
+					result = getFormattedDate(d);
+				}
+			} catch {
+				// ignore
+			}
+		} else if ('seconds' in (raw as Record<string, unknown>) && typeof (raw as Record<string, any>).seconds === 'number') {
+			try {
+				const d = new Date((raw as Record<string, any>).seconds * 1000);
+				if (!isNaN(d.getTime())) {
+					result = getFormattedDate(d);
+				}
+			} catch {
+				// ignore
+			}
+		} else if (raw instanceof Date && !isNaN(raw.getTime())) {
+			result = getFormattedDate(raw);
+		}
+	}
+
+	if (result && /^\d{4}-\d{2}-\d{2}$/.test(result) && !result.includes('NaN')) {
+		return result;
+	}
+	return '';
+}
+
 function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBid?: string, defaultCid?: string): ITodoItem {
 	const docId = String(record.id || record.todoid || record.docId || `todo_${index}`);
 	const rawFileName = record.filename ? String(record.filename).trim() : undefined;
@@ -98,7 +189,7 @@ function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBi
 		btype: String(record.btype ?? ''),
 		status: String(record.status ?? 'Open'),
 		whattodo: String(record.whattodo ?? record.title ?? record.message ?? ''),
-		duedate: String(record.duedate ?? ''),
+		duedate: formatDueDateDisplay(record.duedate),
 		addedby: String(record.addedby ?? ''),
 		filename: rawFileName,
 		datecreated: record.datecreated ? String(record.datecreated) : undefined,
@@ -623,7 +714,7 @@ const ToDo = (todoProps: IToDo) => {
 	const deleteImage: IImage = {
 		uniqueName: 'todo-delete-icon',
 		source: (
-			<Delete24x24
+			<Cross
 				size={FnGetCssVariable('--image-size-2')}
 				fill="none"
 				strokeWidth={1}
@@ -632,6 +723,20 @@ const ToDo = (todoProps: IToDo) => {
 		w: 'var(--image-size-2)',
 		type: 'svg',
 		tooltip: 'Click to Delete',
+	};
+
+	const closeImage: IImage = {
+		uniqueName: 'todo-close-icon',
+		source: (
+			<Delete24x24
+				size={FnGetCssVariable('--image-size-2')}
+				fill="none"
+				strokeWidth={1}
+			/>
+		),
+		w: 'var(--image-size-2)',
+		type: 'svg',
+		tooltip: 'Click to Close',
 	};
 
 	const handleDelete = (item: ITodoItem) => {
@@ -689,6 +794,64 @@ const ToDo = (todoProps: IToDo) => {
 		setDeleteOpen(false);
 		setDeleteItem(null);
 	};
+
+	// Close todo: update status to Close and refresh ui
+	const handleCloseTodo = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+		event?.stopPropagation?.();
+		const todoId = item.id;
+		if (!todoId) return;
+
+		const userShortName = String(userInfo?.username ?? userInfo?.email ?? authSession?.displayName ?? authSession?.username ?? 'User').trim();
+		const now = new Date().toISOString();
+
+		// Optimistic local update
+		setTodoItems((prev) =>
+			prev.map((todo) =>
+				todo === item || (todoId && todo.id === todoId)
+					? { ...todo, status: 'Close' }
+					: todo
+			)
+		);
+
+		if (selectedItem?.id === todoId || selectedItem === item) {
+			setSelectedItem((prev) => (prev ? { ...prev, status: 'Close' } : null));
+			setNoteDetailsState((prev) => (prev ? { ...prev, noteTitle: 'Close' } : prev));
+		}
+
+		statusBarContext?.setIsLoading?.(true);
+		statusBarContext?.setLoadingLabel?.('Closing todo...');
+
+		try {
+			const updatedDoc: Record<string, unknown> = {
+				bid: item.bid || userBid,
+				cid: item.cid || userCid,
+				btype: item.btype || 'Standard',
+				status: 'Close',
+				whattodo: item.whattodo || '',
+				duedate: item.duedate || now,
+				addedby: item.addedby || userShortName,
+				filename: item.filename || '',
+				...(item.datecreated ? { datecreated: item.datecreated } : {}),
+			};
+
+			const result = await updateTodo(todoId, updatedDoc);
+			if (result && result.success !== false) {
+				try {
+					await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} closed todo ${todoId} successfully.`);
+				} catch (logErr) {
+					console.error('ToDo: createActivityLog failed', logErr);
+				}
+			} else {
+				console.error('ToDo: updateTodo failed', result?.error);
+			}
+			await getTodos();
+		} catch (err) {
+			console.error('Error closing todo:', err);
+		} finally {
+			statusBarContext?.setIsLoading?.(false);
+			statusBarContext?.setLoadingLabel?.('');
+		}
+	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, updateTodo, getTodos, statusBarContext]);
 
 	const renderTodoIcon = (item: ITodoItem, index: number) => {
 		const rawFileName = String(item.filename || '').trim();
@@ -775,6 +938,7 @@ const ToDo = (todoProps: IToDo) => {
 							const todoKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
 							const message = item.whattodo ?? '';
 							const isSelected = selectedItem === item || (selectedItem?.id && item.id === selectedItem.id);
+							const isClosed = String(item.status ?? '').trim().toLowerCase() === 'close';
 							return (
 								<div
 									className={`nz-node-list-box${isSelected ? ' nz-node-list-box-selected' : ''}`}
@@ -783,41 +947,65 @@ const ToDo = (todoProps: IToDo) => {
 									style={{ cursor: 'pointer' }}
 									title={item.bid && item.cid ? `Click to launch SM for BID: ${item.bid}, CID: ${item.cid}` : undefined}
 								>
-									<div className="nz-node-list-delete">
-										<div
-											onClick={(event) => event.stopPropagation()}
-											onKeyDown={(event) => event.stopPropagation()}
-										>
-											<ActionImage
-												image={deleteImage}
-												w="var(--node_height)"
-												h="var(--node_height)"
-												uniqueName={`${todoProps.uniqueName}-delete-${index}`}
-												actionCode="delete"
-												disabled={false}
-												handleMouse={() => handleDelete(item)}
-											/>
+									<div className="nz-todo-card-inner">
+										<div className="nz-todo-card-actions">
+											<div
+												onClick={(event) => event.stopPropagation()}
+												onKeyDown={(event) => event.stopPropagation()}
+											>
+												<ActionImage
+													image={deleteImage}
+													w="var(--node_height)"
+													h="var(--node_height)"
+													uniqueName={`${todoProps.uniqueName}-delete-${index}`}
+													actionCode="delete"
+													disabled={false}
+													handleMouse={() => handleDelete(item)}
+												/>
+											</div>
+											<div
+												className={isClosed ? 'nz-todo-action-closed' : ''}
+												onClick={(event) => event.stopPropagation()}
+												onKeyDown={(event) => event.stopPropagation()}
+											>
+												<ActionImage
+													image={{
+														...closeImage,
+														tooltip: isClosed ? 'Status is Close' : 'Click to Close',
+													}}
+													w="var(--node_height)"
+													h="var(--node_height)"
+													uniqueName={`${todoProps.uniqueName}-close-${index}`}
+													actionCode="close"
+													disabled={false}
+													handleMouse={(e) => handleCloseTodo(item, e)}
+												/>
+											</div>
 										</div>
-										<div className="nz-note-date">
-											<Label
-												uniqueName={`${todoProps.uniqueName}-status-${index}`}
-												label={item.status || ''}
-											/>
-										</div>
-										<div className="nz-note-user">
-											<Label
-												uniqueName={`${todoProps.uniqueName}-type-${index}`}
-												label={[item.btype, item.bid ? `bid: ${item.bid}` : '', item.cid ? `cid: ${item.cid}` : ''].filter(Boolean).join(' · ')}
-											/>
-										</div>
-									</div>
-									<div className="nz-info-div">
-										{renderTodoIcon(item, index)}
-										<div className="nz-nodes-text">
-											<Label
-												uniqueName={`${todoProps.uniqueName}-text-${index}`}
-												label={message}
-											/>
+										<div className="nz-todo-card-content">
+											<div className="nz-node-list-delete">
+												<div className="nz-note-date">
+													<Label
+														uniqueName={`${todoProps.uniqueName}-status-${index}`}
+														label={item.status || ''}
+													/>
+												</div>
+												<div className="nz-note-user">
+													<Label
+														uniqueName={`${todoProps.uniqueName}-type-${index}`}
+														label={[item.btype, item.bid ? `bid: ${item.bid}` : '', item.cid ? `cid: ${item.cid}` : ''].filter(Boolean).join(' · ')}
+													/>
+												</div>
+											</div>
+											<div className="nz-info-div">
+												{renderTodoIcon(item, index)}
+												<div className="nz-nodes-text">
+													<Label
+														uniqueName={`${todoProps.uniqueName}-text-${index}`}
+														label={message}
+													/>
+												</div>
+											</div>
 										</div>
 									</div>
 								</div>
