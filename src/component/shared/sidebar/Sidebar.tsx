@@ -74,6 +74,10 @@ const SUB_MENU_OPEN_DELAY_MS = 200;
 
 const Sidebar = (sidebarProps: ISidebar) => {
     console.log('sidebarProps', sidebarProps)
+    const commonVariableContext = useCommonVariableContext();
+    const sessionContext = useSessionContext();
+    const mainAppContext = useMainAppContext();
+
     const [actionList, setActionList] = useState<IMainMenu | null>(null);
     const [activeTab, setActiveTab] = useState<string>("");
     const [menuData, setMenuData] = useState<IMenuItem[]>([]);
@@ -81,18 +85,17 @@ const Sidebar = (sidebarProps: ISidebar) => {
         sidebarProps.selectedFeatureQa?.Label ?? ""
     );
     const [selectedNodeInfo, setSelctedNodeInfo] = useState<ITreeNode | null>(null)
-    const [showInfoDetail, setShowInfoDetail] = useState(false);
-    const [drawerWidth, setDrawerWidth] = useState(0);
+    const [showInfoDetail, setShowInfoDetail] = useState(sidebarProps.isShowSidebar);
+    const [drawerWidth, setDrawerWidth] = useState<number>(() => {
+        if (!sidebarProps.isShowSidebar) return 0;
+        return commonVariableContext.sidebarWidth || (typeof window !== 'undefined' ? Math.round(window.innerWidth / 4) : 380);
+    });
     const [isPropertyFound, setIsPropertyFound] = useState(false);
     const [selectedNodeMenu, setSelectedNodeMenu] = useState<IMenuItem | undefined>(undefined);
     const [isShowSubMenu, setIsShowSubMenu] = useState(false);
     const [openPosition, setOpenPosition] = useState<number>(0)
     const [dynamicHeight, setDynamicHeight] = useState<number>(0)
     const [isShowFullViewBtn, setIsShowFullViewBtn] = useState(true)
-
-    const commonVariableContext = useCommonVariableContext();
-    const sessionContext = useSessionContext();
-    const mainAppContext = useMainAppContext();
 
     const maxResizeWidthRef = useRef<number>(0);
     const subMenumenuRef = useRef<HTMLDivElement | null>(null);

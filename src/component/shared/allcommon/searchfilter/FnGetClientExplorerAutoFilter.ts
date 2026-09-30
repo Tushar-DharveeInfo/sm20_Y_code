@@ -1,6 +1,6 @@
 
 import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
-import { ClientEnums, TicketsEnums, RmsEnums,  } from "../../../constants/Feature";
+import { ClientEnums, TicketsEnums, RmsEnums, ProspectEnums } from "../../../constants/Feature";
 
 /**
  * Default explorer filter for Client menu features and MCS Development.
@@ -40,7 +40,7 @@ const FnGetClientExplorerAutoFilter = (
     }
 };
 
-/*True when this featureId is under the Client menu (explorer + filter). */
+/* True when this featureId is under the Client menu (explorer + filter). */
 const FnIsClientMenuFeature = (featureId?: string): boolean => {
     if (!featureId) return false;
     return (
@@ -49,7 +49,80 @@ const FnIsClientMenuFeature = (featureId?: string): boolean => {
         || featureId === ClientEnums.VisioStencils
         || featureId === ClientEnums.SSIAndOtherServices
         || featureId === ClientEnums.Reseller
+        || featureId === ClientEnums.Mcs
     );
 };
 
-export { FnGetClientExplorerAutoFilter, FnIsClientMenuFeature };
+/* True when this featureId is under the Prospect menu. */
+const FnIsProspectMenuFeature = (featureId?: string): boolean => {
+    if (!featureId) return false;
+    return (
+        featureId === ProspectEnums.Prospect
+        || featureId === ProspectEnums.Followup
+        || featureId === ProspectEnums.Recent
+        || featureId === ProspectEnums.Past
+        || featureId === ProspectEnums.ReviewDeleted
+    );
+};
+
+/* True when this featureId is under the Client or Prospect menu. */
+const FnIsClientOrProspectFeature = (
+    featureId?: string,
+    featureRecords?: Array<{ _Feature?: string; Feature?: string; EntID?: string; MenuID?: string; Label?: string }>
+): boolean => {
+    if (!featureId) return false;
+    if (FnIsClientMenuFeature(featureId) || FnIsProspectMenuFeature(featureId)) {
+        return true;
+    }
+    if (featureRecords?.length) {
+        const cleanId = String(featureId).trim();
+        const item = featureRecords.find(
+            (f) => String(f._Feature ?? f.Feature ?? f.EntID ?? "").trim() === cleanId
+        );
+        if (item) {
+            const menuId = String(item.MenuID ?? "").trim();
+            if (menuId === ClientEnums.Client || menuId === ProspectEnums.Prospect) {
+                return true;
+            }
+            const label = String(item.Label ?? "").trim().toLowerCase();
+            if (label === "client" || label === "prospect") {
+                return true;
+            }
+        }
+    }
+    return false;
+};
+
+/* True when featureId is [Prospect] Followup, Recent, or Past —
+   these are the three features that use the Country + DateUpdated filter controls. */
+const FnIsProspectFilterFeature = (featureId?: string): boolean => {
+    if (!featureId) return false;
+    return (
+        featureId === ProspectEnums.Followup
+        || featureId === ProspectEnums.Recent
+        || featureId === ProspectEnums.Past
+        || String(featureId).toLowerCase() === "followup"
+        || String(featureId).toLowerCase() === "recent"
+        || String(featureId).toLowerCase() === "past"
+    );
+};
+
+/* True when featureId is [Tickets] Requests Received or Approved Tickets —
+   these features hide the filter icon and 3-dot (kebab) menu in the BS tree. */
+const FnIsTicketsNoFilterFeature = (featureId?: string): boolean => {
+    if (!featureId) return false;
+    return (
+        featureId === TicketsEnums.RequestsReceived
+        || featureId === TicketsEnums.ApprovedTickets
+    );
+};
+
+export {
+    FnGetClientExplorerAutoFilter,
+    FnIsClientMenuFeature,
+    FnIsProspectMenuFeature,
+    FnIsClientOrProspectFeature,
+    FnIsProspectFilterFeature,
+    FnIsTicketsNoFilterFeature,
+};
+

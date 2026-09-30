@@ -3,16 +3,16 @@ Since all menu and features and QA and kebab menu are unique names, why not we d
 */
 
 // Appqa range for filter
-const AppQARange = { MIN: 10, MAX: 99 }
+const AppQARange = { MIN: 10, MAX: 99 };
 
 // Feature Menu range for filter 
-const FeatureMenuRange = { MIN: 100, MAX: 999 }
+const FeatureMenuRange = { MIN: 100, MAX: 999 };
 
 // Feature QA Range for filter 
-const FeatureQARange = { MIN: 1000, MAX: 9000 }
+const FeatureQARange = { MIN: 1000, MAX: 9999 };
 
-//Kebab menu filter range 
-const KebabMenuRange = { MIN: 10000, MAX: 100000 }
+// Kebab menu filter range 
+const KebabMenuRange = { MIN: 10000, MAX: 99999 };
 
 
 // Appqa Constants — ids match public/smFeatures.json MenuID 10 items
@@ -59,7 +59,7 @@ enum ProspectEnums {
     Verify = "256",
 }
 
-// Library menu feature ids — match public/smFeatures.json MenuID 300
+// Library / Tickets menu feature ids — match public/smFeatures.json MenuID 300
 enum TicketsEnums {
     Tickets = "300",
     DeviceLibrary = "304",
@@ -76,7 +76,6 @@ enum RmsEnums {
     ReviewDeviceLibrary = "406",
     ReviewVisioStencils = "408",
 }
-
 
 // FAQ menu feature ids — match public/smFeatures.json MenuID 600
 enum FAQEnums {
@@ -100,6 +99,12 @@ enum SettingEnums {
     Test = "929",
 }
 
+// About menu feature ids — match public/smFeatures.json MenuID 990
+enum AboutEnums {
+    About = "990",
+    AboutNetZoom = "992",
+}
+
 // Kebab Services menu feature ids — match public/smFeatures.json
 enum KebabServicesEnums {
     NetZoomServices = "10208",
@@ -110,6 +115,43 @@ enum KebabServicesEnums {
     RequestsReceivedServices = "10308",
     ApprovedTicketsServices = "10312",
     ClientIdentityManagementServices = "10904",
+}
+
+// Kebab Action menu feature ids (Unapprove, Block, Delete) — match public/smFeatures.json
+enum KebabActionEnums {
+    // Client Kebab Actions (208, 212, 216, 218, 220)
+    NetZoomUnapprove = "12082",
+    NetZoomBlock = "12084",
+    NetZoomDelete = "12086",
+
+    VisioStencilsUnapprove = "12122",
+    VisioStencilsBlock = "12124",
+    VisioStencilsDelete = "12126",
+
+    SSIUnapprove = "12162",
+    SSIBlock = "12164",
+    SSIDelete = "12166",
+
+    ResellerUnapprove = "12182",
+    ResellerBlock = "12184",
+    ResellerDelete = "12186",
+
+    McsUnapprove = "12202",
+    McsBlock = "12204",
+    McsDelete = "12206",
+
+    // Prospect Kebab Actions (252, 254, 256)
+    FollowupUnapprove = "12522",
+    FollowupDelete = "12524",
+
+    RecentUnapprove = "12542",
+    RecentDelete = "12544",
+
+    PastUnapprove = "12562",
+    PastDelete = "12564",
+
+    // Setting Delete Kebab Action (920)
+    SettingDelete = "19202",
 }
 
 // Feature QA ToDo IDs across menus — match public/smFeatures.json
@@ -127,10 +169,83 @@ enum FeatureToDoEnums {
     ApprovedTickets = "3134",
 }
 
-// About menu feature ids — match public/smFeatures.json MenuID 990
-enum AboutEnums {
-    About = "990",
-    AboutNetZoom = "992",
+// Feature QA Profile IDs across menus — match public/smFeatures.json
+enum FeatureProfileEnums {
+    NetZoom = "2084",
+    VisioStencils = "2124",
+    SSIAndOtherServices = "2164",
+    Reseller = "2184",
+    Mcs = "2204",
+    ProspectFollowup = "2522",
+    ProspectRecent = "2542",
+    ProspectPast = "2562",
+    ProspectReviewDeleted = "2584",
+    RequestsReceived = "3084",
+    ApprovedTickets = "3124",
+    SAASInstance = "9124",
+}
+
+// Feature QA List (Contacts) IDs across menus — match public/smFeatures.json
+enum FeatureListEnums {
+    NetZoom = "2086",
+    VisioStencils = "2126",
+    SSIAndOtherServices = "2166",
+    Reseller = "2186",
+    Mcs = "2206",
+    ProspectFollowup = "2524",
+    ProspectRecent = "2544",
+    ProspectPast = "2564",
+    ProspectReviewDeleted = "2586",
+    RequestsReceived = "3086",
+    ApprovedTickets = "3126",
+    SAASInstance = "9126",
+}
+
+// Feature QA Email IDs across menus — match public/smFeatures.json
+enum FeatureEmailEnums {
+    NetZoom = "2088",
+    VisioStencils = "2128",
+    SSIAndOtherServices = "2168",
+    Reseller = "2188",
+    Mcs = "2208",
+    RequestsReceived = "3088",
+    ApprovedTickets = "3128",
+    SAASInstance = "9128",
+}
+
+// Feature QA Log IDs across menus — match public/smFeatures.json
+enum FeatureLogEnums {
+    NetZoom = "2090",
+    VisioStencils = "2130",
+    SSIAndOtherServices = "2170",
+    Reseller = "2190",
+    Mcs = "2210",
+    ProspectFollowup = "2526",
+    ProspectRecent = "2546",
+    ProspectPast = "2566",
+    ProspectReviewDeleted = "2582",
+    RequestsReceived = "3090",
+    ApprovedTickets = "3130",
+    SAASInstance = "9130",
+}
+
+// Feature QA Order IDs across menus — match public/smFeatures.json
+enum FeatureOrderEnums {
+    NetZoom = "2092",
+    VisioStencils = "2132",
+    SSIAndOtherServices = "2172",
+    Reseller = "2192",
+    Mcs = "2212",
+    RequestsReceived = "3092",
+    ApprovedTickets = "3132",
+    SAASInstance = "9132",
+}
+
+// Feature QA Notes IDs across menus — match public/smFeatures.json
+enum FeatureNotesEnums {
+    RequestsReceived = "3082",
+    ApprovedTickets = "3122",
+    SAASInstance = "9122",
 }
 
 enum deviceModelTabs {
@@ -156,19 +271,28 @@ enum SidebarEnum {
 }
 
 export {
-    FeatureMenuRange, AppQA, AppQARange
-    , HomeEnums
-    , ClientEnums
-    , ProspectEnums
-    , TicketsEnums
-    , RmsEnums
-    , FAQEnums
-    , SettingEnums
-    , KebabServicesEnums
-    , FeatureToDoEnums
-    , AboutEnums
-    , deviceModelTabs
-    , FeatureQARange
-    , SidebarEnum
-    , KebabMenuRange
-}
+    FeatureMenuRange,
+    AppQA,
+    AppQARange,
+    HomeEnums,
+    ClientEnums,
+    ProspectEnums,
+    TicketsEnums,
+    RmsEnums,
+    FAQEnums,
+    SettingEnums,
+    AboutEnums,
+    KebabServicesEnums,
+    KebabActionEnums,
+    FeatureToDoEnums,
+    FeatureProfileEnums,
+    FeatureListEnums,
+    FeatureEmailEnums,
+    FeatureLogEnums,
+    FeatureOrderEnums,
+    FeatureNotesEnums,
+    deviceModelTabs,
+    FeatureQARange,
+    SidebarEnum,
+    KebabMenuRange,
+};

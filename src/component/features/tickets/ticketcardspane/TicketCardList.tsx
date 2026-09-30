@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { TicketCard } from './TicketCard';
 import { Label } from '../../../shared/basic/label/Label';
 import { EditTextXControl } from '@n20a/libform';
@@ -60,6 +60,18 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
                 (t.bid ?? '').toLowerCase().includes(query)
         );
     }, [sorted, filterText]);
+
+    // Ensure the 1st ticket in the displayed list is selected by default
+    useEffect(() => {
+        if (filtered.length > 0) {
+            const isCurrentSelectedInFiltered = filtered.some(
+                (t) => t.ticketid === selectedTicketId
+            );
+            if (!isCurrentSelectedInFiltered) {
+                onSelectTicket(filtered[0]);
+            }
+        }
+    }, [filtered, selectedTicketId, onSelectTicket]);
 
     return (
         <div className="nz-ticket-card-list-root">

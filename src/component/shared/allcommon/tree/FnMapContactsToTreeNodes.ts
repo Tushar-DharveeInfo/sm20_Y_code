@@ -23,7 +23,15 @@ const FnMapContactsToTreeNodes = (
         return [];
     }
 
-    return contacts.map((contact) => {
+    // Contacts ordered on lastupdated z-a (descending)
+    const sortedContacts = [...contacts].sort((a, b) => {
+        const timeA = new Date((a as any).lastupdated || a.dateupdated || (a as any).dateUpdated || a.datecreated || 0).getTime() || 0;
+        const timeB = new Date((b as any).lastupdated || b.dateupdated || (b as any).dateUpdated || b.datecreated || 0).getTime() || 0;
+        if (timeB !== timeA) return timeB - timeA;
+        return String(a.cname ?? "").localeCompare(String(b.cname ?? ""));
+    });
+
+    return sortedContacts.map((contact) => {
         const uniqueKey = (contact.cid && contact.cid.toLowerCase() !== contact.bid?.toLowerCase())
             ? contact.cid
             : `contact_${contact.cid || contact.bid}`;

@@ -9,6 +9,7 @@ import { DirtyFlagImage } from '../../basic/dirtyflagimage/DirtyFlagImage'
 import { OptionToggle } from '../../basic/optiontoggle/OptionToggle'
 import { IOptionToggle } from '../../allinterface/basic/IOptionToggle'
 import { EditTextXControl } from '@n20a/libform'
+import { ProspectEnums } from '../../../constants/Feature'
 
 function SearchControl(searchControlProps: ISearchControl) {
     const [selectedItem, setSelectedItem] = useState<string>('')
@@ -34,7 +35,7 @@ function SearchControl(searchControlProps: ISearchControl) {
     const rightMouseMenuToggleData: IOptionToggle = {
         container: "searchControl",
         showIcon: true,
-        featureId: '256',
+        featureId: ProspectEnums.Past,
         uniqueName: 'test-rtm',
         handleSelect(value: string) { },
     }

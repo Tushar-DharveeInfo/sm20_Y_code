@@ -48,7 +48,7 @@ function FnMapToContactDoc(record: Record<string, unknown>, bid?: string): ICont
         removemefrommailinglist: asBoolean(record.removemefrommailinglist),
         smsoptin: asBoolean(record.smsoptin),
         datecreated: asString(record.datecreated || (record as any).dateCreated),
-        dateupdated: asString(record.dateupdated || (record as any).dateUpdated),
+        dateupdated: asString(record.dateupdated || (record as any).dateUpdated || (record as any).lastupdated),
     };
 }
 

@@ -177,7 +177,7 @@ const TicketCard: React.FC<ITicketCardProps> = ({
                             {actionButton}
                         </button>
                     )}
-                    <span
+                    {/* <span
                         className="nz-ticket-status-label"
                         style={{
                             color: statusColor,
@@ -186,7 +186,7 @@ const TicketCard: React.FC<ITicketCardProps> = ({
                         }}
                     >
                         {displayedStatus}
-                    </span>
+                    </span> */}
                 </div>
             ),
         },

@@ -71,7 +71,7 @@ function FnGetDistinctBusinessSalesExec(businesses: IBusinessDoc[]) {
 }
 
 function FnGetDistinctBusinessCountry(businesses: IBusinessDoc[]) {
-    return FnGetDistinctValues(asRows(businesses), "country");
+    return getDistinctCountries(businesses);
 }
 
 function FnGetDistinctBusinessState(businesses: IBusinessDoc[]) {
@@ -90,9 +90,57 @@ function FnGetDistinctContactTag(contacts: IContactDoc[]) {
     return FnGetDistinctValues(asRows(contacts), "ctag", true);
 }
 
+function FnGetDistinctBusinessNoticePeriod(businesses: IBusinessDoc[]): string[] {
+    return FnGetDistinctValues(asRows(businesses), "daysnoticeperiod");
+}
+
+function FnGetDistinctBusinessFiscalQuarter(businesses: IBusinessDoc[]): string[] {
+    const quarters = new Set<string>();
+    for (const b of businesses) {
+        if (!b) continue;
+        const raw = String(b.mmfinyear ?? "").trim();
+        if (/^Q[1-4]$/i.test(raw)) {
+            quarters.add(raw.toUpperCase());
+            continue;
+        }
+        const num = Number(b.mmfinyear);
+        if (num >= 1 && num <= 4) {
+            quarters.add(`Q${num}`);
+            continue;
+        }
+        if (num >= 1 && num <= 12) {
+            quarters.add(`Q${Math.ceil(num / 3)}`);
+            continue;
+        }
+        if (b.datecreated) {
+            const created = new Date(b.datecreated);
+            if (!Number.isNaN(created.getTime())) {
+                quarters.add(`Q${Math.ceil((created.getUTCMonth() + 1) / 3)}`);
+                continue;
+            }
+        }
+        if (raw) {
+            quarters.add(raw);
+        }
+    }
+    return [...quarters.values()].sort();
+}
+
+export const getDistinctCountries = (dataArray: unknown[]): string[] => {
+    if (!Array.isArray(dataArray)) return [];
+    return [...new Set(dataArray.map((item: any) => item?.country).filter(Boolean).map((v) => String(v).trim()))].sort((a, b) => a.localeCompare(b));
+};
+
+export const getDistinctPropertyValues = (dataArray: unknown[], property: string, splitTags = false): string[] => {
+    if (!Array.isArray(dataArray)) return [];
+    return FnGetDistinctValues(dataArray as Array<Record<string, unknown>>, property, splitTags);
+};
+
 export {
     FILTER_ANY,
     FnGetDistinctBusinessCountry,
+    FnGetDistinctBusinessFiscalQuarter,
+    FnGetDistinctBusinessNoticePeriod,
     FnGetDistinctBusinessSalesExec,
     FnGetDistinctBusinessState,
     FnGetDistinctBusinessStatus,

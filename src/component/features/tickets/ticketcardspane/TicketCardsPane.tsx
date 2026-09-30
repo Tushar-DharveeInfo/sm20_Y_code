@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { Splitter, SplitterPanel } from 'primereact/splitter';
 import { TicketCardList } from './TicketCardList';
 import { TicketNotesList } from './TicketNotesList';
@@ -10,6 +10,7 @@ import { useSelectedNodeContext } from '../../../shared/context/hooks/SelectedNo
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
 import { FnGetSourceDataset } from '../../../shared/allcommon/FnLoadSampleDatasets';
 import { TicketsEnums } from '../../../constants/Feature';
+import { useBusinessTickets, useTicketNotes, type IFirestoreQueryFilter } from '@n20a/libfsdb';
 import './TicketCardsPane.css';
 
 interface ITicketCardsPaneProps {
@@ -23,6 +24,67 @@ interface ITicketCardsPaneProps {
 }
 
 const DEFAULT_PURCHASED_SKUS = ['netzoom', 'visiostencils', 'ssi', 'amc'];
+
+function formatTimestampOrDate(value: unknown): string {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object' && value !== null && 'seconds' in value) {
+        const sec = (value as { seconds: number }).seconds;
+        return new Date(sec * 1000).toISOString();
+    }
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    return String(value);
+}
+
+function FnMapToTicketDoc(record: Record<string, unknown>, fallbackBid: string): ITicketDoc {
+    return {
+        bid: String(record.bid || fallbackBid || ''),
+        cid: String(record.cid || record.contactid || ''),
+        monitorupdated: formatTimestampOrDate(record.monitorupdated),
+        monitor: Boolean(record.monitor),
+        ticketid: String(record.ticketid || record.id || ''),
+        tickettype: String(record.tickettype || ''),
+        subscription: String(record.subscription || ''),
+        mfg: String(record.mfg || ''),
+        eqtype: String(record.eqtype || ''),
+        prodno: String(record.prodno || ''),
+        moreinfo: String(record.moreinfo || ''),
+        status: String(record.status || ''),
+        daterequested: formatTimestampOrDate(record.daterequested),
+        datereleased: formatTimestampOrDate(record.datereleased),
+        lastupdated: formatTimestampOrDate(record.lastupdated),
+    };
+}
+
+function FnMapToTicketNoteDoc(
+    record: Record<string, unknown>,
+    fallbackBid: string,
+    fallbackTicketId: string
+): ITicketNoteDoc {
+    return {
+        bid: String(record.bid || fallbackBid || ''),
+        cid: String(record.cid || record.contactid || ''),
+        ticketid: String(record.ticketid || fallbackTicketId || ''),
+        monitorupdated: formatTimestampOrDate(record.monitorupdated),
+        monitor: Boolean(record.monitor),
+        notes: String(record.notes || record.text || record.note || ''),
+        filename: record.filename ? String(record.filename) : undefined,
+        datecreated: formatTimestampOrDate(
+            record.datecreated || record.createdat || record.createdAt || new Date().toISOString()
+        ),
+    };
+}
+
+/** Sort tickets newest → oldest by daterequested (Z-A). */
+function sortTicketsNewestFirst(tickets: ITicketDoc[]): ITicketDoc[] {
+    return [...tickets].sort((a, b) => {
+        const ta = a.daterequested ? new Date(a.daterequested).getTime() : 0;
+        const tb = b.daterequested ? new Date(b.daterequested).getTime() : 0;
+        return tb - ta; // descending (newest first)
+    });
+}
 
 function resolveScopeFromNode(
     node?: ITreeNode,
@@ -73,7 +135,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     // Determine library mode: 'received' (status <> Approved) or 'accepted' (status == Approved)
     const effectiveMode: ILibraryTicketMode = useMemo(() => {
         if (propMode) return propMode;
-        if (featureId === TicketsEnums.ApprovedTickets || featureId === '312') return 'accepted';
+        if (featureId === TicketsEnums.ApprovedTickets) return 'accepted';
         return 'received';
     }, [propMode, featureId]);
 
@@ -89,6 +151,68 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         return resolveScopeFromNode(activeNode, smDataContext.selection);
     }, [activeNode, smDataContext.selection]);
 
+    const effectiveBid = useMemo(() => {
+        return scope.bid ? String(scope.bid).trim() : '';
+    }, [scope.bid]);
+
+    const isRequestsReceived =
+        featureId === TicketsEnums.RequestsReceived ||
+        (!featureId && propMode === 'received');
+
+    const isApprovedTickets =
+        featureId === TicketsEnums.ApprovedTickets ||
+        (!featureId && propMode === 'accepted');
+
+    const ticketQueryFilters = useMemo<IFirestoreQueryFilter[] | undefined>(() => {
+        if (isRequestsReceived) {
+            return [{ field: 'status', op: '==', value: 'Received' }];
+        }
+        if (isApprovedTickets) {
+            return [{ field: 'status', op: '==', value: 'Released' }];
+        }
+        return undefined;
+    }, [isRequestsReceived, isApprovedTickets]);
+
+    const ticketFetchByFilter = useMemo(() => {
+        if (!ticketQueryFilters || ticketQueryFilters.length === 0) return undefined;
+        return {
+            featurecmd: 'tickets',
+            fileterjson: JSON.stringify(ticketQueryFilters),
+        };
+    }, [ticketQueryFilters]);
+
+    // Call useBusinessTickets hook based on selected node business id
+    const {
+        tickets: apiTickets,
+        getTickets,
+    } = useBusinessTickets(effectiveBid);
+
+    useEffect(() => {
+        if (effectiveBid) {
+            void getTickets(ticketQueryFilters, ticketFetchByFilter);
+        }
+    }, [effectiveBid, getTickets, ticketQueryFilters, ticketFetchByFilter]);
+
+    const mappedApiTickets = useMemo<ITicketDoc[] | null>(() => {
+        if (!effectiveBid || !Array.isArray(apiTickets)) {
+            return null;
+        }
+        return apiTickets.map((r) => FnMapToTicketDoc(r, effectiveBid));
+    }, [effectiveBid, apiTickets]);
+
+    // Keep smDataContext synchronized with tickets loaded from Firestore
+    useEffect(() => {
+        if (effectiveBid && mappedApiTickets !== null) {
+            smDataContext.setDatasets((prev) => {
+                const otherTickets = (prev.tickets ?? []).filter((t) => t.bid !== effectiveBid);
+                return {
+                    ...prev,
+                    tickets: [...otherTickets, ...mappedApiTickets],
+                };
+            });
+        }
+    }, [effectiveBid, mappedApiTickets]);
+
     // Purchased SKUs from IMainApp
     const purchasedSkus = useMemo(() => {
         const fromContext =
@@ -102,14 +226,27 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         return DEFAULT_PURCHASED_SKUS;
     }, [mainAppContext]);
 
-    // Sourced tickets
+    // Sourced tickets: hook tickets when available, else scoped dataset / fallback
     const rawTickets: ITicketDoc[] = useMemo(() => {
+        if (effectiveBid) {
+            if (mappedApiTickets !== null) {
+                return mappedApiTickets;
+            }
+            const ctxTickets = (smDataContext.datasets?.tickets || []).filter(
+                (t) => t.bid === effectiveBid
+            );
+            if (ctxTickets.length > 0) {
+                return ctxTickets;
+            }
+            return [];
+        }
+        // Root node
         const ctxTickets = smDataContext.datasets?.tickets;
-        if (ctxTickets && ctxTickets.length > 0 && scope.nodeType !== 'Root') {
+        if (ctxTickets && ctxTickets.length > 0) {
             return ctxTickets;
         }
         return FnGetSourceDataset('tickets') || [];
-    }, [smDataContext.datasets?.tickets, scope.nodeType]);
+    }, [effectiveBid, mappedApiTickets, smDataContext.datasets?.tickets]);
 
     // Sourced contacts
     const contacts: IContactDoc[] = useMemo(() => {
@@ -120,20 +257,20 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         return FnGetSourceDataset('contacts') || [];
     }, [smDataContext.datasets?.contacts]);
 
-
-    // Sourced ticket notes
-    const ticketnotes: ITicketNoteDoc[] = useMemo(() => {
-        const ctxNotes = smDataContext.datasets?.ticketnotes;
-        if (ctxNotes && ctxNotes.length > 0 && scope.nodeType !== 'Root') {
-            return ctxNotes;
-        }
-        return FnGetSourceDataset('ticketnotes') || [];
-    }, [smDataContext.datasets?.ticketnotes, scope.nodeType]);
-
-    // Filter tickets by library mode ('received' vs 'accepted')
+    // Filter tickets by library mode ('received' vs 'accepted') or feature status
     const modeFilteredTickets = useMemo(() => {
+        if (isRequestsReceived) {
+            return rawTickets.filter(
+                (ticket) => (ticket.status ?? '').trim().toLowerCase() === 'received'
+            );
+        }
+        if (isApprovedTickets) {
+            return rawTickets.filter(
+                (ticket) => (ticket.status ?? '').trim().toLowerCase() === 'released'
+            );
+        }
         return filterTicketsByLibraryMode(rawTickets, effectiveMode);
-    }, [rawTickets, effectiveMode]);
+    }, [rawTickets, effectiveMode, isRequestsReceived, isApprovedTickets]);
 
     // Scope tickets by selected node:
     // Root -> all businesses
@@ -154,19 +291,109 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         return modeFilteredTickets;
     }, [modeFilteredTickets, scope]);
 
+    const sortedScopedTickets = useMemo(() => {
+        return sortTicketsNewestFirst(scopedTickets);
+    }, [scopedTickets]);
+
     // Selected ticket state
     const [selectedTicket, setSelectedTicket] = useState<ITicketDoc | null>(null);
 
-    // Auto-select first ticket when scoped list changes or maintain current if still present
+    const prevNodeKeyRef = useRef<string>('');
+    const currentNodeKey = String(
+        activeNode?.key ?? activeNode?.NodeEntID ?? scope.bid ?? ''
+    );
+
+    // Auto-select first ticket by default when tickets change or when active node changes
     useEffect(() => {
+        const nodeChanged = prevNodeKeyRef.current !== currentNodeKey;
+        if (nodeChanged) {
+            prevNodeKeyRef.current = currentNodeKey;
+        }
+
         setSelectedTicket((prev) => {
-            if (scopedTickets.length === 0) return null;
-            if (prev && scopedTickets.some((t) => t.ticketid === prev.ticketid)) {
+            if (sortedScopedTickets.length === 0) return null;
+            // Always select first ticket when the selected tree node changes
+            if (nodeChanged) {
+                return sortedScopedTickets[0];
+            }
+            // Keep current selection if still present in the list
+            if (prev && sortedScopedTickets.some((t) => t.ticketid === prev.ticketid)) {
                 return prev;
             }
-            return scopedTickets[0];
+            // By default, select 1st ticket
+            return sortedScopedTickets[0];
         });
-    }, [scopedTickets]);
+    }, [sortedScopedTickets, currentNodeKey]);
+
+    // Load ticket notes using useTicketNotes hook for selected ticket
+    const selectedTicketBid = selectedTicket?.bid
+        ? String(selectedTicket.bid).trim()
+        : effectiveBid;
+    const selectedTicketId = selectedTicket?.ticketid
+        ? String(selectedTicket.ticketid).trim()
+        : '';
+
+    const {
+        items: apiNotes,
+        getItems: getTicketNotes,
+        createItem: createTicketNote,
+    } = useTicketNotes(selectedTicketBid, selectedTicketId);
+
+    useEffect(() => {
+        if (selectedTicketBid && selectedTicketId) {
+            void getTicketNotes();
+        }
+    }, [selectedTicketBid, selectedTicketId, getTicketNotes]);
+
+    const mappedApiNotes = useMemo<ITicketNoteDoc[] | null>(() => {
+        if (!selectedTicketBid || !selectedTicketId || !Array.isArray(apiNotes)) {
+            return null;
+        }
+        return apiNotes.map((r) =>
+            FnMapToTicketNoteDoc(r, selectedTicketBid, selectedTicketId)
+        );
+    }, [selectedTicketBid, selectedTicketId, apiNotes]);
+
+    useEffect(() => {
+        if (selectedTicketBid && selectedTicketId && mappedApiNotes !== null) {
+            smDataContext.setDatasets((prev) => {
+                const otherNotes = (prev.ticketnotes ?? []).filter(
+                    (n) => n.ticketid !== selectedTicketId
+                );
+                return {
+                    ...prev,
+                    ticketnotes: [...otherNotes, ...mappedApiNotes],
+                };
+            });
+        }
+    }, [selectedTicketBid, selectedTicketId, mappedApiNotes]);
+
+    // Sourced ticket notes
+    const ticketnotes: ITicketNoteDoc[] = useMemo(() => {
+        if (selectedTicketBid && selectedTicketId) {
+            if (mappedApiNotes !== null) {
+                return mappedApiNotes;
+            }
+            const ctxNotes = (smDataContext.datasets?.ticketnotes || []).filter(
+                (n) => n.ticketid === selectedTicketId
+            );
+            if (ctxNotes.length > 0) {
+                return ctxNotes;
+            }
+            return [];
+        }
+        const ctxNotes = smDataContext.datasets?.ticketnotes;
+        if (ctxNotes && ctxNotes.length > 0 && scope.nodeType !== 'Root') {
+            return ctxNotes;
+        }
+        return FnGetSourceDataset('ticketnotes') || [];
+    }, [
+        selectedTicketBid,
+        selectedTicketId,
+        mappedApiNotes,
+        smDataContext.datasets?.ticketnotes,
+        scope.nodeType,
+    ]);
 
     const handleSelectTicket = (ticket: ITicketDoc) => {
         setSelectedTicket(ticket);
@@ -188,7 +415,30 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             );
             smDataContext.updateDataset?.('tickets', updated);
         }
+        void getTickets(ticketQueryFilters, ticketFetchByFilter);
     };
+
+    const handleAddNote = useCallback(
+        async (newNote: ITicketNoteDoc) => {
+            if (!selectedTicketBid || !selectedTicketId) return;
+            try {
+                await createTicketNote({
+                    bid: selectedTicketBid,
+                    cid: newNote.cid || selectedTicket?.cid || '',
+                    ticketid: selectedTicketId,
+                    notes: newNote.notes,
+                    filename: newNote.filename || '',
+                    datecreated: newNote.datecreated || new Date().toISOString(),
+                    monitor: false,
+                    monitorupdated: new Date().toISOString(),
+                });
+                void getTicketNotes();
+            } catch (err) {
+                console.error('Failed to create ticket note in Firestore:', err);
+            }
+        },
+        [selectedTicketBid, selectedTicketId, selectedTicket?.cid, createTicketNote, getTicketNotes]
+    );
 
     return (
         <div className="nz-ticket-cards-pane-container" key={uniqueName}>
@@ -201,7 +451,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                 >
                     <TicketCardList
                         uniqueName={`${uniqueName}-card-list`}
-                        tickets={scopedTickets}
+                        tickets={sortedScopedTickets}
                         contacts={contacts}
                         purchasedSkus={purchasedSkus}
                         selectedTicketId={selectedTicket?.ticketid ?? null}
@@ -221,6 +471,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                         ticketId={selectedTicket?.ticketid ?? null}
                         ticket={selectedTicket}
                         ticketnotes={ticketnotes}
+                        onAddNote={handleAddNote}
                     />
                 </SplitterPanel>
             </Splitter>

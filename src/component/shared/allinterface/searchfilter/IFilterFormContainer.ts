@@ -7,6 +7,7 @@ interface IFilterFormContainer {
     headerText?: string;
     isFilterChange?: boolean;
     controlValues?: IFilterControlValues | unknown;
+    featureId?: string;
     handleActionImageClick?: (event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>, actionCode?: string) => void;
     handleFilterFormChange?: (value: string, name: string, id?: string) => void;
 }

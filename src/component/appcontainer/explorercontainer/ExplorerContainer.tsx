@@ -114,12 +114,12 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         const MSCTree = [RmsEnums.McsDevelopment, TicketsEnums.ApprovedTickets, TicketsEnums.RequestsReceived] as string[]
         if (explorerContainerProps.featureId && MSCTree.includes(explorerContainerProps.featureId)) {
             setExplorerToRender("MCS");
-        //     else if (explorerContainerProps.featureId === SettingsEnums.Instance) {
-        //     setExplorerToRender("SAASINSTANCE");
-        // } else if (explorerContainerProps.featureId === SettingsEnums.ClientIdentity) {
-        //     setExplorerToRender("CLIENTIDENTITY");
-        } 
-    else {
+            //     else if (explorerContainerProps.featureId === SettingsEnums.Instance) {
+            //     setExplorerToRender("SAASINSTANCE");
+            // } else if (explorerContainerProps.featureId === SettingsEnums.ClientIdentity) {
+            //     setExplorerToRender("CLIENTIDENTITY");
+        }
+        else {
             setExplorerToRender("BUSINESSTREE");
         }
     }, [explorerContainerProps.featureId]);
@@ -347,33 +347,14 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         const payload = selectedItem?.payload ?? selectedItem;
         const targetNode = selectedNodeInfoParam?.node ?? selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer;
         const label = String(payload?.Label ?? '').trim().toLowerCase();
-        const tooltip = String(payload?.Tooltip ?? '').trim().toLowerCase();
-        const alias = String(payload?.Alias ?? '').trim().toLowerCase();
-        const feat = String(payload?.Feature ?? payload?._Feature ?? '');
+
 
         const isAddBusiness =
-            label === 'business' ||
-            label === 'add business' ||
-            label === 'add bs' ||
-            label === 'bs' ||
-            tooltip.includes('add business') ||
-            tooltip.includes('add bs') ||
-            alias === 'business' ||
-            alias === 'addbusiness' ||
-            alias === 'addbs' ||
-            feat === '12524' ||
-            feat === '12544' ||
-            feat === '12564';
+            label === 'add business'
+
 
         const isAddContact =
-            label === 'contact' ||
-            label === 'add contact' ||
-            tooltip.includes('add contact') ||
-            alias === 'contact' ||
-            alias === 'addcontact' ||
-            feat === '12526' ||
-            feat === '12546' ||
-            feat === '12566';
+            label === 'add contact'
 
         if (payload?.Label?.toLowerCase() === 'services' || payload?.Alias?.toLowerCase() === 'service') {
             FnRedirectService(targetNode);

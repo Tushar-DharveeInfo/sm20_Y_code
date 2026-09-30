@@ -6,6 +6,8 @@ import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFi
 import {
     FILTER_ANY,
     FnGetDistinctBusinessCountry,
+    FnGetDistinctBusinessFiscalQuarter,
+    FnGetDistinctBusinessNoticePeriod,
     FnGetDistinctBusinessSalesExec,
     FnGetDistinctBusinessState,
     FnGetDistinctBusinessStatus,
@@ -16,9 +18,10 @@ import {
     FnGetDistinctContactType,
     FnWithAnyOption,
 } from "./FnGetDistinctDatasetValues";
+import { FnIsClientMenuFeature, FnIsProspectFilterFeature } from "./FnGetClientExplorerAutoFilter";
 
-const NOTICE_PERIOD_VALUES = ["15", "30", "45", "60", "90", "120", "180"]; // static notice-period combo
-const FIN_YEAR_QUARTERS = ["Q1", "Q2", "Q3", "Q4"]; // static fiscal-quarter combo
+const NOTICE_PERIOD_VALUES = ["15", "30", "45", "60", "90", "120", "180"]; // fallback notice-period values
+const FIN_YEAR_QUARTERS = ["Q1", "Q2", "Q3", "Q4"]; // fallback fiscal-quarter values
 const DATE_TYPE_FIELDS = [
     "datecreated",
     "dateupdated",
@@ -112,14 +115,187 @@ function makeControl(partial: {
     };
 }
 
-// Business + contact filter fields for SettingsLibForm (distinct cache values + static lists).
+// Business + contact filter fields for SettingsLibForm (distinct cache values + dynamic lists).
 function FnBuildBusinessExplorerFilterControls(
     businesses: IBusinessDoc[],
     contacts: IContactDoc[],
-    applied: IDCFilterControlValues = {}
+    applied: IDCFilterControlValues = {},
+    featureId?: string
 ): IControl[] {
     const businessGroup = "Filter Business";
     const contactGroup = "Filter Contact";
+
+    const distinctNoticePeriods = FnGetDistinctBusinessNoticePeriod(businesses);
+    const noticePeriodOptions = FnWithAnyOption(
+        distinctNoticePeriods.length > 0 ? distinctNoticePeriods : NOTICE_PERIOD_VALUES
+    );
+
+    const distinctFiscalQuarters = FnGetDistinctBusinessFiscalQuarter(businesses);
+    const fiscalQuarterOptions = FnWithAnyOption(
+        distinctFiscalQuarters.length > 0 ? distinctFiscalQuarters : FIN_YEAR_QUARTERS
+    );
+
+    // If this is a Client menu feature ([Client] NetZoom, VisioStencils, SSI…, MCS, Reseller),
+    // offer the specific filters requested:
+    // btype, salesexecutive, Country, Status, State, Notice Period, Fiscal Quarter,
+    // Contact type, Contact Status, Contact Tag.
+    if (FnIsClientMenuFeature(featureId)) {
+        return [
+            makeControl({
+                name: "btype",
+                label: "Type",
+                group: businessGroup,
+                sortOrder: 1,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "btype"),
+                options: FnWithAnyOption(FnGetDistinctBusinessType(businesses)),
+            }),
+            makeControl({
+                name: "salesexec",
+                label: "Sales exec",
+                group: businessGroup,
+                sortOrder: 2,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "salesexec"),
+                options: FnWithAnyOption(FnGetDistinctBusinessSalesExec(businesses)),
+            }),
+            makeControl({
+                name: "country",
+                label: "Country",
+                group: businessGroup,
+                sortOrder: 3,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "country"),
+                options: FnWithAnyOption(FnGetDistinctBusinessCountry(businesses)),
+            }),
+            makeControl({
+                name: "status",
+                label: "Status",
+                group: businessGroup,
+                sortOrder: 4,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "status"),
+                options: FnWithAnyOption(FnGetDistinctBusinessStatus(businesses)),
+            }),
+            makeControl({
+                name: "state",
+                label: "State",
+                group: businessGroup,
+                sortOrder: 5,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "state"),
+                options: FnWithAnyOption(FnGetDistinctBusinessState(businesses)),
+            }),
+            makeControl({
+                name: "daysnoticeperiod",
+                label: "Notice period",
+                group: businessGroup,
+                sortOrder: 6,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "daysnoticeperiod"),
+                options: noticePeriodOptions,
+            }),
+            makeControl({
+                name: "mmfinyear",
+                label: "Fiscal quarter",
+                group: businessGroup,
+                sortOrder: 7,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "mmfinyear"),
+                options: fiscalQuarterOptions,
+            }),
+            ...BUSINESS_DATE_FIELDS_CONFIG.flatMap((df, idx) => {
+                const startVal = applied[`${df.name}_StartDate`] ?? applied[`${df.name}StartDate`] ?? "";
+                const endVal = applied[`${df.name}_EndDate`] ?? applied[`${df.name}EndDate`] ?? "";
+                const maxDate = df.isExpiry ? undefined : todayIsoDate();
+                return [
+                    makeControl({
+                        name: `${df.name}_StartDate`,
+                        label: df.label,
+                        group: businessGroup,
+                        sortOrder: 8 + idx * 2,
+                        displayControl: DisplayControlEnums.DateControl,
+                        value: startVal,
+                        maxDate,
+                    }),
+                    makeControl({
+                        name: `${df.name}_EndDate`,
+                        label: df.label,
+                        group: businessGroup,
+                        sortOrder: 9 + idx * 2,
+                        displayControl: DisplayControlEnums.DateControl,
+                        value: endVal,
+                        maxDate,
+                    }),
+                ];
+            }),
+            makeControl({
+                name: "contacttype",
+                label: "Contact type",
+                group: contactGroup,
+                sortOrder: 8 + BUSINESS_DATE_FIELDS_CONFIG.length * 2,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "contacttype"),
+                options: FnWithAnyOption(FnGetDistinctContactType(contacts)),
+            }),
+            makeControl({
+                name: "cstatus",
+                label: "Contact status",
+                group: contactGroup,
+                sortOrder: 9 + BUSINESS_DATE_FIELDS_CONFIG.length * 2,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "cstatus"),
+                options: FnWithAnyOption(FnGetDistinctContactStatus(contacts)),
+            }),
+            makeControl({
+                name: "ctags",
+                label: "Contact tags",
+                group: contactGroup,
+                sortOrder: 10 + BUSINESS_DATE_FIELDS_CONFIG.length * 2,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "ctags"),
+                options: FnWithAnyOption(FnGetDistinctContactTag(contacts)),
+            }),
+        ];
+    }
+
+    // If this is a Prospect feature ([Prospect] Followup, Recent, Past),
+    // offer only the requested filters:
+    // Country: Dynamically created Country list
+    // DateUpdated: <date range>
+    if (FnIsProspectFilterFeature(featureId)) {
+        const startVal = applied.dateupdated_StartDate ?? applied.dateupdatedStartDate ?? applied.lastupdated_StartDate ?? applied.lastupdatedStartDate ?? "";
+        const endVal = applied.dateupdated_EndDate ?? applied.dateupdatedEndDate ?? applied.lastupdated_EndDate ?? applied.lastupdatedEndDate ?? "";
+        return [
+            makeControl({
+                name: "country",
+                label: "Country",
+                group: businessGroup,
+                sortOrder: 1,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "country"),
+                options: FnWithAnyOption(FnGetDistinctBusinessCountry(businesses)),
+            }),
+            makeControl({
+                name: "dateupdated_StartDate",
+                label: "Date updated",
+                group: businessGroup,
+                sortOrder: 2,
+                displayControl: DisplayControlEnums.DateControl,
+                value: startVal,
+                maxDate: todayIsoDate(),
+            }),
+            makeControl({
+                name: "dateupdated_EndDate",
+                label: "Date updated",
+                group: businessGroup,
+                sortOrder: 3,
+                displayControl: DisplayControlEnums.DateControl,
+                value: endVal,
+                maxDate: todayIsoDate(),
+            }),
+        ];
+    }
 
     return [
         makeControl({
@@ -199,7 +375,7 @@ function FnBuildBusinessExplorerFilterControls(
             sortOrder: 9,
             displayControl: DisplayControlEnums.ComboBoxControl,
             value: comboValue(applied, "daysnoticeperiod"),
-            options: FnWithAnyOption(NOTICE_PERIOD_VALUES),
+            options: noticePeriodOptions,
         }),
         makeControl({
             name: "mmfinyear",
@@ -208,7 +384,7 @@ function FnBuildBusinessExplorerFilterControls(
             sortOrder: 10,
             displayControl: DisplayControlEnums.ComboBoxControl,
             value: comboValue(applied, "mmfinyear"),
-            options: FnWithAnyOption(FIN_YEAR_QUARTERS),
+            options: fiscalQuarterOptions,
         }),
         ...BUSINESS_DATE_FIELDS_CONFIG.flatMap((df, idx) => {
             const startVal = applied[`${df.name}_StartDate`] ?? applied[`${df.name}StartDate`] ?? "";

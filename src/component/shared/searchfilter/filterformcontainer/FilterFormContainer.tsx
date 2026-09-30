@@ -79,7 +79,7 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
         const sourceControls =
             filterFormContainerProps.controls && filterFormContainerProps.controls.length > 0
                 ? filterFormContainerProps.controls
-                : FnBuildBusinessExplorerFilterControls(businesses, contacts, values);
+                : FnBuildBusinessExplorerFilterControls(businesses, contacts, values, filterFormContainerProps.featureId);
         snapshotRef.current = {
             values,
             profileString: JSON.stringify([values]),

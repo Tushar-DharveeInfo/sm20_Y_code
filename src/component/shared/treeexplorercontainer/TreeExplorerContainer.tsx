@@ -15,6 +15,8 @@ import type { IBusinessDoc, IContactDoc } from '../allinterface/IDatasets.ts'
 import { useSmDataContext } from '../context/hooks/SmDataHooks.ts'
 import {
   FnGetClientExplorerAutoFilter,
+  FnIsClientOrProspectFeature,
+  FnIsTicketsNoFilterFeature,
 } from '../allcommon/searchfilter/FnGetClientExplorerAutoFilter.ts'
 import { FnAddSubNode } from '../allcommon/tree/FnAddSubNode.ts'
 import { FnMapBusinessesToTreeNodes } from '../allcommon/tree/FnMapBusinessesToTreeNodes.ts'
@@ -311,7 +313,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         uniqueBusinesses.push(b);
       }
     }
-    let businesses = filterBusinessRecords(uniqueBusinesses, mergedForm);
+    let businesses = filterBusinessRecords(uniqueBusinesses, mergedForm, treeExplorerContainerProps.featureId);
     if (hasActiveContactFilters(mergedForm)) {
       const matchingBids = new Set(
         smDataContext.getContactsForTree("", mergedForm).map((contact) => contact.bid)
@@ -491,11 +493,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   const applyBusinessTreeFromFilter = (
     form: IDCFilterControlValues,
     featureProps: IFeatureTree,
-    featureId: string
+    featureId: string,
+    source?: IBusinessDoc[]
   ) => {
     const autoFilter = FnGetClientExplorerAutoFilter(featureId)
     const mergedForm: IDCFilterControlValues = { ...autoFilter, ...form }
-    let businesses = filterBusinessRecords(smDataContext.datasets.businesses, mergedForm)
+    const sourceBusinesses = source ?? smDataContext.datasets.businesses ?? []
+    let businesses = filterBusinessRecords(sourceBusinesses, mergedForm, featureId)
     if (hasActiveContactFilters(mergedForm)) {
       const matchingBids = new Set(
         smDataContext.getContactsForTree("", mergedForm).map((contact) => contact.bid)
@@ -505,30 +509,95 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     setBusinessTree(FnMapBusinessesToTreeNodes(businesses, featureProps, featureId))
   }
 
-  // Reload business tree when featureId changes (Client menu auto-filters included).
+  // Reload business tree when featureId changes.
+  // For Client and Prospect menus: uses cached businesses dataset.
+  // For other menus: calls hook to load data into bs tree and then filters it.
   useEffect(() => {
     if (!treeExplorerContainerProps.featureId) return
-    if (!smDataContext.isBusinessesLoaded) return
+
     const configKey = `${treeExplorerContainerProps.featureId}-${!!treeExplorerContainerProps.allowCheckbox}`
     if (prevFeatureIdRef.current === configKey) return
-    prevFeatureIdRef.current = configKey
 
-    const featureProps = buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox)
-    const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId)
-    setFeatureTreeProps(featureProps)
-    setIsShowFilterForm(false)
-    setIsFilterChange(false)
-    setFilterFormData(autoFilter)
-    filterFormDataRef.current = autoFilter
-    setTreeContainerFlatDataProps({
-      uniqueName: `${treeExplorerContainerProps.uniqueName}-dce-flat`,
-      flatAPIData: null,
-      featureId: treeExplorerContainerProps.featureId,
-      featureTreeProps: featureProps,
-    })
+    const isClientOrProspect = FnIsClientOrProspectFeature(
+      treeExplorerContainerProps.featureId,
+      mainAppContext.featureRecords
+    )
 
-    applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
-  }, [treeExplorerContainerProps.featureId, treeExplorerContainerProps.uniqueName, treeExplorerContainerProps.allowCheckbox, smDataContext.isBusinessesLoaded])
+    // For Client and Prospect menus, use cached businesses once loaded
+    if (isClientOrProspect) {
+      if (!smDataContext.isBusinessesLoaded) {
+        smDataContext.loadBusinessesOnce()
+        return
+      }
+      prevFeatureIdRef.current = configKey
+
+      const featureProps = buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox)
+      const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId)
+      setFeatureTreeProps(featureProps)
+      setIsShowFilterForm(false)
+      setIsFilterChange(false)
+      setFilterFormData(autoFilter)
+      filterFormDataRef.current = autoFilter
+      setTreeContainerFlatDataProps({
+        uniqueName: `${treeExplorerContainerProps.uniqueName}-dce-flat`,
+        flatAPIData: null,
+        featureId: treeExplorerContainerProps.featureId,
+        featureTreeProps: featureProps,
+      })
+
+      applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
+    } else {
+      // If menu is not selected in Client and Prospect, call hook and load data into bs tree
+      prevFeatureIdRef.current = configKey
+
+      const featureProps = buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox)
+      const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId)
+      setFeatureTreeProps(featureProps)
+      setIsShowFilterForm(false)
+      setIsFilterChange(false)
+      setFilterFormData(autoFilter)
+      filterFormDataRef.current = autoFilter
+      setTreeContainerFlatDataProps({
+        uniqueName: `${treeExplorerContainerProps.uniqueName}-dce-flat`,
+        flatAPIData: null,
+        featureId: treeExplorerContainerProps.featureId,
+        featureTreeProps: featureProps,
+      })
+
+      const currentConfigKey = configKey
+      const loadFromHook = async () => {
+        try {
+          const apiBusinesses = await getBusinesses()
+          if (prevFeatureIdRef.current !== currentConfigKey) {
+            return
+          }
+          if (apiBusinesses?.length) {
+            const mapped = FnMapToBusinessDocs(apiBusinesses)
+            smDataContext.setDatasets((prev) => ({
+              ...prev,
+              businesses: mapped,
+            }))
+            applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, mapped)
+            return
+          }
+        } catch (err) {
+          console.warn('Failed to load businesses from hook for feature:', treeExplorerContainerProps.featureId, err)
+        }
+        if (prevFeatureIdRef.current === currentConfigKey) {
+          applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
+        }
+      }
+
+      void loadFromHook()
+    }
+  }, [
+    treeExplorerContainerProps.featureId,
+    treeExplorerContainerProps.uniqueName,
+    treeExplorerContainerProps.allowCheckbox,
+    smDataContext.isBusinessesLoaded,
+    mainAppContext.featureRecords,
+    getBusinesses,
+  ])
 
   useEffect(() => {
     if (!commonVariableContext.reloadTreeFor) return;
@@ -804,12 +873,12 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
           <div className="nz-dce-search-container">
             <SearchControl
               uniqueName={`${treeExplorerContainerProps.uniqueName}-search`}
-              isShowFilterControl={!treeExplorerContainerProps.subTreeFeatureId}
+              isShowFilterControl={!treeExplorerContainerProps.subTreeFeatureId && !FnIsTicketsNoFilterFeature(treeExplorerContainerProps.featureId)}
               lensDirty={(searchText || '').length > 0}
               filterDirty={isFilterChange}
               searchInputValue={searchText || ''}
               hideSearchControl={false}
-              hideRightMouseMenu={!!treeExplorerContainerProps.subTreeFeatureId}
+              hideRightMouseMenu={!!treeExplorerContainerProps.subTreeFeatureId || FnIsTicketsNoFilterFeature(treeExplorerContainerProps.featureId)}
               searchValueChange={(value: string) => {
                 setSearchText(value)
                 setSearchHistory([])
@@ -859,10 +928,12 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         </div>
       ) : (
         <FilterFormContainer
+          key={`filter-${treeExplorerContainerProps.featureId ?? 'tree'}-${smDataContext.datasets.contacts?.length ?? 0}`}
           uniqueName={`${treeExplorerContainerProps.uniqueName}-filter-form`}
           allowHeader={true}
           isFilterChange={isFilterChange}
           controlValues={filterFormData}
+          featureId={treeExplorerContainerProps.featureId}
           headerText="Filter Business / Contact"
           handleActionImageClick={handleFilterActionClick}
           handleFilterFormChange={handleFilterFormChange}

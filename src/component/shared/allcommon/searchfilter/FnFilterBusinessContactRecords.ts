@@ -2,6 +2,7 @@
 import { IBusinessDoc, IContactDoc } from "../../allinterface/IDatasets";
 import { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import { FILTER_ANY } from "./FnGetDistinctDatasetValues";
+import { ProspectEnums } from "../../../constants/Feature";
 
 function isTruthyFlag(value: unknown): boolean {
     const raw = String(value ?? "").trim().toLowerCase();
@@ -86,6 +87,7 @@ export const BUSINESS_DATE_FILTER_FIELDS = [
     "onpremexpirydate",
     "datecreated",
     "dateupdated",
+    "lastupdated",
 ] as const;
 
 const KNOWN_FILTER_FIELDS = [
@@ -184,6 +186,11 @@ const KNOWN_FILTER_FIELDS = [
     "dateupdated_EndDate",
     "dateupdatedStartDate",
     "dateupdatedEndDate",
+    "lastupdated",
+    "lastupdated_StartDate",
+    "lastupdated_EndDate",
+    "lastupdatedStartDate",
+    "lastupdatedEndDate",
 ] as const;
 
 // Map libform keys like "Filter Business_status_0" to the control name ("status").
@@ -323,6 +330,13 @@ function getDateFieldRange(form: IDCFilterControlValues, field: string): { start
     let start = form[`${field}_StartDate`] ?? form[`${field}StartDate`];
     let end = form[`${field}_EndDate`] ?? form[`${field}EndDate`];
 
+    if (!start && (field === "dateupdated" || field === "lastupdated")) {
+        start = form.dateupdated_StartDate ?? form.dateupdatedStartDate ?? form.lastupdated_StartDate ?? form.lastupdatedStartDate;
+    }
+    if (!end && (field === "dateupdated" || field === "lastupdated")) {
+        end = form.dateupdated_EndDate ?? form.dateupdatedEndDate ?? form.lastupdated_EndDate ?? form.lastupdatedEndDate;
+    }
+
     if (!start && !end && form[field]) {
         const val = form[field];
         if (typeof val === "object" && val !== null) {
@@ -429,14 +443,74 @@ function matchesContactFilters(
     return true;
 }
 
-// Filter cached businesses by applied json, including optional date-type range.
+/**
+ * Resolves the latest date (Date object) from cached businesses based on lastupdated (or dateupdated / datecreated).
+ */
+export function FnGetLatestDateFromDataset(businesses: IBusinessDoc[]): Date | undefined {
+    let latestTime: number | undefined;
+    for (const b of businesses) {
+        const rawDate = (b as any).lastupdated || b.dateupdated || b.datecreated;
+        if (rawDate) {
+            const time = new Date(rawDate).getTime();
+            if (!Number.isNaN(time)) {
+                if (latestTime === undefined || time > latestTime) {
+                    latestTime = time;
+                }
+            }
+        }
+    }
+    return latestTime !== undefined ? new Date(latestTime) : undefined;
+}
+
+// Filter cached businesses by applied json, including optional date-type range and Prospect feature rules.
 export function filterBusinessRecords(
     businesses: IBusinessDoc[],
-    form: IDCFilterControlValues
+    form: IDCFilterControlValues,
+    featureId?: string
 ): IBusinessDoc[] {
     const filter = buildBusinessRecordFilter(form);
     const dateField = isAppliedValue(form.selectdatetype) ? form.selectdatetype : undefined;
+
+    const isFollowup = featureId === ProspectEnums.Followup || String(featureId).toLowerCase() === "followup";
+    const isRecent = featureId === ProspectEnums.Recent || String(featureId).toLowerCase() === "recent";
+    const isPast = featureId === ProspectEnums.Past || String(featureId).toLowerCase() === "past";
+
+    let latestTime: number | undefined;
+    let cutoffTime: number | undefined;
+    if (isRecent || isPast) {
+        const latestDate = FnGetLatestDateFromDataset(businesses);
+        if (latestDate) {
+            latestTime = latestDate.getTime();
+            cutoffTime = latestTime - 120 * 24 * 60 * 60 * 1000;
+        }
+    }
+
     return businesses.filter((business) => {
+        // Feature: Followup, where verified === true
+        if (isFollowup) {
+            if (!isTruthyFlag(business.verified)) {
+                return false;
+            }
+        } else if (isRecent) {
+            if (latestTime === undefined || cutoffTime === undefined) {
+                return false;
+            }
+            const rawDate = (business as any).lastupdated || business.dateupdated || business.datecreated;
+            const recordTime = rawDate ? new Date(rawDate).getTime() : NaN;
+            if (Number.isNaN(recordTime) || recordTime < cutoffTime || recordTime > latestTime) {
+                return false;
+            }
+        } else if (isPast) {
+            if (cutoffTime === undefined) {
+                return false;
+            }
+            const rawDate = (business as any).lastupdated || business.dateupdated || business.datecreated;
+            const recordTime = rawDate ? new Date(rawDate).getTime() : NaN;
+            if (Number.isNaN(recordTime) || recordTime >= cutoffTime) {
+                return false;
+            }
+        }
+
         if (!matchesBusinessFilters(business, filter)) {
             return false;
         }
@@ -445,7 +519,11 @@ export function filterBusinessRecords(
         for (const field of BUSINESS_DATE_FILTER_FIELDS) {
             const { start, end } = getDateFieldRange(form, field);
             if (start || end) {
-                const dateValue = String((business as unknown as Record<string, unknown>)[field] ?? "");
+                const rawVal =
+                    field === "dateupdated" || field === "lastupdated"
+                        ? ((business as any).lastupdated || business.dateupdated || business.datecreated || "")
+                        : (business as unknown as Record<string, unknown>)[field] ?? "";
+                const dateValue = String(rawVal);
                 if (!matchesDateInRange(dateValue, start, end)) {
                     return false;
                 }

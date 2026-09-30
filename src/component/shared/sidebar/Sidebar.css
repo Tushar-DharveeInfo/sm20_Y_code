@@ -33,7 +33,7 @@
     left: 0;
     bottom: 0;
     z-index: 100;
-    background-color: #f9fafb;
+    /* background-color: #f9fafb; */
     flex-grow: 0;
     flex-shrink: 0;
     display: flex;
@@ -71,10 +71,13 @@
 
 .nz-side-bar-container {
     height: 100%;
-    padding-left: 5px;
-    width: 100%;
+    margin-left: 5px;
+    width: calc(100% - 5px);
     display: flex;
     flex-direction: column;
+    border: 3px solid gray;
+    border-radius: 8px;
+    padding: var(--spacing-1);
 }
 
 .nz-sidebar {
@@ -88,12 +91,24 @@
     visibility: visible;
 }
 
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
 .nz-qa-sidebar-container {
     position: absolute;
     top: 0;
     height: 100%;
     right: 0;
     z-index: 999;
+    animation: slideInRight 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
 }
 
 .nz-qa-sidebar-container .nz-info-bar-active {
