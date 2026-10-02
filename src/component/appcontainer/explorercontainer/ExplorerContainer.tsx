@@ -4,12 +4,13 @@ import { OpenSidebar24x24 } from '@n20a/libicon'
 import { Splitter, SplitterPanel, SplitterResizeEndEvent } from 'primereact/splitter'
 import { Key } from 'rc-tree/lib/interface'
 import './ExplorerContainer.css'
-import { FeatureQARange, TicketsEnums, RmsEnums, } from '../../constants/Feature';
+import { FeatureQARange, TicketsEnums, RmsEnums, kebabMenuEnums, SettingEnums } from '../../constants/Feature';
 // import { FnFindNearestNodeByType } from '../../shared/allcommon/FnFindNearestNodeByType'
 import { useCommonVariableContext } from '../../shared/context/hooks/CommonVariableHooks'
 import { useSelectedNodeContext } from '../../shared/context/hooks/SelectedNodeHooks'
 import { useSessionContext } from '../../shared/context/hooks/SessionHooks'
-// import { useStatusBarContext } from '../../shared/context/hooks/StatusBarHooks'
+import { useStatusBarContext } from '../../shared/context/hooks/StatusBarHooks'
+import { useFirestore } from '@n20a/libfsdb'
 import { ISession } from '../../shared/context/allinterface/ISession'
 import { IFeatureItem } from '../../shared/context/allinterface/IMainApp'
 import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu'
@@ -64,6 +65,17 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     const [manuallyNodeSelected, setManuallyNodeSelected] = useState<boolean>(false);
     const [confirmMessage, setConfirmMessage] = useState<string>("");
     const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+    const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{
+        targetNode: ITreeNode;
+        action: 'unapproved' | 'block' | 'delete';
+    } | null>(null);
+    const [pendingPermanentDelete, setPendingPermanentDelete] = useState<{
+        type: 'contact' | 'business';
+        bid: string;
+        cid?: string;
+        contactList?: any[];
+        targetNode: ITreeNode;
+    } | null>(null);
     // The feature-change effect that used to pick the explorer is commented out, so the BUSINESSTREE tree is always rendered.
     const [explorerToRender, setExplorerToRender] = useState<"BUSINESSTREE" | "NONE" | "MCS" | "SAASINSTANCE" | "CLIENTIDENTITY">("BUSINESSTREE");
     const [treeData, setTreeData] = useState<ITreeNode[]>();
@@ -77,6 +89,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     const selectedNodeContext = useSelectedNodeContext();
     const mainAppContext = useMainAppContext();
     const smDataContext = useSmDataContext();
+    const statusBarContext = useStatusBarContext();
+    const firestore = useFirestore();
 
     const saasCompanyItems: IActionLabelItem[] = useMemo(() => {
         const businesses = smDataContext.datasets?.businesses ?? [];
@@ -343,22 +357,469 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         }
     };
 
-    const handleKebabMenuSelect = (selectedItem: any, selectedNodeInfoParam?: ISelectedNodeInfo) => {
+    
+    /**
+     * Writes an activity log entry for every kebab-menu status change.
+     * Called after a successful Firestore write so only committed changes are logged.
+     */
+    const createStatusChangeLog = async (
+        action: string,
+        nodeType: 'contact' | 'business',
+        bid: string,
+        cid?: string
+    ): Promise<void> => {
+        try {
+            const message = nodeType === 'contact'
+                ? `Status changed to [${action}] for contact: ${cid ?? ''} of business: ${bid}`
+                : `Status changed to [${action}] for business: ${bid}`;
+            await mainAppContext.createActivityLog?.(message);
+        } catch (err) {
+            console.warn('createStatusChangeLog failed:', err);
+        }
+    };
+
+    const performStatusUpdate = async (targetNode: ITreeNode, action: 'unapproved' | 'block' | 'delete') => {
+        statusBarContext?.setIsLoading?.(true);
+        statusBarContext?.setLoadingLabel?.('Loading...');
+
+        try {
+            const isContact = Boolean(
+                targetNode.NodeType?.toLowerCase() === "contact" ||
+                targetNode.treetype?.toLowerCase() === "contact" ||
+                targetNode.NodeEntityname?.toLowerCase() === "contact" ||
+                (targetNode.cid && targetNode.cid !== targetNode.bid)
+            );
+
+            const cid = String(targetNode.cid || targetNode.NodeEntID || targetNode.key);
+            let parentBid = String(targetNode.bid || targetNode.parentEntID || '').trim();
+            if (!parentBid || parentBid.toLowerCase() === 'root-businesses' || parentBid.toLowerCase() === 'businesses') {
+                const foundInContext = smDataContext.datasets?.contacts?.find(
+                    (c) => String(c.cid).toLowerCase() === cid.toLowerCase()
+                );
+                if (foundInContext?.bid) {
+                    parentBid = String(foundInContext.bid);
+                } else {
+                    const match = cid.match(/bid_\d+/i);
+                    if (match) {
+                        parentBid = match[0];
+                    }
+                }
+            }
+
+            if (action === 'unapproved') {
+                // unapproved, simply update record with verified = false
+                targetNode.verified = false;
+                targetNode.IsAuthorized = false;
+
+                if (isContact) {
+                    try {
+                        await firestore.updateDocument({
+                            pathSegments: ['businesses', parentBid, 'contacts', cid],
+                            data: { monitor: false },
+                            allowedKeys: ['monitor'],
+                        });
+                    } catch (e) {
+                        console.warn("firestore updateDocument contact unapproved failed:", e);
+                    }
+                    if (smDataContext.datasets?.contacts) {
+                        const nextContacts = smDataContext.datasets.contacts.map((c) =>
+                            String(c.cid).toLowerCase() === cid.toLowerCase()
+                                ? { ...c, monitor: false }
+                                : c
+                        );
+                        smDataContext.updateDataset("contacts", nextContacts);
+                    }
+                } else {
+                    const bid = String(targetNode.bid || targetNode.NodeEntID || targetNode.key);
+                    try {
+                        await firestore.updateDocument({
+                            pathSegments: ['businesses', bid],
+                            data: { verified: false },
+                            allowedKeys: ['verified'],
+                        });
+                    } catch (e) {
+                        console.warn("firestore updateDocument business unapproved failed:", e);
+                    }
+                    if (smDataContext.datasets?.businesses) {
+                        const nextBusinesses = smDataContext.datasets.businesses.map((b) =>
+                            String(b.bid).toLowerCase() === bid.toLowerCase()
+                                ? { ...b, verified: false }
+                                : b
+                        );
+                        smDataContext.updateDataset("businesses", nextBusinesses);
+                    }
+                }
+            } else if (action === 'block') {
+                // Block, simply update record with status = Blocked
+                targetNode.status = "Blocked";
+                targetNode.NodeState = "Blocked";
+                targetNode.Description = "Blocked";
+
+                if (isContact) {
+                    try {
+                        await firestore.updateDocument({
+                            pathSegments: ['businesses', parentBid, 'contacts', cid],
+                            data: { status: "Blocked" },
+                            allowedKeys: ['status'],
+                        });
+                    } catch (e) {
+                        console.warn("firestore updateDocument contact Blocked failed:", e);
+                    }
+                    if (smDataContext.datasets?.contacts) {
+                        const nextContacts = smDataContext.datasets.contacts.map((c) =>
+                            String(c.cid).toLowerCase() === cid.toLowerCase()
+                                ? { ...c, status: "Blocked" }
+                                : c
+                        );
+                        smDataContext.updateDataset("contacts", nextContacts);
+                    }
+                } else {
+                    const bid = String(targetNode.bid || targetNode.NodeEntID || targetNode.key);
+                    try {
+                        await firestore.updateDocument({
+                            pathSegments: ['businesses', bid],
+                            data: { status: "Blocked" },
+                            allowedKeys: ['status'],
+                        });
+                    } catch (e) {
+                        console.warn("firestore updateDocument business Blocked failed:", e);
+                    }
+                    if (smDataContext.datasets?.businesses) {
+                        const nextBusinesses = smDataContext.datasets.businesses.map((b) =>
+                            String(b.bid).toLowerCase() === bid.toLowerCase()
+                                ? { ...b, status: "Blocked" }
+                                : b
+                        );
+                        smDataContext.updateDataset("businesses", nextBusinesses);
+                    }
+                }
+            } else if (action === 'delete') {
+                // Delete, simply update record with status = deleted
+                targetNode.status = "deleted";
+                targetNode.NodeState = "deleted";
+                targetNode.Description = "deleted";
+
+                if (isContact) {
+                    try {
+                        await firestore.updateDocument({
+                            pathSegments: ['businesses', parentBid, 'contacts', cid],
+                            data: { status: "deleted" },
+                            allowedKeys: ['status'],
+                        });
+                    } catch (e) {
+                        console.warn("firestore updateDocument contact deleted failed:", e);
+                    }
+                    if (smDataContext.datasets?.contacts) {
+                        const nextContacts = smDataContext.datasets.contacts.map((c) =>
+                            String(c.cid).toLowerCase() === cid.toLowerCase()
+                                ? { ...c, status: "deleted" }
+                                : c
+                        );
+                        smDataContext.updateDataset("contacts", nextContacts);
+                    }
+                } else {
+                    const bid = String(targetNode.bid || targetNode.NodeEntID || targetNode.key);
+                    try {
+                        await firestore.updateDocument({
+                            pathSegments: ['businesses', bid],
+                            data: { status: "deleted" },
+                            allowedKeys: ['status'],
+                        });
+                    } catch (e) {
+                        console.warn("firestore updateDocument business deleted failed:", e);
+                    }
+                    if (smDataContext.datasets?.businesses) {
+                        const nextBusinesses = smDataContext.datasets.businesses.map((b) =>
+                            String(b.bid).toLowerCase() === bid.toLowerCase()
+                                ? { ...b, status: "deleted" }
+                                : b
+                        );
+                        smDataContext.updateDataset("businesses", nextBusinesses);
+                    }
+                }
+            }
+
+            // Log the status change
+            const nodeTypeForLog = isContact ? 'contact' : 'business';
+            const bidForLog = isContact ? parentBid : String(targetNode.bid || targetNode.NodeEntID || targetNode.key);
+            await createStatusChangeLog(action, nodeTypeForLog, bidForLog, isContact ? cid : undefined);
+
+            // Trigger tree update
+            commonVariableContext.setReloadTreeFor({
+                featureId: String(explorerContainerProps.featureId),
+                entId: String(targetNode.cid || targetNode.key || targetNode.NodeEntID || targetNode.bid),
+                dropNodeEntId: isContact ? parentBid : undefined,
+                timestamp: Date.now(),
+            });
+        } finally {
+            statusBarContext?.setIsLoading?.(false);
+            statusBarContext?.setLoadingLabel?.(undefined);
+        }
+    };
+
+    const performPermanentDelete = async (info: {
+        type: 'contact' | 'business';
+        bid: string;
+        cid?: string;
+        contactList?: any[];
+        targetNode: ITreeNode;
+    }) => {
+        statusBarContext?.setIsLoading?.(true);
+        statusBarContext?.setLoadingLabel?.('Deleting...');
+
+        try {
+            if (info.type === 'contact') {
+                const cid = info.cid!;
+                const bid = info.bid;
+
+                // Delete from businesses/{bid}/contacts/{cid}
+                try {
+                    await firestore.deleteDocument({
+                        pathSegments: ['businesses', bid, 'contacts', cid],
+                    });
+                } catch (e) {
+                    console.warn("firestore deleteDocument contact failed:", e);
+                }
+
+                // Delete from prospect/{cid}
+                try {
+                    await firestore.deleteDocument({
+                        pathSegments: ['prospect', cid],
+                    });
+                } catch (e) {
+                    console.warn("firestore deleteDocument prospect failed:", e);
+                }
+
+                // Update local datasets in smDataContext
+                if (smDataContext.datasets?.contacts) {
+                    const nextContacts = smDataContext.datasets.contacts.filter(
+                        (c) => String(c.cid).toLowerCase() !== cid.toLowerCase()
+                    );
+                    smDataContext.updateDataset('contacts', nextContacts);
+                }
+                if (smDataContext.datasets?.prospect) {
+                    const nextProspects = smDataContext.datasets.prospect.filter(
+                        (p) => String((p as any).cid || (p as any).id || (p as any).EntID).toLowerCase() !== cid.toLowerCase()
+                    );
+                    smDataContext.updateDataset('prospect', nextProspects);
+                }
+
+                // Log the permanent delete
+                await createStatusChangeLog('permanently deleted', 'contact', bid, cid);
+
+                commonVariableContext.setReloadTreeFor({
+                    featureId: String(explorerContainerProps.featureId),
+                    entId: cid,
+                    dropNodeEntId: bid,
+                    timestamp: Date.now(),
+                });
+            } else {
+                // Delete business node and all its contacts
+                const bid = info.bid;
+                let contactsToDelete = info.contactList ?? [];
+                if (contactsToDelete.length === 0) {
+                    contactsToDelete = (smDataContext.datasets?.contacts ?? []).filter(
+                        (c) => String(c.bid || '').toLowerCase() === bid.toLowerCase()
+                    );
+                }
+
+                // Delete all contacts for the selected business from all tables
+                for (const contact of contactsToDelete) {
+                    const cid = String(contact.cid || contact.EntID || contact.id || '');
+                    if (cid) {
+                        try {
+                            await firestore.deleteDocument({
+                                pathSegments: ['businesses', bid, 'contacts', cid],
+                            });
+                        } catch (e) {
+                            console.warn(`firestore deleteDocument contact ${cid} failed:`, e);
+                        }
+                        try {
+                            await firestore.deleteDocument({
+                                pathSegments: ['prospect', cid],
+                            });
+                        } catch (e) {
+                            console.warn(`firestore deleteDocument prospect ${cid} failed:`, e);
+                        }
+                    }
+                }
+
+                // Delete the business document businesses/{bid}
+                try {
+                    await firestore.deleteDocument({
+                        pathSegments: ['businesses', bid],
+                    });
+                } catch (e) {
+                    console.warn(`firestore deleteDocument business ${bid} failed:`, e);
+                }
+
+                // Update local datasets in smDataContext
+                const deletedCidSet = new Set(
+                    contactsToDelete.map((c) => String(c.cid || c.EntID || c.id || '').toLowerCase())
+                );
+                if (smDataContext.datasets?.contacts) {
+                    const nextContacts = smDataContext.datasets.contacts.filter(
+                        (c) => String(c.bid || '').toLowerCase() !== bid.toLowerCase() && !deletedCidSet.has(String(c.cid).toLowerCase())
+                    );
+                    smDataContext.updateDataset('contacts', nextContacts);
+                }
+                if (smDataContext.datasets?.prospect) {
+                    const nextProspects = smDataContext.datasets.prospect.filter(
+                        (p) => !deletedCidSet.has(String((p as any).cid || (p as any).id || (p as any).EntID).toLowerCase())
+                    );
+                    smDataContext.updateDataset('prospect', nextProspects);
+                }
+                if (smDataContext.datasets?.businesses) {
+                    const nextBusinesses = smDataContext.datasets.businesses.filter(
+                        (b) => String(b.bid).toLowerCase() !== bid.toLowerCase()
+                    );
+                    smDataContext.updateDataset('businesses', nextBusinesses);
+                }
+
+                // Log the permanent business delete
+                await createStatusChangeLog('permanently deleted', 'business', bid);
+
+                commonVariableContext.setReloadTreeFor({
+                    featureId: String(explorerContainerProps.featureId),
+                    entId: bid,
+                    timestamp: Date.now(),
+                });
+            }
+        } finally {
+            statusBarContext?.setIsLoading?.(false);
+            statusBarContext?.setLoadingLabel?.(undefined);
+        }
+    };
+
+    const handleConfirmYes = async () => {
+        setIsConfirmOpen(false);
+        setConfirmMessage("");
+
+        if (pendingPermanentDelete) {
+            const deleteInfo = pendingPermanentDelete;
+            setPendingPermanentDelete(null);
+            await performPermanentDelete(deleteInfo);
+            return;
+        }
+
+        if (!pendingStatusUpdate) return;
+        const { targetNode, action } = pendingStatusUpdate;
+        setPendingStatusUpdate(null);
+        await performStatusUpdate(targetNode, action);
+    };
+
+    const handleConfirmNo = () => {
+        setIsConfirmOpen(false);
+        setConfirmMessage("");
+        setPendingStatusUpdate(null);
+        setPendingPermanentDelete(null);
+    };
+
+    const handleKebabMenuSelect = async (selectedItem: any, selectedNodeInfoParam?: ISelectedNodeInfo) => {
         const payload = selectedItem?.payload ?? selectedItem;
         const targetNode = selectedNodeInfoParam?.node ?? selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer;
         const label = String(payload?.Label ?? '').trim().toLowerCase();
+        const alias = String(payload?.Alias ?? '').trim().toLowerCase();
 
+        const isUnapproved = label === kebabMenuEnums.Unapprove || label === kebabMenuEnums.Unapproved;
+        const isBlock = label === kebabMenuEnums.Block || label === kebabMenuEnums.Blocked;
+        const isDelete = label === kebabMenuEnums.Delete || label === kebabMenuEnums.Deleted;
+        const isServices = label === kebabMenuEnums.Services || alias === 'service';
+        const isCopy = label === kebabMenuEnums.Copy;
+        const isAddBusiness = label === kebabMenuEnums.AddBusiness;
+        const isAddContact = label === kebabMenuEnums.AddContact;
 
-        const isAddBusiness =
-            label === 'add business'
+        const isSettingDeleteFeature =
+            String(explorerContainerProps.featureId) === SettingEnums.Delete ||
+            String(explorerContainerProps.featureId) === '920' ||
+            String(explorerContainerProps.featureId).toLowerCase() === 'delete';
 
+        if (isSettingDeleteFeature && isDelete) {
+            if (!targetNode || FnIsRootBusinessNode(targetNode)) return;
 
-        const isAddContact =
-            label === 'add contact'
+            const isContact = Boolean(
+                targetNode.NodeType?.toLowerCase() === "contact" ||
+                targetNode.treetype?.toLowerCase() === "contact" ||
+                targetNode.NodeEntityname?.toLowerCase() === "contact" ||
+                (targetNode.cid && targetNode.cid !== targetNode.bid)
+            );
 
-        if (payload?.Label?.toLowerCase() === 'services' || payload?.Alias?.toLowerCase() === 'service') {
+            if (isContact) {
+                const cid = String(targetNode.cid || targetNode.NodeEntID || targetNode.key);
+                let parentBid = String(targetNode.bid || targetNode.parentEntID || '').trim();
+                if (!parentBid || parentBid.toLowerCase() === 'root-businesses' || parentBid.toLowerCase() === 'businesses') {
+                    const foundInContext = smDataContext.datasets?.contacts?.find(
+                        (c) => String(c.cid).toLowerCase() === cid.toLowerCase()
+                    );
+                    if (foundInContext?.bid) {
+                        parentBid = String(foundInContext.bid);
+                    } else {
+                        const match = cid.match(/bid_\d+/i);
+                        if (match) {
+                            parentBid = match[0];
+                        }
+                    }
+                }
+
+                setPendingPermanentDelete({
+                    type: 'contact',
+                    bid: parentBid,
+                    cid: cid,
+                    targetNode: targetNode,
+                });
+                setConfirmMessage(`Are you sure you wish to permanently delete contact:${cid} for business: ${parentBid}`);
+                setIsConfirmOpen(true);
+                return;
+            } else {
+                // Business node
+                const bid = String(targetNode.bid || targetNode.NodeEntID || targetNode.key);
+                let contactList = smDataContext.getContactsForTree ? smDataContext.getContactsForTree(bid, {}) : [];
+                if (!contactList || contactList.length === 0) {
+                    const fromDataset = (smDataContext.datasets?.contacts ?? []).filter(
+                        (c) => String(c.bid || '').toLowerCase() === bid.toLowerCase()
+                    );
+                    if (fromDataset.length > 0) {
+                        contactList = fromDataset;
+                    } else {
+                        try {
+                            const res = await firestore.queryDocuments({
+                                pathSegments: ['businesses', bid, 'contacts'],
+                            });
+                            if (res?.data && Array.isArray(res.data)) {
+                                contactList = res.data as any;
+                            }
+                        } catch (e) {
+                            console.warn("Failed to query contacts from firestore:", e);
+                        }
+                    }
+                }
+                const contactCount = contactList.length;
+
+                setPendingPermanentDelete({
+                    type: 'business',
+                    bid: bid,
+                    contactList: contactList,
+                    targetNode: targetNode,
+                });
+                setConfirmMessage(`There are ${contactCount} contacts. Are you sure you wish to permanently delete all contacts for business: ${bid}?`);
+                setIsConfirmOpen(true);
+                return;
+            }
+        }
+
+        if (isUnapproved || isBlock || isDelete) {
+            if (!targetNode) return;
+
+            const action = isUnapproved ? 'unapproved' : (isBlock ? 'block' : 'delete');
+            setPendingStatusUpdate({ targetNode, action });
+            setConfirmMessage("Are you sure you want to update status?");
+            setIsConfirmOpen(true);
+            return;
+        }
+
+        if (isServices) {
             FnRedirectService(targetNode);
-        } else if (payload?.Label === 'Copy' && targetNode) {
+        } else if (isCopy && targetNode) {
             FnCopyToClipboard(targetNode.TableLabel ? `${targetNode.TableLabel}` : (targetNode.Name ? targetNode.Name : ''));
         } else if (isAddBusiness) {
             const message = payload?.Tooltip || 'Add Business';
@@ -606,17 +1067,13 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             </div>
             <YesNoFormContainer
                 isOpen={isConfirmOpen}
-                uniqueName={'appqatask-confirm'}
+                uniqueName={'status-update-confirm'}
                 message={confirmMessage}
-                handleNoButtonClick={() => {
-                    setConfirmMessage("");
-                    setIsConfirmOpen(false);
-                }}
-                handleOkButtonClick={() => {
-                    setConfirmMessage("");
-                    setIsConfirmOpen(false);
-                    FnRedirectService()
-                }} />
+                dialogTitle={"Confirm"}
+                handleYesButtonClick={handleConfirmYes}
+                handleNoButtonClick={handleConfirmNo}
+                handleOkButtonClick={handleConfirmNo}
+            />
         </div >
     )
 }

@@ -9,6 +9,7 @@ import { Image } from '../../basic/image/Image';
 import { NodeMenu } from '../../menu/nodemenu/NodeMenu';
 import { getfeaturesData } from '../../context/contextandprovider/MainApp';
 import { IFeatureItem } from '../../allinterface/menu/INodeMenu';
+import { SettingEnums } from '../../../constants/Feature';
 
 const TreeNodeTitle = (
     treeNode: ITreeNode,
@@ -32,11 +33,26 @@ const TreeNodeTitle = (
         }
     }
 
+    const nodeStatus = String(treeNode.status ?? treeNode.NodeState ?? '').trim().toLowerCase();
+    const isBlocked = nodeStatus === 'blocked';
+    const isDeleted = nodeStatus === 'deleted' || nodeStatus === 'tobedeleted';
+
+    const nodeNameStyle: React.CSSProperties = {
+        ...(isBlocked ? { color: 'red' } : {}),
+        ...(isDeleted ? { textDecoration: 'line-through' } : {}),
+    };
+
+    const nodeStatusClass = `${isBlocked ? 'nz-tree-node-blocked' : ''} ${isDeleted ? 'nz-tree-node-deleted' : ''}`.trim();
+
     const renderNodeName = () => {
         return (
-            <Fragment key={`node-title-content-${treeNode.key}`}>
+            <span
+                key={`node-title-content-${treeNode.key}`}
+                className={nodeStatusClass || undefined}
+                style={nodeNameStyle}
+            >
                 {treeNode.TableLabel || titleContent}
-            </Fragment>
+            </span>
         );
     };
 
@@ -86,17 +102,32 @@ const TreeNodeTitle = (
             (treeNode.cid && treeNode.cid !== treeNode.bid)
         );
 
+        const isRootNode =
+            treeNode.key === "root-businesses" ||
+            treeNode.NodeType?.toLowerCase() === "root";
+
+        const isSettingDeleteFeature =
+            featureId === SettingEnums.Delete ||
+            featureId === "920" ||
+            String(featureId).toLowerCase() === "delete";
+
+        const allowKebab =
+            showKebabIcon &&
+            handleKebabMenuSelect &&
+            !isRootNode &&
+            (isContactNode || isSettingDeleteFeature);
+
         return (
             <span className="nz-tree-node-icons-wrapper" key={`node-icons-${treeNode.key}`}>
 
-                {isContactNode && showKebabIcon && handleKebabMenuSelect && (
+                {allowKebab && (
                     <span key={`node-icons-kebabmenu-${treeNode.key}`} className="nz-tree-node-nz-icon-div nz-node-kebab-copy-icon">
                         <NodeMenu
                             showIcon={true}
                             uniqueName={`kebab-${treeNode.key}`}
-                            handleSelect={handleKebabMenuSelect}
+                            handleSelect={(item: any) => handleKebabMenuSelect(item, treeNode)}
                             featureId={featureId}
-                            selectedNode={selectedNodeExplorer?.node || treeNode}
+                            selectedNode={treeNode}
                             container="explorer_tree"
                             featureData={featureData || getfeaturesData() || []}
                             allowAddCopyIconInOverlay={true}
@@ -167,7 +198,12 @@ const TreeNodeTitle = (
             node-info={JSON.stringify(clonedNode)}
         >
             <span className="nz-tree-node-content">
-                <span key={`node-title-name-${treeNode.key}`} className={treeNode.EntID} node-info={JSON.stringify(clonedNode)}>
+                <span
+                    key={`node-title-name-${treeNode.key}`}
+                    className={`${treeNode.EntID || ''} ${nodeStatusClass}`.trim()}
+                    style={nodeNameStyle}
+                    node-info={JSON.stringify(clonedNode)}
+                >
                     {renderNodeName()}
                 </span>
                 <Fragment key={`node-title-icon-${treeNode.key}`}>

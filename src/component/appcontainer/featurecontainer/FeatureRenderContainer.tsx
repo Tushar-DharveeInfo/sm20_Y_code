@@ -1,5 +1,5 @@
 import { lazy, Suspense, } from 'react'
-import { TicketsEnums, RmsEnums, ClientEnums, HomeEnums, ProspectEnums, FAQEnums, AboutEnums } from '../../constants/Feature.ts'
+import { TicketsEnums, RmsEnums, ClientEnums, HomeEnums, ProspectEnums, FAQEnums, AboutEnums, SettingEnums } from '../../constants/Feature.ts'
 import ErrorBoundary from '../../shared/errorboundary/ErrorBoundary.tsx'
 import { Loader } from '../../shared/loader/Loader.tsx'
 import { Label } from '../../shared/basic/label/Label.tsx'
@@ -168,6 +168,8 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
         case ProspectEnums.Past:
         case ProspectEnums.Delete:
         case ProspectEnums.Verify:
+        case SettingEnums.Delete:
+        case "920":
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>

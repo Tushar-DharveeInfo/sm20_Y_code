@@ -253,6 +253,20 @@ html {
     display: inline-block;
 }
 
+.nz-tree-node-blocked,
+.nz-node-blocked,
+.rc-tree-title .nz-tree-node-blocked,
+.rc-tree-title .nz-node-blocked {
+    color: red !important;
+}
+
+.nz-tree-node-deleted,
+.nz-node-deleted,
+.rc-tree-title .nz-tree-node-deleted,
+.rc-tree-title .nz-node-deleted {
+    text-decoration: line-through !important;
+}
+
 .rc-tree-title .nz-tree-node-title .nz-tree-node-content .nz-tree-node-icons-wrapper {
     min-width: 50px;
     width: auto;

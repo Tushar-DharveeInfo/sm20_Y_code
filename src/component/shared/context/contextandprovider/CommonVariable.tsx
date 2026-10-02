@@ -11,7 +11,7 @@ const CommonVariableContext = createContext<ICommonVariable | undefined>(undefin
 function CommonVariableProvider({ children }: IAppContextWrapper) {
     const [sidebarWidth, setSidebarWidth] = useState<number>(0);
     const [selectedNodeMenu, setSelectedNodeMenu] = useState<any>([]);
-    const [reloadTreeFor, setReloadTreeFor] = useState<{ featureId: string, entId: string, dropNodeEntId?: string }>();
+    const [reloadTreeFor, setReloadTreeFor] = useState<{ featureId: string, entId: string, dropNodeEntId?: string, timestamp?: number }>();
     const [diagnosticLevel, setDiagnosticLevel] = useState<string>();
     const [sessionVarsForTreeNode, setSessionVarsForTreeNode] = useState<ISessionVars>();
 

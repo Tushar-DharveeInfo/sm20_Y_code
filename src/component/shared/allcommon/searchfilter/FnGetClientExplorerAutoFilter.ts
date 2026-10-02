@@ -1,6 +1,6 @@
 
 import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
-import { ClientEnums, TicketsEnums, RmsEnums, ProspectEnums } from "../../../constants/Feature";
+import { ClientEnums, TicketsEnums, RmsEnums, ProspectEnums, SettingEnums } from "../../../constants/Feature";
 
 /**
  * Default explorer filter for Client menu features and MCS Development.
@@ -35,6 +35,15 @@ const FnGetClientExplorerAutoFilter = (
         case TicketsEnums.ApprovedTickets:
             return { verified: "true" };
 
+        // [Prospect] Review Deleted & [Setting] Delete: businesses that have at least one contact where status == deleted
+        case ProspectEnums.ReviewDeleted:
+        case "258":
+        case SettingEnums.Delete:
+        case "920":
+        case "review deleted":
+        case "delete":
+            return {};
+
         default:
             return {};
     }
@@ -62,15 +71,24 @@ const FnIsProspectMenuFeature = (featureId?: string): boolean => {
         || featureId === ProspectEnums.Recent
         || featureId === ProspectEnums.Past
         || featureId === ProspectEnums.ReviewDeleted
+        || featureId === "258"
+        || String(featureId).toLowerCase() === "review deleted"
     );
 };
 
-/* True when this featureId is under the Client or Prospect menu. */
+/* True when this featureId is under the Client or Prospect menu, or [Setting] Delete (uses cached Prospects). */
 const FnIsClientOrProspectFeature = (
     featureId?: string,
     featureRecords?: Array<{ _Feature?: string; Feature?: string; EntID?: string; MenuID?: string; Label?: string }>
 ): boolean => {
     if (!featureId) return false;
+    if (
+        featureId === SettingEnums.Delete
+        || featureId === "920"
+        || String(featureId).toLowerCase() === "delete"
+    ) {
+        return true;
+    }
     if (FnIsClientMenuFeature(featureId) || FnIsProspectMenuFeature(featureId)) {
         return true;
     }

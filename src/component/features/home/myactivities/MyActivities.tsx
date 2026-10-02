@@ -169,6 +169,8 @@ function extractDateRangeValues(data: Record<string, unknown>): { startDate: str
 const MyActivities = (myActivitiesProps: IMyActivities) => {
     const headerTitle = myActivitiesProps.headerText ?? "My Activities";
     const mainAppContext = useMainAppContext();
+    const maxLogLimit = Number(mainAppContext.getApValue?.('maxlogdocs'));
+    const maxLogFetch = maxLogLimit + 1;
     const bid = String(mainAppContext.authSession?.bid ?? '').trim();
     const cid = String(mainAppContext.authSession?.cid ?? '').trim();
     const { getActivities } = useActivities(bid);
@@ -195,7 +197,7 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
         setLoading(true);
         setError(null);
         try {
-            const limitcount = 501;
+            const limitcount = maxLogFetch;
             const data = await (getActivities as (
                 filters?: IFirestoreQueryFilter[],
                 fetchByFilter?: unknown,
@@ -205,7 +207,6 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
                 undefined,
                 limitcount
             );
-            debugger;
             setActivities(data ?? []);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch activities');
@@ -221,9 +222,9 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
         if (!loading && activities !== null) {
             if (!hasCheckedInitialLoadRef.current) {
                 hasCheckedInitialLoadRef.current = true;
-                if (activities.length >= 501) {
+                if (activities.length >= maxLogFetch) {
                     setIsFilterIconVisible(true);
-                    setPopupMessage("More than 500 records exist. Please use filter to refine your search.");
+                    setPopupMessage(`More than ${maxLogLimit} records exist. Please use filter to refine your search.`);
                     setIsPopupOpen(true);
                 } else {
                     setIsFilterIconVisible(false);
@@ -351,7 +352,7 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
         });
     }, [activities, appliedFilter]);
 
-    const rowData = useMemo(() => allFilteredRows.slice(0, 500), [allFilteredRows]);
+    const rowData = useMemo(() => allFilteredRows.slice(0, maxLogLimit), [allFilteredRows]);
 
     const handleDownloadExcel = useCallback(() => {
         const api = gridRef.current?.api;
@@ -406,8 +407,8 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
         if (message) {
             list = list.filter((row) => String(row.message || '').toLowerCase().includes(message.toLowerCase()));
         }
-        if (list.length >= 501) {
-            setPopupMessage("More than 500 records exist. Please use filter to refine your search.");
+        if (list.length >= maxLogFetch) {
+            setPopupMessage(`More than ${maxLogLimit} records exist. Please use filter to refine your search.`);
             setIsPopupOpen(true);
         }
     }, [activities]);

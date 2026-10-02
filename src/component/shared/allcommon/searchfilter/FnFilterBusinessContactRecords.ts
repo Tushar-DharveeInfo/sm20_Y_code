@@ -438,6 +438,16 @@ function matchesContactFilters(
             if (!wanted || !tags.includes(wanted)) return false;
             continue;
         }
+        if (key === "status") {
+            const recStatus = String(recordVal ?? "").trim().toLowerCase();
+            const filStatus = String(filterVal ?? "").trim().toLowerCase();
+            if (filStatus === "deleted") {
+                if (recStatus !== "deleted" && recStatus !== "tobedeleted") return false;
+            } else if (recStatus !== filStatus) {
+                return false;
+            }
+            continue;
+        }
         if (recordVal !== filterVal) return false;
     }
     return true;

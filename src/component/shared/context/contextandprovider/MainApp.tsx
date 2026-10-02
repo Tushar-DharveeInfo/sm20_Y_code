@@ -32,8 +32,13 @@ function MainAppProvider({ children }: IAppContextWrapper) {
 
     useEffect(() => {
         // apJson resolves asynchronously once authSession/folderName are available.
+        // The JSON uses lowercase keys (apname, value); normalize to IAp shape (apName, apValue).
         if (!apJson) return;
-        setAp(apJson as unknown as IAp[]);
+        const normalized = (apJson as unknown as Record<string, string>[]).map((item: any) => ({
+            apName: item.apName ?? item.apname ?? '',
+            apValue: item.apValue ?? item.value ?? '',
+        }));
+        setAp(normalized as IAp[]);
     }, [apJson]);
 
     const setFeatureRecords = useCallback((value: React.SetStateAction<IFeatureItem[]>) => {

@@ -46,10 +46,19 @@ const TreeControl = (treeControlProps: ITreeControl) => {
     }
   }, [treeControlProps.treeData]);
 
+  // Reset expanded keys when featureId changes
+  useEffect(() => {
+    setExpandedKeys(treeControlProps.defaultExpandedKeys ?? []);
+    setIsManualExpanded(false);
+  }, [treeControlProps.featureId]);
+
   // Effect 2: Handle expanded keys updates
   useEffect(() => {
     if (treeControlProps.defaultExpandedKeys) {
-      if (
+      if (treeControlProps.defaultExpandedKeys.length === 0) {
+        setExpandedKeys([]);
+        setIsManualExpanded(false);
+      } else if (
         treeControlProps.allowDefaultExpandAll &&
         treeControlProps.treeData &&
         treeControlProps.treeData.length > 0 &&

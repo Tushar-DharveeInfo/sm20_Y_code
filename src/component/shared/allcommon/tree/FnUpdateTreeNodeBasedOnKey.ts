@@ -3,6 +3,7 @@ import { ITreeForFlatDataContainer } from "../../allinterface/tree/ITreeForFlatD
 import { ISelectedNodeInfo, ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";
 import { IActionImageForSubMenu } from "../../allinterface/basic/IActionImageList";
+import { SettingEnums } from "../../../constants/Feature";
 
 // This function will update tree node if HideKebabMenu or HideCopyIcon is false
 const FnUpdateTreeNodeBasedOnKey = async (
@@ -26,12 +27,19 @@ const FnUpdateTreeNodeBasedOnKey = async (
                     item.NodeEntityname?.toLowerCase() === "contact" ||
                     (item.cid && item.cid !== item.bid)
                 );
+                const isSettingDeleteFeature =
+                    treeContainerProps.featureId === SettingEnums.Delete ||
+                    treeContainerProps.featureId === "920" ||
+                    String(treeContainerProps.featureId).toLowerCase() === "delete";
+                const isRootNode = item.key === "root-businesses" || item.NodeType?.toLowerCase() === "root";
+                const allowKebab = showKebabIcon && (isContactNode || (isSettingDeleteFeature && !isRootNode));
+
                 // Update the matched node
                 item.title = TreeNodeTitle(
                     item,
                     treeContainerProps.featureTreeProps,
                     treeContainerProps.featureId,
-                    showKebabIcon && isContactNode,
+                    allowKebab,
                     showCopyIcon,
                     selectedNodeExplorer || ({ node: item } as ISelectedNodeInfo),
                     handleKebabMenuSelect

@@ -117,41 +117,18 @@ enum KebabServicesEnums {
     ClientIdentityManagementServices = "10904",
 }
 
-// Kebab Action menu feature ids (Unapprove, Block, Delete) — match public/smFeatures.json
-enum KebabActionEnums {
-    // Client Kebab Actions (208, 212, 216, 218, 220)
-    NetZoomUnapprove = "12082",
-    NetZoomBlock = "12084",
-    NetZoomDelete = "12086",
 
-    VisioStencilsUnapprove = "12122",
-    VisioStencilsBlock = "12124",
-    VisioStencilsDelete = "12126",
-
-    SSIUnapprove = "12162",
-    SSIBlock = "12164",
-    SSIDelete = "12166",
-
-    ResellerUnapprove = "12182",
-    ResellerBlock = "12184",
-    ResellerDelete = "12186",
-
-    McsUnapprove = "12202",
-    McsBlock = "12204",
-    McsDelete = "12206",
-
-    // Prospect Kebab Actions (252, 254, 256)
-    FollowupUnapprove = "12522",
-    FollowupDelete = "12524",
-
-    RecentUnapprove = "12542",
-    RecentDelete = "12544",
-
-    PastUnapprove = "12562",
-    PastDelete = "12564",
-
-    // Setting Delete Kebab Action (920)
-    SettingDelete = "19202",
+enum kebabMenuEnums {
+    Services = 'services',
+    Unapprove = 'unapprove',
+    Unapproved = 'unapproved',
+    Block = 'block',
+    Blocked = 'blocked',
+    Delete = 'delete',
+    Deleted = 'deleted',
+    Copy = 'copy',
+    AddBusiness = 'add business',
+    AddContact = 'add contact',
 }
 
 // Feature QA ToDo IDs across menus — match public/smFeatures.json
@@ -274,6 +251,7 @@ export {
     FeatureMenuRange,
     AppQA,
     AppQARange,
+    kebabMenuEnums,
     HomeEnums,
     ClientEnums,
     ProspectEnums,
@@ -283,7 +261,6 @@ export {
     SettingEnums,
     AboutEnums,
     KebabServicesEnums,
-    KebabActionEnums,
     FeatureToDoEnums,
     FeatureProfileEnums,
     FeatureListEnums,

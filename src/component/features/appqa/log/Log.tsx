@@ -171,6 +171,8 @@ const Log = (logProps: ILog) => {
     const headerTitle = logProps.headerText ?? "Log";
     const mainAppContext = useMainAppContext();
     const userInfo = mainAppContext.authSession;
+    const maxLogLimit = Number(mainAppContext.getApValue?.('maxlogdocs'));
+    const maxLogFetch = maxLogLimit + 1;
 
     const nodeType = String(logProps.selectedNode?.NodeType ?? '').trim().toLowerCase();
 
@@ -211,7 +213,7 @@ const Log = (logProps: ILog) => {
     const triggerOver500Popup = useCallback(() => {
         if (!hasShownOver500PopupRef.current) {
             hasShownOver500PopupRef.current = true;
-            setPopupMessage("More than 500 records exist. Please use filter to refine your search.");
+            setPopupMessage(`More than ${maxLogLimit} records exist. Please use filter to refine your search.`);
             setIsPopupOpen(true);
         }
     }, []);
@@ -224,7 +226,7 @@ const Log = (logProps: ILog) => {
         setLoading(true);
         setError(null);
         try {
-            const limitcount = 501;
+            const limitcount = maxLogFetch;
             const data = await (getActivities as (
                 filters?: IFirestoreQueryFilter[],
                 fetchByFilter?: unknown,
@@ -253,7 +255,7 @@ const Log = (logProps: ILog) => {
         if (!loading && activities !== null) {
             if (!hasCheckedInitialLoadRef.current) {
                 hasCheckedInitialLoadRef.current = true;
-                if (activities.length >= 501) {
+                if (activities.length >= maxLogFetch) {
                     setIsFilterIconVisible(true);
                     triggerOver500Popup();
                 } else {
@@ -426,7 +428,7 @@ const Log = (logProps: ILog) => {
         });
     }, [activities, appliedFilter]);
 
-    const rowData = useMemo(() => allFilteredRows.slice(0, 500), [allFilteredRows]);
+    const rowData = useMemo(() => allFilteredRows.slice(0, maxLogLimit), [allFilteredRows]);
 
     const handleDownloadExcel = useCallback(() => {
         const api = gridRef.current?.api;
@@ -496,7 +498,7 @@ const Log = (logProps: ILog) => {
         if (message) {
             list = list.filter((row) => String(row.message || '').toLowerCase().includes(message.toLowerCase()));
         }
-        if (list.length >= 501) {
+        if (list.length >= maxLogFetch) {
             triggerOver500Popup();
         }
     }, [activities, triggerOver500Popup]);

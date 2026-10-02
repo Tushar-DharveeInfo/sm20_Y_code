@@ -32,8 +32,21 @@ import { TreeControl } from '../tree/treecontrol/TreeControl.tsx'
 import { useBusinesses, useContacts, useFirestore } from '@n20a/libfsdb'
 import { useCommonVariableContext } from '../context/hooks/CommonVariableHooks.ts'
 import { useMainAppContext } from '../context/hooks/MainAppHooks.ts'
-import { FnCopyToClipboard } from '../allcommon/basic/FnCopyToClipboard.ts'
-import { FnUpdateTreeNodeBasedOnKey } from '../allcommon/tree/FnUpdateTreeNodeBasedOnKey.ts'
+import { kebabMenuEnums, ProspectEnums, SettingEnums } from '../../constants/Feature.ts'
+import { useStatusBarContext } from '../context/hooks/StatusBarHooks.ts'
+
+const isReviewDeletedFeature = (featureId?: string) => {
+  if (!featureId) return false;
+  const fid = String(featureId).toLowerCase().trim();
+  return (
+    featureId === ProspectEnums.ReviewDeleted ||
+    featureId === '258' ||
+    featureId === SettingEnums.Delete ||
+    featureId === '920' ||
+    fid === 'review deleted' ||
+    fid === 'delete'
+  );
+};
 
 function buildFeatureTreeProps(allowCheckbox = false, hideKebabMenu = false): IFeatureTree {
   return {
@@ -99,7 +112,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   const filterFormDataRef = useRef<IDCFilterControlValues>({})
   const isFilterChangeRef = useRef(false)
   const firestore = useFirestore()
-  const { getBusinesses } = useBusinesses()
+  const statusBarContext = useStatusBarContext()
+  const { getBusinesses, updateBusiness } = useBusinesses()
   const treeDataRef = useRef<ITreeNode[] | undefined>(undefined)
   const originalTreeDataRef = useRef<ITreeNode[]>([])
   const getContactsRef = useRef<ReturnType<typeof useContacts>['getContacts'] | null>(null)
@@ -107,7 +121,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
   const prevFeatureIdRef = useRef<string>(undefined)
   const [expandedBusinessId, setExpandedBusinessId] = useState('')
-  const { getContacts } = useContacts(expandedBusinessId)
+  const { getContacts, updateContact } = useContacts(expandedBusinessId)
   getContactsRef.current = getContacts
   treeDataRef.current = treeData
   originalTreeDataRef.current = originalTreeData
@@ -150,35 +164,17 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       return;
     }
     const label = String(payload?.Label ?? '').trim().toLowerCase();
-    const tooltip = String(payload?.Tooltip ?? '').trim().toLowerCase();
     const alias = String(payload?.Alias ?? '').trim().toLowerCase();
-    const feat = String(payload?.Feature ?? payload?._Feature ?? '');
 
-    const isAddBusiness =
-      label === 'business' ||
-      label === 'add business' ||
-      label === 'add bs' ||
-      label === 'bs' ||
-      tooltip.includes('add business') ||
-      tooltip.includes('add bs') ||
-      alias === 'business' ||
-      alias === 'addbusiness' ||
-      alias === 'addbs' ||
-      feat === '12524' ||
-      feat === '12544' ||
-      feat === '12564';
+    const isUnapproved = label === kebabMenuEnums.Unapprove || label === kebabMenuEnums.Unapproved;
+    const isBlock = label === kebabMenuEnums.Block || label === kebabMenuEnums.Blocked;
+    const isDelete = label === kebabMenuEnums.Delete || label === kebabMenuEnums.Deleted;
+    const isServices = label === kebabMenuEnums.Services || alias === 'service';
+    const isCopy = label === kebabMenuEnums.Copy;
+    const isAddBusiness = label === kebabMenuEnums.AddBusiness;
+    const isAddContact = label === kebabMenuEnums.AddContact;
 
-    const isAddContact =
-      label === 'contact' ||
-      label === 'add contact' ||
-      tooltip.includes('add contact') ||
-      alias === 'contact' ||
-      alias === 'addcontact' ||
-      feat === '12526' ||
-      feat === '12546' ||
-      feat === '12566';
-
-    if (payload?.Label?.toLowerCase() === 'services' || payload?.Alias?.toLowerCase() === 'service') {
+    if (isServices) {
       const bid = targetNode?.bid ?? '';
       const cid = targetNode?.cid ?? targetNode?.NodeEntID ?? '';
       const url = new URL(window.location.href);
@@ -188,7 +184,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       if (newTab) {
         newTab.document.title = 'Service';
       }
-    } else if (payload?.Label === 'Copy' && targetNode) {
+    } else if (isCopy && targetNode) {
       FnCopyToClipboard(targetNode.TableLabel ? `${targetNode.TableLabel}` : (targetNode.Name ? targetNode.Name : ''));
     } else if (isAddBusiness) {
       const message = payload?.Tooltip || 'Add Business';
@@ -196,8 +192,125 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     } else if (isAddContact) {
       const message = payload?.Tooltip || 'Add Contact';
       alert(message);
+    } else if (targetNode) {
+      if (isUnapproved || isBlock || isDelete) {
+        const isContact = Boolean(
+          targetNode.NodeType?.toLowerCase() === "contact" ||
+          targetNode.treetype?.toLowerCase() === "contact" ||
+          targetNode.NodeEntityname?.toLowerCase() === "contact" ||
+          (targetNode.cid && targetNode.cid !== targetNode.bid)
+        );
+
+        const cid = String(targetNode.cid || targetNode.NodeEntID || targetNode.key);
+        let parentBid = String(targetNode.bid || targetNode.parentEntID || '').trim();
+        if (!parentBid || parentBid.toLowerCase() === 'root-businesses' || parentBid.toLowerCase() === 'businesses') {
+          const foundInContext = smDataContext.datasets?.contacts?.find(
+            (c) => String(c.cid).toLowerCase() === cid.toLowerCase()
+          );
+          if (foundInContext?.bid) {
+            parentBid = String(foundInContext.bid);
+          } else {
+            const match = cid.match(/bid_\d+/i);
+            if (match) {
+              parentBid = match[0];
+            }
+          }
+        }
+
+        if (isUnapproved) {
+          targetNode.verified = false;
+          targetNode.IsAuthorized = false;
+          if (isContact) {
+            void firestore.updateDocument({
+              pathSegments: ['businesses', parentBid, 'contacts', cid],
+              data: { verified: false, monitor: false },
+              allowedKeys: ['verified', 'monitor'],
+            }).catch((err) => console.warn('firestore updateDocument contact unapproved error:', err));
+            if (smDataContext.datasets?.contacts) {
+              smDataContext.updateDataset('contacts', smDataContext.datasets.contacts.map((c) =>
+                String(c.cid).toLowerCase() === cid.toLowerCase() ? { ...c, verified: false, monitor: false } : c
+              ));
+            }
+          } else {
+            const bid = String(targetNode.bid || targetNode.NodeEntID || targetNode.key);
+            void firestore.updateDocument({
+              pathSegments: ['businesses', bid],
+              data: { verified: false },
+              allowedKeys: ['verified'],
+            }).catch((err) => console.warn('firestore updateDocument business unapproved error:', err));
+            if (smDataContext.datasets?.businesses) {
+              smDataContext.updateDataset('businesses', smDataContext.datasets.businesses.map((b) =>
+                String(b.bid).toLowerCase() === bid.toLowerCase() ? { ...b, verified: false } : b
+              ));
+            }
+          }
+        } else if (isBlock) {
+          targetNode.status = 'Blocked';
+          targetNode.NodeState = 'Blocked';
+          targetNode.Description = 'Blocked';
+          if (isContact) {
+            void firestore.updateDocument({
+              pathSegments: ['businesses', parentBid, 'contacts', cid],
+              data: { status: 'Blocked' },
+              allowedKeys: ['status'],
+            }).catch((err) => console.warn('firestore updateDocument contact Blocked error:', err));
+            if (smDataContext.datasets?.contacts) {
+              smDataContext.updateDataset('contacts', smDataContext.datasets.contacts.map((c) =>
+                String(c.cid).toLowerCase() === cid.toLowerCase() ? { ...c, status: 'Blocked' } : c
+              ));
+            }
+          } else {
+            const bid = String(targetNode.bid || targetNode.NodeEntID || targetNode.key);
+            void firestore.updateDocument({
+              pathSegments: ['businesses', bid],
+              data: { status: 'Blocked' },
+              allowedKeys: ['status'],
+            }).catch((err) => console.warn('firestore updateDocument business Blocked error:', err));
+            if (smDataContext.datasets?.businesses) {
+              smDataContext.updateDataset('businesses', smDataContext.datasets.businesses.map((b) =>
+                String(b.bid).toLowerCase() === bid.toLowerCase() ? { ...b, status: 'Blocked' } : b
+              ));
+            }
+          }
+        } else if (isDelete) {
+          targetNode.status = 'deleted';
+          targetNode.NodeState = 'deleted';
+          targetNode.Description = 'deleted';
+          if (isContact) {
+            void firestore.updateDocument({
+              pathSegments: ['businesses', parentBid, 'contacts', cid],
+              data: { status: 'deleted' },
+              allowedKeys: ['status'],
+            }).catch((err) => console.warn('firestore updateDocument contact deleted error:', err));
+            if (smDataContext.datasets?.contacts) {
+              smDataContext.updateDataset('contacts', smDataContext.datasets.contacts.map((c) =>
+                String(c.cid).toLowerCase() === cid.toLowerCase() ? { ...c, status: 'deleted' } : c
+              ));
+            }
+          } else {
+            const bid = String(targetNode.bid || targetNode.NodeEntID || targetNode.key);
+            void firestore.updateDocument({
+              pathSegments: ['businesses', bid],
+              data: { status: 'deleted' },
+              allowedKeys: ['status'],
+            }).catch((err) => console.warn('firestore updateDocument business deleted error:', err));
+            if (smDataContext.datasets?.businesses) {
+              smDataContext.updateDataset('businesses', smDataContext.datasets.businesses.map((b) =>
+                String(b.bid).toLowerCase() === bid.toLowerCase() ? { ...b, status: 'deleted' } : b
+              ));
+            }
+          }
+        }
+
+        commonVariableContext.setReloadTreeFor({
+          featureId: String(treeExplorerContainerProps.featureId),
+          entId: String(targetNode.cid || targetNode.key || targetNode.NodeEntID || targetNode.bid),
+          dropNodeEntId: isContact ? parentBid : undefined,
+          timestamp: Date.now(),
+        });
+      }
     }
-  }, [treeExplorerContainerProps.handleKebabMenuSelect, defaultSelectedNodeInfo]);
+  }, [treeExplorerContainerProps.handleKebabMenuSelect, treeExplorerContainerProps.featureId, defaultSelectedNodeInfo, smDataContext, firestore, commonVariableContext]);
 
   const selectNode = (
     node: ITreeNode,
@@ -220,7 +333,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     treeExplorerContainerProps.handleNodeSelect?.([node.key], info, expandedKeys, currentTree)
   }
 
-  const setBusinessTree = (nodes: ITreeNode[], targetIdToSelect?: string) => {
+  const setBusinessTree = (nodes: ITreeNode[], targetIdToSelect?: string, isMenuSwitch?: boolean) => {
     const rawRootLabel = treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses'
     const baseLabel = rawRootLabel.replace(/\s*\(\d+\)$/, '').trim() || 'Businesses'
     const rootLabel = `${baseLabel} (${nodes.length})`
@@ -254,21 +367,59 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
     setTreeData(treeNodes)
     setOriginalTreeData(treeNodes)
+    treeDataRef.current = treeNodes
+    originalTreeDataRef.current = treeNodes
     contactsRequestRef.current += 1
     setExpandedBusinessId('')
 
     const urlParams = new URLSearchParams(window.location.search);
-    const targetBid = targetIdToSelect || urlParams.get('bid')?.trim() || String(smDataContext.selection?.bid ?? '').trim();
-    const targetNode = targetBid
-      ? nodes.find((n) => n.NodeEntID === targetBid || n.key === targetBid || (n as any).bid === targetBid)
+    const prevNode = defaultSelectedNodeInfo?.node;
+    let prevBid = (targetIdToSelect || urlParams.get('bid') || '').trim();
+    if (!prevBid && prevNode) {
+      if (prevNode.NodeType === 'Root' || prevNode.key === 'root-businesses') {
+        prevBid = '';
+      } else if (prevNode.NodeType === 'Business' || String(prevNode.key || '').startsWith('bid_')) {
+        prevBid = String(prevNode.NodeEntID || prevNode.key || (prevNode as any).bid || '').trim();
+      } else if (prevNode.NodeType === 'Contact' || String(prevNode.key || '').startsWith('cid_')) {
+        prevBid = String((prevNode as any).bid || prevNode.parentEntID || '').trim();
+      } else {
+        prevBid = String((prevNode as any).bid || prevNode.NodeEntID || prevNode.key || '').trim();
+      }
+    }
+    if (!prevBid && !prevNode && smDataContext.selection?.bid) {
+      prevBid = String(smDataContext.selection.bid).trim();
+    }
+
+    const targetNode = prevBid
+      ? nodes.find((n) => {
+          const nKey = String(n.NodeEntID || n.key || (n as any).bid || '').trim().toLowerCase();
+          return nKey === prevBid.toLowerCase();
+        })
       : undefined;
 
     if (targetNode) {
-      setDefaultExpandedKeys([treeNodes[0].key, targetNode.key]);
-      selectNode(targetNode, [treeNodes[0].key, targetNode.key], treeNodes, 'select');
+      // Previous selected node's business node is found in current feature:
+      // Remove contact expand keys and set expanded key to root and this business node
+      const nextExpanded = [treeNodes[0].key, targetNode.key];
+      setDefaultExpandedKeys(nextExpanded);
+      setExpandedBusinessId(targetNode.key);
+      selectNode(targetNode, nextExpanded, treeNodes, 'select');
+
+      if (!businessesOnly) {
+        void (async () => {
+          try {
+            const records = await fetchContactsFromApi(targetNode.key);
+            await applyContactsToBusiness(targetNode.key, records ?? [], false);
+          } catch (e) {
+            console.warn('Failed to load contacts for auto-selected business:', e);
+          }
+        })();
+      }
     } else if (treeNodes.length > 0) {
-      setDefaultExpandedKeys(treeNodes[0] ? [treeNodes[0].key] : []);
-      selectNode(treeNodes[0], [treeNodes[0].key], treeNodes);
+      // Business node NOT found in current feature: select root node of bs
+      const rootKey = [treeNodes[0].key];
+      setDefaultExpandedKeys(rootKey);
+      selectNode(treeNodes[0], rootKey, treeNodes, 'auto-select');
     } else {
       setDefaultExpandedKeys([]);
       setDefaultSelectedKeys([]);
@@ -280,7 +431,10 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
   const refreshTreeAndSelectNode = async (targetEntId?: string, hintParentBid?: string) => {
     if (!treeExplorerContainerProps.featureId) return;
-    const featureProps = featureTreeProps ?? buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox);
+    statusBarContext?.setIsLoading?.(true);
+    statusBarContext?.setLoadingLabel?.('Loading...');
+    try {
+      const featureProps = featureTreeProps ?? buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox);
 
     // Refresh businesses from API to include any newly added business
     const apiBusinesses = await getBusinesses().catch(() => null);
@@ -314,13 +468,62 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       }
     }
     let businesses = filterBusinessRecords(uniqueBusinesses, mergedForm, treeExplorerContainerProps.featureId);
-    if (hasActiveContactFilters(mergedForm)) {
-      const matchingBids = new Set(
-        smDataContext.getContactsForTree("", mergedForm).map((contact) => contact.bid)
+    const isReviewDeleted = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
+
+    if (isReviewDeleted) {
+      const contactPromises = uniqueBusinesses.map(async (b) => {
+        const bid = String(b.bid || (b as any).EntID || (b as any).id || '').trim();
+        if (!bid) return [];
+        return fetchContactsFromApi(bid);
+      });
+      const allResults = await Promise.all(contactPromises);
+      const allFetchedContacts: IContactDoc[] = [];
+      allResults.forEach((records, idx) => {
+        const bid = String(uniqueBusinesses[idx].bid || (uniqueBusinesses[idx] as any).EntID || (uniqueBusinesses[idx] as any).id || '').trim();
+        const docs = FnMapToContactDocs(records, bid);
+        allFetchedContacts.push(...docs);
+      });
+
+      smDataContext.setDatasets((prev) => {
+        const existing = prev.contacts ?? [];
+        const merged = [...existing];
+        for (const doc of allFetchedContacts) {
+          const idx = merged.findIndex(
+            (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase()
+          );
+          if (idx >= 0) {
+            merged[idx] = { ...merged[idx], ...doc };
+          } else {
+            merged.push(doc);
+          }
+        }
+        return { ...prev, contacts: merged };
+      });
+
+      const deletedBids = new Set(
+        allFetchedContacts
+          .filter((c) => {
+            const st = String(c.status ?? (c as any).Status ?? (c as any).NodeState ?? '').trim().toLowerCase();
+            return st === 'deleted' || st === 'tobedeleted';
+          })
+          .map((c) => String(c.bid ?? '').trim().toLowerCase())
       );
-      businesses = businesses.filter((business) => matchingBids.has(business.bid));
+      businesses = businesses.filter((business) => {
+        const bid = String(business.bid || (business as any).EntID || (business as any).id || '').toLowerCase();
+        return deletedBids.has(bid);
+      });
+    } else if (hasActiveContactFilters(mergedForm)) {
+      const matchingBids = new Set(
+        smDataContext
+          .getContactsForTree("", mergedForm)
+          .map((contact) => String(contact.bid ?? '').toLowerCase())
+      );
+      businesses = businesses.filter((business) => {
+        const bid = String(business.bid || (business as any).EntID || (business as any).id || '').toLowerCase();
+        return matchingBids.has(bid);
+      });
     }
-    const businessNodes = FnMapBusinessesToTreeNodes(businesses, featureProps, treeExplorerContainerProps.featureId);
+    const businessNodes = FnMapBusinessesToTreeNodes(businesses, featureProps, treeExplorerContainerProps.featureId, handleKebabMenuSelect);
 
     let parentBid = hintParentBid ? String(hintParentBid).trim() : '';
 
@@ -391,7 +594,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         (c) => String(c.bid).trim().toLowerCase() === targetBusinessId.toLowerCase()
       );
 
-      const combinedRaw = [...apiContacts, ...contextContacts];
+      const combinedRaw = [...contextContacts, ...apiContacts];
       const seenCids = new Set<string>();
       const uniqueContactsForBid: IContactDoc[] = [];
       for (const c of combinedRaw) {
@@ -416,8 +619,17 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         ],
       }));
 
+      const isReviewDeletedNode = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
+
+      const contactsToFilterForBid = isReviewDeletedNode
+        ? uniqueContactsForBid.filter((c) => {
+            const st = String(c.status ?? (c as any).Status ?? (c as any).NodeState ?? '').trim().toLowerCase();
+            return st === 'deleted' || st === 'tobedeleted';
+          })
+        : uniqueContactsForBid;
+
       const filteredContacts = filterContactRecords(
-        uniqueContactsForBid,
+        contactsToFilterForBid,
         filterFormDataRef.current,
         targetBusinessId
       );
@@ -487,26 +699,38 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     } else {
       setBusinessTree(businessNodes, cleanTargetId);
     }
-  };
+  } finally {
+    statusBarContext?.setIsLoading?.(false);
+    statusBarContext?.setLoadingLabel?.(undefined);
+  }
+};
 
   /*Filters sample businesses (and contact-gated businesses) then maps to tree nodes. */
   const applyBusinessTreeFromFilter = (
     form: IDCFilterControlValues,
     featureProps: IFeatureTree,
     featureId: string,
-    source?: IBusinessDoc[]
+    source?: IBusinessDoc[],
+    isMenuSwitch?: boolean
   ) => {
     const autoFilter = FnGetClientExplorerAutoFilter(featureId)
     const mergedForm: IDCFilterControlValues = { ...autoFilter, ...form }
     const sourceBusinesses = source ?? smDataContext.datasets.businesses ?? []
     let businesses = filterBusinessRecords(sourceBusinesses, mergedForm, featureId)
-    if (hasActiveContactFilters(mergedForm)) {
+    const isReviewDeleted = isReviewDeletedFeature(featureId);
+
+    if (isReviewDeleted || hasActiveContactFilters(mergedForm)) {
       const matchingBids = new Set(
-        smDataContext.getContactsForTree("", mergedForm).map((contact) => contact.bid)
-      )
-      businesses = businesses.filter((business) => matchingBids.has(business.bid))
+        smDataContext
+          .getContactsForTree("", mergedForm)
+          .map((contact) => String(contact.bid ?? '').toLowerCase())
+      );
+      businesses = businesses.filter((business) => {
+        const bid = String(business.bid || (business as any).EntID || (business as any).id || '').toLowerCase();
+        return matchingBids.has(bid);
+      });
     }
-    setBusinessTree(FnMapBusinessesToTreeNodes(businesses, featureProps, featureId))
+    setBusinessTree(FnMapBusinessesToTreeNodes(businesses, featureProps, featureId, handleKebabMenuSelect), undefined, isMenuSwitch)
   }
 
   // Reload business tree when featureId changes.
@@ -517,6 +741,9 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
     const configKey = `${treeExplorerContainerProps.featureId}-${!!treeExplorerContainerProps.allowCheckbox}`
     if (prevFeatureIdRef.current === configKey) return
+
+    setDefaultExpandedKeys(['root-businesses'])
+    setExpandedBusinessId('')
 
     const isClientOrProspect = FnIsClientOrProspectFeature(
       treeExplorerContainerProps.featureId,
@@ -545,7 +772,77 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         featureTreeProps: featureProps,
       })
 
-      applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
+      const isReviewDeleted = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
+
+      if (isReviewDeleted) {
+        void (async () => {
+          statusBarContext?.setIsLoading?.(true);
+          statusBarContext?.setLoadingLabel?.('Loading contacts...');
+          try {
+            let currentBusinesses = smDataContext.datasets.businesses ?? [];
+            if (!currentBusinesses.length) {
+              const apiBs = await getBusinesses().catch(() => null);
+              if (apiBs?.length) {
+                currentBusinesses = FnMapToBusinessDocs(apiBs);
+                smDataContext.setDatasets((prev) => ({ ...prev, businesses: currentBusinesses }));
+              }
+            }
+
+            const contactPromises = currentBusinesses.map(async (b) => {
+              const bid = String(b.bid || (b as any).EntID || (b as any).id || '').trim();
+              if (!bid) return [];
+              return fetchContactsFromApi(bid);
+            });
+            const allResults = await Promise.all(contactPromises);
+            const allFetchedContacts: IContactDoc[] = [];
+            allResults.forEach((records, idx) => {
+              const bid = String(currentBusinesses[idx].bid || (currentBusinesses[idx] as any).EntID || (currentBusinesses[idx] as any).id || '').trim();
+              const docs = FnMapToContactDocs(records, bid);
+              allFetchedContacts.push(...docs);
+            });
+
+            smDataContext.setDatasets((prev) => {
+              const existing = prev.contacts ?? [];
+              const merged = [...existing];
+              for (const doc of allFetchedContacts) {
+                const idx = merged.findIndex(
+                  (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase()
+                );
+                if (idx >= 0) {
+                  merged[idx] = { ...merged[idx], ...doc };
+                } else {
+                  merged.push(doc);
+                }
+              }
+              return { ...prev, contacts: merged };
+            });
+
+            const deletedBids = new Set(
+              allFetchedContacts
+                .filter((c) => {
+                  const st = String(c.status ?? (c as any).Status ?? (c as any).NodeState ?? '').trim().toLowerCase();
+                  return st === 'deleted' || st === 'tobedeleted';
+                })
+                .map((c) => String(c.bid ?? '').trim().toLowerCase())
+            );
+
+            const matchingBusinesses = currentBusinesses.filter((b) => {
+              const bid = String(b.bid || (b as any).EntID || (b as any).id || '').trim().toLowerCase();
+              return deletedBids.has(bid);
+            });
+
+            setBusinessTree(FnMapBusinessesToTreeNodes(matchingBusinesses, featureProps, treeExplorerContainerProps.featureId, handleKebabMenuSelect), undefined, true);
+          } catch (err) {
+            console.warn('Failed to load contacts for review deleted:', err);
+            applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, undefined, true);
+          } finally {
+            statusBarContext?.setIsLoading?.(false);
+            statusBarContext?.setLoadingLabel?.(undefined);
+          }
+        })();
+      } else {
+        applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, undefined, true);
+      }
     } else {
       // If menu is not selected in Client and Prospect, call hook and load data into bs tree
       prevFeatureIdRef.current = configKey
@@ -577,14 +874,14 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               ...prev,
               businesses: mapped,
             }))
-            applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, mapped)
+            applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, mapped, true)
             return
           }
         } catch (err) {
           console.warn('Failed to load businesses from hook for feature:', treeExplorerContainerProps.featureId, err)
         }
         if (prevFeatureIdRef.current === currentConfigKey) {
-          applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId)
+          applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, undefined, true)
         }
       }
 
@@ -602,7 +899,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   useEffect(() => {
     if (!commonVariableContext.reloadTreeFor) return;
     const { featureId, entId, dropNodeEntId } = commonVariableContext.reloadTreeFor;
-    if (featureId && featureId !== treeExplorerContainerProps.featureId) return;
+    if (featureId && String(featureId) !== String(treeExplorerContainerProps.featureId)) return;
     void refreshTreeAndSelectNode(entId, dropNodeEntId);
   }, [commonVariableContext.reloadTreeFor]);
 
@@ -619,7 +916,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       (c) => String(c.bid).trim().toLowerCase() === businessId.trim().toLowerCase()
     );
 
-    const combined = [...apiContacts, ...contextContacts];
+    const combined = [...contextContacts, ...apiContacts];
     const seenCids = new Set<string>();
     const mappedContacts: IContactDoc[] = [];
     for (const c of combined) {
@@ -644,8 +941,17 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       ],
     }));
 
+    const isReviewDeletedNode = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
+
+    const contactsToFilter = isReviewDeletedNode
+      ? mappedContacts.filter((c) => {
+          const st = String(c.status ?? (c as any).Status ?? (c as any).NodeState ?? '').trim().toLowerCase();
+          return st === 'deleted' || st === 'tobedeleted';
+        })
+      : mappedContacts;
+
     const filteredContacts = filterContactRecords(
-      mappedContacts,
+      contactsToFilter,
       filterFormDataRef.current,
       businessId
     );
@@ -896,6 +1202,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               treeContainerFlatDataProps &&
               displayTreeData.length > 0 ? (
               <TreeControl
+                key={treeExplorerContainerProps.featureId}
                 uniqueName={treeContainerFlatDataProps.uniqueName}
                 treeData={displayTreeData}
                 featureId={treeContainerFlatDataProps.featureId}

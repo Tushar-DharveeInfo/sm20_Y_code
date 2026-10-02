@@ -2,18 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStatusBarContext } from '../../context/hooks/StatusBarHooks';
 import { Kebab24x24 } from '@n20a/libicon';
 import './NodeMenu.css';
-import { KebabMenuRange } from '../../../constants/Feature';
+import { KebabMenuRange, kebabMenuEnums, SettingEnums } from '../../../constants/Feature';
 import { IActionImageForSubMenu } from '../../allinterface/basic/IActionImageList';
 import { ITreeNode, ISelectedNodeInfo } from '../../allinterface/tree/ITreeControl';
 import { IMenuImage, MenuImage } from '../menuimage/MenuImage';
 import { useCommonVariableContext } from '../../context/hooks/CommonVariableHooks';
-import { AppQA } from '../../../constants/Feature';
 import { useSessionContext } from '../../context/hooks/SessionHooks';
 import OverlayIconStrip from '../overlayiconstrip/OverlayIconStrip';
 import { FnCopyToClipboard } from '../../allcommon/basic/FnCopyToClipboard';
 import { useMainAppContext } from '../../context/hooks/MainAppHooks';
-import { FnParseJsonSafely } from '../../../appcontainer/allcommon/FnParseJsonSafely';
-
 interface IFeatureItem {
     Label: string; // label to show in the kebab menu
     _Feature?: string | number; // feature id for unique identifier
@@ -107,7 +104,8 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
         if (nodeMenuProps.container === "explorer_tree") {
             let menu: IFeatureItem[] = [];
             if (nodeMenuProps.featureData) {
-                if (selectedNodeData && selectedNodeData.node) {
+                const activeNode = nodeMenuProps.selectedNode ?? selectedNodeData?.node;
+                if (activeNode) {
                     menu = await getExplorerMenuData() ?? [];
                 }
                 if (menu && menu.length > 0) {
@@ -166,7 +164,8 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
             rowIndex: nodeMenuProps.rowIndex,
             selectedRow: nodeMenuProps.selectedRow,
         };
-        if (resolvedPayload?.Label === "Copy" && (selectedNodeData?.node || nodeMenuProps.selectedNode)) {
+        const isCopy = String(resolvedPayload?.Label ?? '').trim().toLowerCase() === kebabMenuEnums.Copy;
+        if (isCopy && (selectedNodeData?.node || nodeMenuProps.selectedNode)) {
             const activeNode = selectedNodeData?.node ?? nodeMenuProps.selectedNode;
             if (activeNode) {
                 FnCopyToClipboard(activeNode.TableLabel ? `${activeNode.TableLabel}` : (activeNode.Name ? activeNode.Name : ""));
@@ -213,8 +212,37 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
 
 
 
+    const getCheckFunctionAndNodeTypeData = (featureItem: IFeatureItem, activeNode: ITreeNode): boolean => {
+        const type = (featureItem.NodeType as string).split(';');
+        let isFn = false;
+
+        if (type.length) {
+            const NodeTypes = type
+                .map((item) => item.toLowerCase().trim())
+                .filter((item) => !item.startsWith("fn") && !item.startsWith("is"));
+
+            const currentNodeType = String(activeNode.NodeType ?? "").toLowerCase();
+            const isContactNode = Boolean(
+                activeNode.NodeType?.toLowerCase() === "contact" ||
+                activeNode.treetype?.toLowerCase() === "contact" ||
+                (activeNode.cid && activeNode.cid !== activeNode.bid)
+            );
+
+            if (NodeTypes.length > 0) {
+                if (
+                    NodeTypes.includes(currentNodeType) ||
+                    (isContactNode && (NodeTypes.includes("contact") || NodeTypes.includes("cid")))
+                ) {
+                    isFn = true;
+                }
+            }
+        }
+        return isFn;
+    };
+
+
     const getExplorerMenuData = async (featureId: string | null = null): Promise<IFeatureItem[]> => {
-        const activeNode = selectedNodeData?.node ?? nodeMenuProps.selectedNode;
+        const activeNode = nodeMenuProps.selectedNode ?? selectedNodeData?.node;
         if (!activeNode) return [];
 
         const targetFeatureId = String(featureId ?? nodeMenuProps.featureId ?? "");
@@ -230,15 +258,45 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
             const itemMenuId = String(item.MenuID ?? "");
             const featNum = Number(item._Feature ?? item.Feature ?? 0);
 
+            const isSettingDeleteFeature =
+                targetFeatureId === "920" ||
+                targetFeatureId === SettingEnums.Delete ||
+                targetFeatureId.toLowerCase() === "delete";
+
+            const matchesMenuId =
+                !targetFeatureId ||
+                itemMenuId === targetFeatureId ||
+                (isSettingDeleteFeature && (itemMenuId === "920" || itemMenuId === SettingEnums.Delete));
+
             if (
-                (!targetFeatureId || itemMenuId === targetFeatureId) &&
+                matchesMenuId &&
                 featNum > KebabMenuRange.MIN &&
                 featNum < KebabMenuRange.MAX &&
                 item.Label !== ""
             ) {
-                const itemNodeType = (item.NodeType ?? "").trim().toLowerCase();
+                const itemLabel = String(item.Label ?? "").trim().toLowerCase();
+                const itemNodeType = (item.NodeType ?? "").trim();
+
+                // [Setting] Delete (920): always show Delete — tree only shows deleted nodes.
+                // Regular features: suppress Delete when node is already deleted.
+                const isDeleteAction = itemLabel === kebabMenuEnums.Delete;
+                const nodeStatus = String(activeNode.status ?? activeNode.NodeState ?? '').trim().toLowerCase();
+                const isNodeAlreadyDeleted = nodeStatus === 'deleted' || nodeStatus === 'tobedeleted';
+
+                if (isDeleteAction) {
+                    if (isSettingDeleteFeature) {
+                        // feature 920: always offer Delete (tree already filters to deleted nodes)
+                        menu.push(item);
+                        return;
+                    }
+                    // regular features: suppress Delete when node is already deleted
+                    if (isNodeAlreadyDeleted) {
+                        return;
+                    }
+                }
+
                 if (!itemNodeType) {
-                    if (item.Label?.toLowerCase() === "services" || item.Alias?.toLowerCase() === "service") {
+                    if (itemLabel === kebabMenuEnums.Services || item.Alias?.toLowerCase() === "service") {
                         if (isContactNode) {
                             menu.push(item);
                         }
@@ -246,13 +304,7 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
                         menu.push(item);
                     }
                 } else {
-                    const nodeTypes = itemNodeType.split(";").map((t: string) => t.trim().toLowerCase());
-                    const currentNodeType = String(activeNode.NodeType ?? "").toLowerCase();
-
-                    if (
-                        nodeTypes.includes(currentNodeType) ||
-                        (isContactNode && (nodeTypes.includes("contact") || nodeTypes.includes("cid")))
-                    ) {
+                    if (getCheckFunctionAndNodeTypeData(item, activeNode)) {
                         menu.push(item);
                     }
                 }
@@ -271,6 +323,16 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
         const menu: IFeatureItem[] = [];
         nodeMenuProps.featureData.forEach((item) => {
             if (item.MenuID === nodeMenuProps.featureId && item._Feature && (item._Feature as number) > KebabMenuRange.MIN && item.Label !== "") {
+                const itemLabel = String(item.Label ?? "").trim().toLowerCase();
+                const itemNodeType = (item.NodeType ?? "").trim();
+                const isDeleteAction = itemLabel === kebabMenuEnums.Delete;
+                const rowStatus = String(selectedRow?.status ?? selectedRow?.NodeState ?? '').trim().toLowerCase();
+                const isRowAlreadyDeleted = rowStatus === 'deleted' || rowStatus === 'tobedeleted';
+
+                if (isDeleteAction && isRowAlreadyDeleted) {
+                    return;
+                }
+
                 if (item.NodeType === "") {
                     menu.push(item);
                 } else {
@@ -409,7 +471,12 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
         (activeNodeForMenu?.cid && activeNodeForMenu?.cid !== activeNodeForMenu?.bid)
     );
 
-    if (nodeMenuProps.container === "explorer_tree" && !isContactNodeForMenu) {
+    const isSettingDeleteFeatureForMenu =
+        nodeMenuProps.featureId === SettingEnums.Delete ||
+        nodeMenuProps.featureId === "920" ||
+        String(nodeMenuProps.featureId ?? "").toLowerCase() === "delete";
+
+    if (nodeMenuProps.container === "explorer_tree" && !isContactNodeForMenu && !isSettingDeleteFeatureForMenu) {
         return null;
     }
 

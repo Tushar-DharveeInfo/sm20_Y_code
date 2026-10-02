@@ -237,8 +237,25 @@ function SmDataProvider({ children }: IAppContextWrapper) {
     }, []);
 
     const getContactsForTree = useCallback((bid: string, filterJson: IFilterControlValues): IContactDoc[] => {
-        return filterContactRecords(sourceContacts, filterJson, bid || undefined);
-    }, []);
+        const pool = [
+            ...(datasets.contacts ?? []),
+            ...sourceContacts,
+        ];
+        const seen = new Set<string>();
+        const uniqueContacts: IContactDoc[] = [];
+        for (const c of pool) {
+            const cid = String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase();
+            if (cid) {
+                if (!seen.has(cid)) {
+                    seen.add(cid);
+                    uniqueContacts.push(c);
+                }
+            } else {
+                uniqueContacts.push(c);
+            }
+        }
+        return filterContactRecords(uniqueContacts, filterJson, bid || undefined);
+    }, [datasets.contacts]);
 
     const contextValue = useMemo((): ISmData => ({
         datasets,

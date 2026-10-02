@@ -2,6 +2,7 @@ import { IBusinessDoc } from "../../allinterface/IDatasets";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { IFeatureTree } from "../../allinterface/tree/ITreeForFlatDataContainer";
 import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";
+import { SettingEnums } from "../../../constants/Feature";
 
 /**
  * Maps business records to ITreeNode[].
@@ -71,11 +72,17 @@ const FnMapBusinessesToTreeNodes = (
         };
 
         if (featureTreeProps && featureId) {
+            const isSettingDeleteFeature =
+                featureId === SettingEnums.Delete ||
+                featureId === "920" ||
+                String(featureId).toLowerCase() === "delete";
+            const allowKebab = isSettingDeleteFeature ? !featureTreeProps.hideKebabMenu : false;
+
             treeNode.title = TreeNodeTitle(
                 treeNode,
                 featureTreeProps,
                 featureId,
-                false,
+                allowKebab,
                 !featureTreeProps.hideCopyIcon,
                 undefined,
                 handleKebabMenuSelect
