@@ -216,6 +216,7 @@ const Email = (props: IEmailProps) => {
 
     return (
         <div className="nz-sidebar-email-container">
+            <div className='nz-sub-header'>Send Email</div>
             {/* Render the SendEmailToContact component inline (without isOpen) */}
             <SendEmailToContact
                 uniqueName={props.uniqueName ?? 'sidebar-email'}

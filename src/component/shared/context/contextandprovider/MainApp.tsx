@@ -23,7 +23,23 @@ function MainAppProvider({ children }: IAppContextWrapper) {
     const [selectedFeatureForHelp, setSelectedFeatureForHelpState] = useState<IFeatureForHelp>()
     const [authSession, setAuthSession] = useState<IUserAuthSession>()
     const [ap, setAp] = useState<IAp[]>();
-    const [businessSelectedNode, setBusinessSelectedNode] = useState<ITreeNode>()
+    const [businessSelectedNode, setBusinessSelectedNodeState] = useState<ITreeNode>()
+
+    const setBusinessSelectedNode = useCallback((node?: ITreeNode) => {
+        setBusinessSelectedNodeState((prev) => {
+            if (prev === node) return prev;
+            if (
+                prev?.key && node?.key &&
+                prev.key === node.key &&
+                prev.NodeType === node.NodeType &&
+                prev.status === node.status &&
+                prev.Name === node.Name
+            ) {
+                return prev;
+            }
+            return node;
+        });
+    }, []);
     const [purchasedSkus, setPurchasedSkus] = useState<string[]>();
 
 

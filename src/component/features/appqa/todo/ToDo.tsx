@@ -963,7 +963,7 @@ const ToDo = (todoProps: IToDo) => {
 													handleMouse={() => handleDelete(item)}
 												/>
 											</div>
-											<div
+											{item.status && !item.status.toLowerCase().includes('close') && <div
 												className={isClosed ? 'nz-todo-action-closed' : ''}
 												onClick={(event) => event.stopPropagation()}
 												onKeyDown={(event) => event.stopPropagation()}
@@ -980,7 +980,7 @@ const ToDo = (todoProps: IToDo) => {
 													disabled={false}
 													handleMouse={(e) => handleCloseTodo(item, e)}
 												/>
-											</div>
+											</div>}
 										</div>
 										<div className="nz-todo-card-content">
 											<div className="nz-node-list-delete">

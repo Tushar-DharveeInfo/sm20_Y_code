@@ -185,7 +185,7 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         const { bid, cid } = extractBidCid(node);
         const appliedFilterJson = nextFilterJson ?? {};
         const filterJsonString = toFilterJsonString(appliedFilterJson);
-        setFilterJson(filterJsonString);
+        setFilterJson((prev) => (prev === filterJsonString ? prev : filterJsonString));
         const nextSelection: IExplorerSelection = {
             bid,
             cid,
@@ -193,11 +193,11 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         };
         const nextKey = selectionCacheKey(nextSelection);
         if (nextKey === selectionKeyRef.current) {
-            setSelectedNode(node);
+            setSelectedNode((prev) => (prev?.key && node?.key && prev.key === node.key && prev.NodeType === node.NodeType ? prev : node));
             return;
         }
         selectionKeyRef.current = nextKey;
-        setSelectedNode(node);
+        setSelectedNode((prev) => (prev?.key && node?.key && prev.key === node.key && prev.NodeType === node.NodeType ? prev : node));
         setSelection(nextSelection);
         setIsScopedDatasetsLoaded(false);
         setDatasets((prev) => ({

@@ -137,7 +137,7 @@ function FnBuildBusinessExplorerFilterControls(
 
     // If this is a Client menu feature ([Client] NetZoom, VisioStencils, SSI…, MCS, Reseller),
     // offer the specific filters requested:
-    // btype, salesexecutive, Country, Status, State, Notice Period, Fiscal Quarter,
+    // btype, salesexecutive, Country, State, Status, Notice Period, Fiscal Quarter,
     // Contact type, Contact Status, Contact Tag.
     if (FnIsClientMenuFeature(featureId)) {
         return [
@@ -169,22 +169,22 @@ function FnBuildBusinessExplorerFilterControls(
                 options: FnWithAnyOption(FnGetDistinctBusinessCountry(businesses)),
             }),
             makeControl({
-                name: "status",
-                label: "Status",
-                group: businessGroup,
-                sortOrder: 4,
-                displayControl: DisplayControlEnums.ComboBoxControl,
-                value: comboValue(applied, "status"),
-                options: FnWithAnyOption(FnGetDistinctBusinessStatus(businesses)),
-            }),
-            makeControl({
                 name: "state",
                 label: "State",
                 group: businessGroup,
-                sortOrder: 5,
+                sortOrder: 4,
                 displayControl: DisplayControlEnums.ComboBoxControl,
                 value: comboValue(applied, "state"),
                 options: FnWithAnyOption(FnGetDistinctBusinessState(businesses)),
+            }),
+            makeControl({
+                name: "status",
+                label: "Status",
+                group: businessGroup,
+                sortOrder: 5,
+                displayControl: DisplayControlEnums.ComboBoxControl,
+                value: comboValue(applied, "status"),
+                options: FnWithAnyOption(FnGetDistinctBusinessStatus(businesses)),
             }),
             makeControl({
                 name: "daysnoticeperiod",

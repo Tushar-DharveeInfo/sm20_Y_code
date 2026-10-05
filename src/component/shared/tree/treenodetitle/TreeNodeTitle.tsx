@@ -35,7 +35,7 @@ const TreeNodeTitle = (
 
     const nodeStatus = String(treeNode.status ?? treeNode.NodeState ?? '').trim().toLowerCase();
     const isBlocked = nodeStatus === 'blocked';
-    const isDeleted = nodeStatus === 'deleted' || nodeStatus === 'tobedeleted';
+    const isDeleted = nodeStatus === 'deleted' || nodeStatus === 'tobedeleted' || nodeStatus === 'delete';
 
     const nodeNameStyle: React.CSSProperties = {
         ...(isBlocked ? { color: 'red' } : {}),

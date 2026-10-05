@@ -1,5 +1,5 @@
 
-import { useState, createContext, useMemo } from "react";
+import { useState, createContext, useMemo, useCallback } from "react";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { ISelectedNode, ISelectedNodeProperty } from "../allinterface/ISelectedNode";
@@ -7,9 +7,33 @@ import { ISelectedNode, ISelectedNodeProperty } from "../allinterface/ISelectedN
 const SelectedNodeContext = createContext<ISelectedNode | undefined>(undefined);
 
 function SelectedNodeProvider({ children }: IAppContextWrapper) {
-    const [selectedNode, setSelectedNode] = useState<ITreeNode>();
-    const [selectedNodeProperty, setSelectedNodeProperty] = useState<ISelectedNodeProperty>();
-    const [selectedNodeExplorer, setSelectedNodeExplorer] = useState<ITreeNode>();
+    const [selectedNode, setSelectedNodeState] = useState<ITreeNode>();
+    const [selectedNodeProperty, setSelectedNodePropertyState] = useState<ISelectedNodeProperty>();
+    const [selectedNodeExplorer, setSelectedNodeExplorerState] = useState<ITreeNode>();
+
+    const setSelectedNode = useCallback((node?: ITreeNode) => {
+        setSelectedNodeState((prev) => {
+            if (prev === node) return prev;
+            if (prev?.key && node?.key && prev.key === node.key && prev.NodeType === node.NodeType && prev.status === node.status) {
+                return prev;
+            }
+            return node;
+        });
+    }, []);
+
+    const setSelectedNodeExplorer = useCallback((node?: ITreeNode) => {
+        setSelectedNodeExplorerState((prev) => {
+            if (prev === node) return prev;
+            if (prev?.key && node?.key && prev.key === node.key && prev.NodeType === node.NodeType && prev.status === node.status) {
+                return prev;
+            }
+            return node;
+        });
+    }, []);
+
+    const setSelectedNodeProperty = useCallback((prop: ISelectedNodeProperty) => {
+        setSelectedNodePropertyState(prop);
+    }, []);
 
     const contextValue = useMemo(() => ({
         selectedNode,
@@ -22,6 +46,9 @@ function SelectedNodeProvider({ children }: IAppContextWrapper) {
         selectedNode,
         selectedNodeProperty,
         selectedNodeExplorer,
+        setSelectedNode,
+        setSelectedNodeProperty,
+        setSelectedNodeExplorer,
     ]);
 
     return (

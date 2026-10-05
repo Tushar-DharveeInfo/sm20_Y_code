@@ -21,3 +21,7 @@
     font-size: 13px;
     box-sizing: border-box;
 }
+
+.nz-sidebar-email-container .nz-html-editor-action-strip svg {
+    color: var(--textprimary) !important;
+}

@@ -258,13 +258,13 @@ const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
                 <div className="nz-impersonate-search-bar">
                     <div className="nz-impersonate-search-wrapper">
                         <div className="nz-searchControl">
-                            <div className="nz-filter-icon" title="Filter users">
+                            {/* <div className="nz-filter-icon" title="Filter users">
                                 <Filter24x24
                                     size={FnGetCssVariable('--image-size-2', '20px')}
                                     fill="none"
                                     strokeWidth={1}
                                 />
-                            </div>
+                            </div> */}
                             <div className="nz-search-control">
                                 <EditTextXControl
                                     name="impersonate-user-filter"

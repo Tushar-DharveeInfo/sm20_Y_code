@@ -56,7 +56,6 @@ interface IExplorerContainer {
 
 }
 const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
-    console.log('explorerContainerProps', explorerContainerProps)
     const [selectedNodeInfo, setSelectedNodeInfo] = useState<ISelectedNodeInfo>();
     const [isShowSidebar, setIsShowSidebar] = useState<boolean>(false);
     const [featureQAData, setFeatureQAData] = useState<IFeatureItem[]>();
@@ -216,7 +215,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     }, []);
 
     // Handles tree selection, session updates, and contextual layout/sidebar state.
-    const handleNodeSelect = async (_selectedKeys: Key[], info: ISelectedNodeInfo, _expandedKeys: Key[], newTreeData?: ITreeNode[], isShowSidebar?: boolean) => {
+    const handleNodeSelect = useCallback(async (_selectedKeys: Key[], info: ISelectedNodeInfo, _expandedKeys: Key[], newTreeData?: ITreeNode[], isShowSidebar?: boolean) => {
 
         if (!explorerContainerProps.subTreeFeatureId) {
             selectedNodeContext.setSelectedNodeExplorer(info.node);
@@ -224,7 +223,12 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
 
         else {
             selectedNodeContext.setSelectedNode(info.node);
-            setSelectedNodeInfo(info);
+            setSelectedNodeInfo((prev) => {
+                if (prev?.node?.key === info.node?.key && prev?.event === info.event && prev?.selected === info.selected) {
+                    return prev;
+                }
+                return info;
+            });
         }
         // Open sidebar when this feature has QA tabs in smFeatures.
         const hasSidebarQa = (explorerContainerProps.featureData ?? []).some((item) => {
@@ -258,20 +262,35 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         if (info.selected) {
             setProfileAddMode(null);
             setSelectedKebabMenuExplorer(undefined);
-            setTreeData(newTreeData);
-            setSelectedNodeInfo(info);
+            if (newTreeData) {
+                setTreeData((prev) => (prev === newTreeData ? prev : newTreeData));
+            }
+            setSelectedNodeInfo((prev) => {
+                if (prev?.node?.key === info.node?.key && prev?.event === info.event && prev?.selected === info.selected) {
+                    return prev;
+                }
+                return info;
+            });
         }
 
         if (explorerToRender === "BUSINESSTREE") {
             mainAppContext?.setBusinessSelectedNode?.(info.node);
         }
-    }
+    }, [
+        explorerContainerProps.subTreeFeatureId,
+        explorerContainerProps.featureData,
+        explorerContainerProps.featureId,
+        selectedNodeContext,
+        sessionContext.SessionList,
+        explorerToRender,
+        mainAppContext,
+    ]);
 
 
     // Builds sidebar QA tabs from smFeatures (featureRecords) for the selected menu.
     useEffect(() => {
         if (!explorerContainerProps.featureId) {
-            setFeatureQAData([]);
+            setFeatureQAData((prev) => (prev && prev.length === 0 ? prev : []));
             return;
         }
 
@@ -287,7 +306,13 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                 );
             })
             .sort((a, b) => Number(a.SortOrder) - Number(b.SortOrder));
-        setFeatureQAData(filteredQa);
+
+        setFeatureQAData((prev) => {
+            const prevIds = (prev ?? []).map((x) => String(x._Feature)).join(',');
+            const nextIds = filteredQa.map((x) => String(x._Feature)).join(',');
+            if (prevIds === nextIds) return prev;
+            return filteredQa;
+        });
     }, [explorerContainerProps.featureId, explorerContainerProps.featureData]);
 
 

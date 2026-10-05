@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog } from '@mui/material';
-import { Close24x24, Save24x24 } from '@n20a/libicon';
+import { Close24x24, Filter24x24, Save24x24 } from '@n20a/libicon';
 import { SettingsLibForm, IControl } from '../../settingsform/settingslibform/SettingsLibForm';
 import { Label } from '../../basic/label/Label';
 import { ActionImage } from '../../basic/actionimage/ActionImage';
@@ -213,7 +213,7 @@ const PopupFilterForm: React.FC<IPopupFilterFormProps> = ({
                                 image={{
                                     uniqueName: `${uniqueName}-save-image`,
                                     source: (
-                                        <Save24x24
+                                        <Filter24x24
                                             size={FnGetCssVariable('--image-size-2')}
                                             fill="none"
                                             strokeWidth={1}
