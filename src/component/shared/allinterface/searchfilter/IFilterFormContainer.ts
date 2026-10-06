@@ -60,6 +60,13 @@ interface IFilterControlValues {
     contacttype?: string;
     cstatus?: string;
     ctags?: string;
+    DataReady?: string;
+    ShapeReady?: string;
+    isReleased?: string;
+    ApprovedDate_StartDate?: string;
+    ApprovedDate_EndDate?: string;
+    ReleasedDate_StartDate?: string;
+    ReleasedDate_EndDate?: string;
     [key: string]: string | undefined;
 }
 

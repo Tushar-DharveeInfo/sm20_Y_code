@@ -32,10 +32,18 @@ import { TreeControl } from '../tree/treecontrol/TreeControl.tsx'
 import { useBusinesses, useContacts, useFirestore } from '@n20a/libfsdb'
 import { useCommonVariableContext } from '../context/hooks/CommonVariableHooks.ts'
 import { useMainAppContext } from '../context/hooks/MainAppHooks.ts'
-import { kebabMenuEnums, ProspectEnums, SettingEnums } from '../../constants/Feature.ts'
+import { kebabMenuEnums, ProspectEnums, SettingEnums, RmsEnums } from '../../constants/Feature.ts'
 import { useStatusBarContext } from '../context/hooks/StatusBarHooks.ts'
+import { useRmsContext } from '../context/hooks/RmsHooks.ts'
+import { FnFilterRmsEqidTree, FnBuildRmsEqidTree } from '../../features/rms/allcommon/FnFilterRmsEqidTree.ts'
 import { FnUpdateTreeNodeBasedOnKey } from '../allcommon/tree/FnUpdateTreeNodeBasedOnKey.ts'
 import { FnCopyToClipboard } from '../allcommon/basic/FnCopyToClipboard.ts'
+
+const isRmsEqidFeature = (featureId?: string) => {
+  if (!featureId) return false;
+  const fid = String(featureId).toLowerCase().trim();
+  return featureId === RmsEnums.EQID || featureId === '402' || fid === '402' || fid === 'eqid';
+};
 
 const isReviewDeletedFeature = (featureId?: string) => {
   if (!featureId) return false;
@@ -120,6 +128,12 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   const isFilterChangeRef = useRef(false)
   const firestore = useFirestore()
   const statusBarContext = useStatusBarContext()
+  let rmsContext: ReturnType<typeof useRmsContext> | undefined;
+  try {
+    rmsContext = useRmsContext();
+  } catch {
+    // Handled if outside RmsProvider
+  }
   const { getBusinesses, updateBusiness } = useBusinesses()
   const treeDataRef = useRef<ITreeNode[] | undefined>(undefined)
   const originalTreeDataRef = useRef<ITreeNode[]>([])
@@ -474,59 +488,69 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
           uniqueBusinesses.push(b);
         }
       }
-      let businesses = filterBusinessRecords(uniqueBusinesses, mergedForm, treeExplorerContainerProps.featureId);
-      const isReviewDeleted = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
+      let businesses: IBusinessDoc[];
+      if (isRmsEqidFeature(treeExplorerContainerProps.featureId)) {
+        let eqidDocs = rmsContext?.eqid ?? [];
+        if ((!eqidDocs || eqidDocs.length === 0) && rmsContext?.loadEqid) {
+          eqidDocs = (await rmsContext.loadEqid()) ?? [];
+        }
+        const rmsResult = FnFilterRmsEqidTree(uniqueBusinesses, eqidDocs, mergedForm);
+        businesses = rmsResult.filteredBusinesses;
+      } else {
+        businesses = filterBusinessRecords(uniqueBusinesses, mergedForm, treeExplorerContainerProps.featureId);
+        const isReviewDeleted = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
 
-      if (isReviewDeleted) {
-        const contactPromises = uniqueBusinesses.map(async (b) => {
-          const bid = String(b.bid || (b as any).EntID || (b as any).id || '').trim();
-          if (!bid) return [];
-          return fetchContactsFromApi(bid);
-        });
-        const allResults = await Promise.all(contactPromises);
-        const allFetchedContacts: IContactDoc[] = [];
-        allResults.forEach((records, idx) => {
-          const bid = String(uniqueBusinesses[idx].bid || (uniqueBusinesses[idx] as any).EntID || (uniqueBusinesses[idx] as any).id || '').trim();
-          const docs = FnMapToContactDocs(records, bid);
-          allFetchedContacts.push(...docs);
-        });
+        if (isReviewDeleted) {
+          const contactPromises = uniqueBusinesses.map(async (b) => {
+            const bid = String(b.bid || (b as any).EntID || (b as any).id || '').trim();
+            if (!bid) return [];
+            return fetchContactsFromApi(bid);
+          });
+          const allResults = await Promise.all(contactPromises);
+          const allFetchedContacts: IContactDoc[] = [];
+          allResults.forEach((records, idx) => {
+            const bid = String(uniqueBusinesses[idx].bid || (uniqueBusinesses[idx] as any).EntID || (uniqueBusinesses[idx] as any).id || '').trim();
+            const docs = FnMapToContactDocs(records, bid);
+            allFetchedContacts.push(...docs);
+          });
 
-        smDataContext.setDatasets((prev) => {
-          const existing = prev.contacts ?? [];
-          const merged = [...existing];
-          for (const doc of allFetchedContacts) {
-            const idx = merged.findIndex(
-              (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase()
-            );
-            if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...doc };
-            } else {
-              merged.push(doc);
+          smDataContext.setDatasets((prev) => {
+            const existing = prev.contacts ?? [];
+            const merged = [...existing];
+            for (const doc of allFetchedContacts) {
+              const idx = merged.findIndex(
+                (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase()
+              );
+              if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...doc };
+              } else {
+                merged.push(doc);
+              }
             }
-          }
-          return { ...prev, contacts: merged };
-        });
+            return { ...prev, contacts: merged };
+          });
 
-        const deletedBids = new Set(
-          allFetchedContacts
-            .filter((c) => isRecordDeleted(c.status ?? (c as any).Status ?? (c as any).NodeState))
-            .map((c) => String(c.bid ?? '').trim().toLowerCase())
-        );
-        businesses = businesses.filter((business) => {
-          const bid = String(business.bid || (business as any).EntID || (business as any).id || '').toLowerCase();
-          const isBsDeleted = isRecordDeleted(business.status ?? (business as any).Status ?? (business as any).NodeState);
-          return isBsDeleted || deletedBids.has(bid);
-        });
-      } else if (hasActiveContactFilters(mergedForm)) {
-        const matchingBids = new Set(
-          smDataContext
-            .getContactsForTree("", mergedForm)
-            .map((contact) => String(contact.bid ?? '').toLowerCase())
-        );
-        businesses = businesses.filter((business) => {
-          const bid = String(business.bid || (business as any).EntID || (business as any).id || '').toLowerCase();
-          return matchingBids.has(bid);
-        });
+          const deletedBids = new Set(
+            allFetchedContacts
+              .filter((c) => isRecordDeleted(c.status ?? (c as any).Status ?? (c as any).NodeState))
+              .map((c) => String(c.bid ?? '').trim().toLowerCase())
+          );
+          businesses = businesses.filter((business) => {
+            const bid = String(business.bid || (business as any).EntID || (business as any).id || '').toLowerCase();
+            const isBsDeleted = isRecordDeleted(business.status ?? (business as any).Status ?? (business as any).NodeState);
+            return isBsDeleted || deletedBids.has(bid);
+          });
+        } else if (hasActiveContactFilters(mergedForm)) {
+          const matchingBids = new Set(
+            smDataContext
+              .getContactsForTree("", mergedForm)
+              .map((contact) => String(contact.bid ?? '').toLowerCase())
+          );
+          businesses = businesses.filter((business) => {
+            const bid = String(business.bid || (business as any).EntID || (business as any).id || '').toLowerCase();
+            return matchingBids.has(bid);
+          });
+        }
       }
       const businessNodes = FnMapBusinessesToTreeNodes(businesses, featureProps, treeExplorerContainerProps.featureId, handleKebabMenuSelect);
 
@@ -624,17 +648,40 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
           ],
         }));
 
-        const isReviewDeletedNode = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
+        let filteredContacts: IContactDoc[];
+        if (isRmsEqidFeature(treeExplorerContainerProps.featureId)) {
+          let eqidDocs = rmsContext?.eqid ?? [];
+          if ((!eqidDocs || eqidDocs.length === 0) && rmsContext?.loadEqid) {
+            eqidDocs = (await rmsContext.loadEqid()) ?? [];
+          }
+          if ((!eqidDocs || eqidDocs.length === 0) && firestore) {
+            try {
+              const res = await firestore.queryDocuments({ pathSegments: ['eqid'] });
+              if (res?.data && Array.isArray(res.data)) {
+                eqidDocs = (res.data as any[]).map((d) => ({
+                  ...d,
+                  eqid: String(d.eqid || d.id || d.key || '').trim(),
+                }));
+                rmsContext?.setEqid?.(eqidDocs);
+              }
+            } catch (e) {
+              console.warn('Direct query eqid error in refreshTreeAndSelectNode:', e);
+            }
+          }
+          const rmsResult = FnFilterRmsEqidTree([], eqidDocs, filterFormDataRef.current, uniqueContactsForBid);
+          filteredContacts = rmsResult.filterContactsForBid(uniqueContactsForBid, targetBusinessId);
+        } else {
+          const isReviewDeletedNode = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
+          const contactsToFilterForBid = isReviewDeletedNode
+            ? uniqueContactsForBid.filter((c) => isRecordDeleted(c.status ?? (c as any).Status ?? (c as any).NodeState))
+            : uniqueContactsForBid;
 
-        const contactsToFilterForBid = isReviewDeletedNode
-          ? uniqueContactsForBid.filter((c) => isRecordDeleted(c.status ?? (c as any).Status ?? (c as any).NodeState))
-          : uniqueContactsForBid;
-
-        const filteredContacts = filterContactRecords(
-          contactsToFilterForBid,
-          filterFormDataRef.current,
-          targetBusinessId
-        );
+          filteredContacts = filterContactRecords(
+            contactsToFilterForBid,
+            filterFormDataRef.current,
+            targetBusinessId
+          );
+        }
         const contactNodes = FnMapContactsToTreeNodes(
           filteredContacts,
           featureProps,
@@ -708,18 +755,167 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   };
 
   /*Filters sample businesses (and contact-gated businesses) then maps to tree nodes. */
-  const applyBusinessTreeFromFilter = (
+  const applyBusinessTreeFromFilter = async (
     form: IDCFilterControlValues,
     featureProps: IFeatureTree,
     featureId: string,
     source?: IBusinessDoc[],
-    isMenuSwitch?: boolean
+    isMenuSwitch?: boolean,
+    eqidSource?: any[],
+    contactsSource?: IContactDoc[]
   ) => {
     const autoFilter = FnGetClientExplorerAutoFilter(featureId)
     const mergedForm: IDCFilterControlValues = { ...autoFilter, ...form }
     const sourceBusinesses = source ?? smDataContext.datasets.businesses ?? []
-    let businesses = filterBusinessRecords(sourceBusinesses, mergedForm, featureId)
     const isReviewDeleted = isReviewDeletedFeature(featureId);
+    const isRmsEqid = isRmsEqidFeature(featureId);
+
+    if (isRmsEqid) {
+      let eqidData = eqidSource ?? rmsContext?.eqid ?? [];
+      if ((!eqidData || eqidData.length === 0) && rmsContext?.loadEqid) {
+        eqidData = (await rmsContext.loadEqid()) ?? [];
+      }
+      if ((!eqidData || eqidData.length === 0) && firestore) {
+        try {
+          const res = await firestore.queryDocuments({ pathSegments: ['eqid'] });
+          if (res?.data && Array.isArray(res.data)) {
+            eqidData = (res.data as any[]).map((d) => ({
+              ...d,
+              eqid: String(d.eqid || d.id || d.key || '').trim(),
+            }));
+            rmsContext?.setEqid?.(eqidData);
+          }
+        } catch (e) {
+          console.warn('Direct query eqid error in applyBusinessTreeFromFilter:', e);
+        }
+      }
+
+      let resolvedBusinesses = sourceBusinesses;
+      if (!resolvedBusinesses.length) {
+        try {
+          const apiBs = await getBusinesses().catch(() => null);
+          if (apiBs?.length) {
+            resolvedBusinesses = FnMapToBusinessDocs(apiBs);
+            smDataContext.setDatasets((prev) => ({ ...prev, businesses: resolvedBusinesses }));
+          }
+        } catch {}
+      }
+
+      const filterRes = FnFilterRmsEqidTree(resolvedBusinesses, eqidData, mergedForm);
+      const matchingBidsList = Array.from(filterRes.matchingBids);
+      const existingContacts = smDataContext.datasets.contacts ?? [];
+      const bidsMissingContacts = matchingBidsList.filter(
+        (bid) => !existingContacts.some((c) => String(c.bid).trim().toLowerCase() === bid)
+      );
+
+      let allKnownContacts = contactsSource ?? existingContacts;
+      if (bidsMissingContacts.length > 0) {
+        try {
+          const contactArrays = await Promise.all(
+            bidsMissingContacts.map(async (bid) => {
+              const recs = await fetchContactsFromApi(bid);
+              return FnMapToContactDocs(recs, bid);
+            })
+          );
+          const newlyFetched = contactArrays.flat();
+          if (newlyFetched.length > 0) {
+            smDataContext.setDatasets((prev) => {
+              const existing = prev.contacts ?? [];
+              const merged = [...existing];
+              for (const doc of newlyFetched) {
+                const idx = merged.findIndex(
+                  (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase() &&
+                         String(c.bid).toLowerCase() === String(doc.bid).toLowerCase()
+                );
+                if (idx >= 0) {
+                  merged[idx] = { ...merged[idx], ...doc };
+                } else {
+                  merged.push(doc);
+                }
+              }
+              return { ...prev, contacts: merged };
+            });
+            allKnownContacts = [...allKnownContacts, ...newlyFetched];
+          }
+        } catch (e) {
+          console.warn('Error fetching missing contacts for RMS EQID:', e);
+        }
+      }
+
+      const treeNodes = FnBuildRmsEqidTree(
+        resolvedBusinesses,
+        allKnownContacts,
+        eqidData,
+        mergedForm,
+        featureProps,
+        featureId,
+        treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses',
+        handleKebabMenuSelect
+      );
+
+      setTreeData(treeNodes);
+      setOriginalTreeData(treeNodes);
+      treeDataRef.current = treeNodes;
+      originalTreeDataRef.current = treeNodes;
+      contactsRequestRef.current += 1;
+      setExpandedBusinessId('');
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const prevNode = defaultSelectedNodeInfo?.node;
+      let prevBid = (urlParams.get('bid') || '').trim();
+      let prevCid = (urlParams.get('cid') || '').trim();
+
+      if (!prevBid && prevNode) {
+        if (prevNode.NodeType === 'Root' || prevNode.key === 'root-businesses') {
+          prevBid = '';
+        } else if (prevNode.NodeType === 'Business' || String(prevNode.key || '').startsWith('bid_')) {
+          prevBid = String(prevNode.NodeEntID || prevNode.key || (prevNode as any).bid || '').trim();
+        } else if (prevNode.NodeType === 'Contact' || String(prevNode.key || '').startsWith('cid_')) {
+          prevBid = String((prevNode as any).bid || prevNode.parentEntID || '').trim();
+          prevCid = String(prevNode.NodeEntID || prevNode.key || (prevNode as any).cid || '').trim();
+        }
+      }
+      if (!prevBid && !prevNode && smDataContext.selection?.bid) {
+        prevBid = String(smDataContext.selection.bid).trim();
+      }
+
+      const businessNodes = treeNodes[0]?.children ?? [];
+      let targetNodeToSelect: ITreeNode | undefined;
+      let expandedKeysToSet: Key[] = ['root-businesses'];
+
+      if (prevBid) {
+        const foundBusiness = businessNodes.find((bn) => {
+          const bKey = String(bn.NodeEntID || bn.key || (bn as any).bid || '').trim().toLowerCase();
+          return bKey === prevBid.toLowerCase();
+        });
+        if (foundBusiness) {
+          expandedKeysToSet = ['root-businesses', foundBusiness.key];
+          if (prevCid) {
+            const foundContact = foundBusiness.children?.find((cn) => {
+              const cKey = String(cn.NodeEntID || cn.key || (cn as any).cid || '').trim().toLowerCase();
+              return cKey === prevCid.toLowerCase();
+            });
+            targetNodeToSelect = foundContact ?? foundBusiness;
+          } else {
+            targetNodeToSelect = foundBusiness;
+          }
+        }
+      }
+
+      if (!targetNodeToSelect && treeNodes.length > 0) {
+        targetNodeToSelect = treeNodes[0];
+        expandedKeysToSet = ['root-businesses'];
+      }
+
+      setDefaultExpandedKeys(expandedKeysToSet);
+      if (targetNodeToSelect) {
+        selectNode(targetNodeToSelect, expandedKeysToSet, treeNodes, isMenuSwitch ? 'select' : 'auto-select');
+      }
+      return;
+    }
+
+    let businesses: IBusinessDoc[];
+    businesses = filterBusinessRecords(sourceBusinesses, mergedForm, featureId);
 
     if (isReviewDeleted) {
       const deletedBids = new Set(
@@ -743,6 +939,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         return matchingBids.has(bid);
       });
     }
+
     setBusinessTree(FnMapBusinessesToTreeNodes(businesses, featureProps, featureId, handleKebabMenuSelect), undefined, isMenuSwitch)
   }
 
@@ -875,28 +1072,122 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       const currentConfigKey = configKey
       const loadFromHook = async () => {
         try {
-          const apiBusinesses = await getBusinesses()
+          if (isRmsEqidFeature(treeExplorerContainerProps.featureId)) {
+            statusBarContext?.setIsLoading?.(true);
+            statusBarContext?.setLoadingLabel?.('Loading RMS EQID...');
+
+            // 1. Get all records from eqid table
+            let eqidDocs = rmsContext?.eqid ?? [];
+            if (!eqidDocs || eqidDocs.length === 0) {
+              if (rmsContext?.loadEqid) {
+                eqidDocs = (await rmsContext.loadEqid()) ?? [];
+              }
+              if ((!eqidDocs || eqidDocs.length === 0) && firestore) {
+                try {
+                  const res = await firestore.queryDocuments({ pathSegments: ['eqid'] });
+                  if (res?.data && Array.isArray(res.data)) {
+                    eqidDocs = (res.data as any[]).map((d) => ({
+                      ...d,
+                      eqid: String(d.eqid || d.id || d.key || '').trim(),
+                    }));
+                    rmsContext?.setEqid?.(eqidDocs);
+                  }
+                } catch (e) {
+                  console.warn('Direct query eqid error in loadFromHook:', e);
+                }
+              }
+            }
+
+            // 2. Get businesses
+            let currentBusinesses = smDataContext.datasets.businesses ?? [];
+            if (!currentBusinesses.length) {
+              const apiBusinesses = await getBusinesses().catch(() => null);
+              if (apiBusinesses?.length) {
+                currentBusinesses = FnMapToBusinessDocs(apiBusinesses);
+                smDataContext.setDatasets((prev) => ({
+                  ...prev,
+                  businesses: currentBusinesses,
+                }));
+              }
+            }
+
+            if (prevFeatureIdRef.current !== currentConfigKey) {
+              return;
+            }
+
+            // 3. Match bid and cid of eqid table with BS tree
+            const rmsFilterResult = FnFilterRmsEqidTree(currentBusinesses, eqidDocs, autoFilter);
+            const matchingBids = Array.from(rmsFilterResult.matchingBids);
+
+            // Fetch contacts for matching businesses
+            const contactPromises = matchingBids.map(async (bid) => {
+              const records = await fetchContactsFromApi(bid);
+              return FnMapToContactDocs(records, bid);
+            });
+            const fetchedContactArrays = await Promise.all(contactPromises);
+            const allFetchedContacts = fetchedContactArrays.flat();
+
+            // Merge contacts into smDataContext
+            smDataContext.setDatasets((prev) => {
+              const existing = prev.contacts ?? [];
+              const merged = [...existing];
+              for (const doc of allFetchedContacts) {
+                const idx = merged.findIndex(
+                  (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase() &&
+                         String(c.bid).toLowerCase() === String(doc.bid).toLowerCase()
+                );
+                if (idx >= 0) {
+                  merged[idx] = { ...merged[idx], ...doc };
+                } else {
+                  merged.push(doc);
+                }
+              }
+              return { ...prev, contacts: merged };
+            });
+
+            const combinedContacts = [
+              ...(smDataContext.datasets.contacts ?? []),
+              ...allFetchedContacts,
+            ];
+
+            // 4. Build and apply BS tree
+            await applyBusinessTreeFromFilter(
+              autoFilter,
+              featureProps,
+              treeExplorerContainerProps.featureId,
+              currentBusinesses,
+              true,
+              eqidDocs,
+              combinedContacts
+            );
+            return;
+          }
+
+          const apiBusinesses = await getBusinesses();
           if (prevFeatureIdRef.current !== currentConfigKey) {
-            return
+            return;
           }
           if (apiBusinesses?.length) {
-            const mapped = FnMapToBusinessDocs(apiBusinesses)
+            const mapped = FnMapToBusinessDocs(apiBusinesses);
             smDataContext.setDatasets((prev) => ({
               ...prev,
               businesses: mapped,
-            }))
-            applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, mapped, true)
-            return
+            }));
+            await applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, mapped, true);
+            return;
           }
         } catch (err) {
-          console.warn('Failed to load businesses from hook for feature:', treeExplorerContainerProps.featureId, err)
+          console.warn('Failed to load businesses from hook for feature:', treeExplorerContainerProps.featureId, err);
+        } finally {
+          statusBarContext?.setIsLoading?.(false);
+          statusBarContext?.setLoadingLabel?.(undefined);
         }
         if (prevFeatureIdRef.current === currentConfigKey) {
-          applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, undefined, true)
+          await applyBusinessTreeFromFilter(autoFilter, featureProps, treeExplorerContainerProps.featureId, undefined, true);
         }
-      }
+      };
 
-      void loadFromHook()
+      void loadFromHook();
     }
   }, [
     treeExplorerContainerProps.featureId,
@@ -913,6 +1204,19 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     if (featureId && String(featureId) !== String(treeExplorerContainerProps.featureId)) return;
     void refreshTreeAndSelectNode(entId, dropNodeEntId);
   }, [commonVariableContext.reloadTreeFor]);
+
+  useEffect(() => {
+    if (!isRmsEqidFeature(treeExplorerContainerProps.featureId)) return;
+    if (!featureTreeProps || !rmsContext?.eqid?.length) return;
+    void applyBusinessTreeFromFilter(
+      filterFormDataRef.current,
+      featureTreeProps,
+      treeExplorerContainerProps.featureId,
+      undefined,
+      false,
+      rmsContext.eqid
+    );
+  }, [rmsContext?.eqid, treeExplorerContainerProps.featureId, featureTreeProps]);
 
   const applyContactsToBusiness = async (
     businessId: string,
@@ -958,11 +1262,35 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       ? mappedContacts.filter((c) => isRecordDeleted(c.status ?? (c as any).Status ?? (c as any).NodeState))
       : mappedContacts;
 
-    const filteredContacts = filterContactRecords(
-      contactsToFilter,
-      filterFormDataRef.current,
-      businessId
-    );
+    let filteredContacts: IContactDoc[];
+    if (isRmsEqidFeature(treeExplorerContainerProps.featureId)) {
+      let eqidDocs = rmsContext?.eqid ?? [];
+      if ((!eqidDocs || eqidDocs.length === 0) && rmsContext?.loadEqid) {
+        eqidDocs = (await rmsContext.loadEqid()) ?? [];
+      }
+      if ((!eqidDocs || eqidDocs.length === 0) && firestore) {
+        try {
+          const res = await firestore.queryDocuments({ pathSegments: ['eqid'] });
+          if (res?.data && Array.isArray(res.data)) {
+            eqidDocs = (res.data as any[]).map((d) => ({
+              ...d,
+              eqid: String(d.eqid || d.id || d.key || '').trim(),
+            }));
+            rmsContext?.setEqid?.(eqidDocs);
+          }
+        } catch (e) {
+          console.warn('Direct query eqid error in applyContactsToBusiness:', e);
+        }
+      }
+      const rmsResult = FnFilterRmsEqidTree([], eqidDocs, filterFormDataRef.current, mappedContacts);
+      filteredContacts = rmsResult.filterContactsForBid(mappedContacts, businessId);
+    } else {
+      filteredContacts = filterContactRecords(
+        contactsToFilter,
+        filterFormDataRef.current,
+        businessId
+      );
+    }
     const activeFeatureProps = featureTreeProps ?? buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox);
     const activeFeatureId = treeContainerFlatDataProps?.featureId ?? treeExplorerContainerProps.featureId ?? '';
     const contactNodes = FnMapContactsToTreeNodes(
@@ -1148,7 +1476,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
   // Apply saved filter json (drop ANY) and refresh the explorer tree, or open the form.
   const handleFilterClick = () => {
     if (isShowFilterForm) {
-      if (isFilterChangeRef.current && featureTreeProps && treeExplorerContainerProps.featureId) {
+      if (featureTreeProps && treeExplorerContainerProps.featureId) {
         const appliedFilterJson = getAppliedFilterJson(filterFormDataRef.current)
         setFilterFormData(appliedFilterJson)
         filterFormDataRef.current = appliedFilterJson

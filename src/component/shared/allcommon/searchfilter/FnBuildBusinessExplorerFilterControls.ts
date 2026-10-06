@@ -19,6 +19,7 @@ import {
     FnWithAnyOption,
 } from "./FnGetDistinctDatasetValues";
 import { FnIsClientMenuFeature, FnIsProspectFilterFeature } from "./FnGetClientExplorerAutoFilter";
+import { RmsEnums } from "../../../constants/Feature";
 
 const NOTICE_PERIOD_VALUES = ["15", "30", "45", "60", "90", "120", "180"]; // fallback notice-period values
 const FIN_YEAR_QUARTERS = ["Q1", "Q2", "Q3", "Q4"]; // fallback fiscal-quarter values
@@ -60,6 +61,15 @@ const BUSINESS_DATE_FIELDS_CONFIG = [
 // Date-range max is today so start/end stay in the past.
 function todayIsoDate(): string {
     return new Date().toISOString().slice(0, 10);
+}
+
+function isCheckboxValueChecked(value: unknown): boolean {
+    if (value === true || value === 1 || value === "1") return true;
+    if (typeof value === "string") {
+        const lower = value.trim().toLowerCase();
+        return lower === "true" || lower === "yes" || lower === "1";
+    }
+    return false;
 }
 
 // Restore a saved combo value, or ANY when the field was not applied.
@@ -134,6 +144,74 @@ function FnBuildBusinessExplorerFilterControls(
     const fiscalQuarterOptions = FnWithAnyOption(
         distinctFiscalQuarters.length > 0 ? distinctFiscalQuarters : FIN_YEAR_QUARTERS
     );
+
+    // RMS Menu: EQID Feature (402) filters
+    if (featureId === RmsEnums.EQID || featureId === "402") {
+        const rmsGroup = "Filter EQID";
+
+        return [
+            makeControl({
+                name: "DataReady",
+                label: "Data ready",
+                group: rmsGroup,
+                sortOrder: 1,
+                displayControl: DisplayControlEnums.TrueFalseControl,
+                value: isCheckboxValueChecked(applied.DataReady) ? "true" : "false",
+            }),
+            makeControl({
+                name: "ShapeReady",
+                label: "Shape ready",
+                group: rmsGroup,
+                sortOrder: 2,
+                displayControl: DisplayControlEnums.TrueFalseControl,
+                value: isCheckboxValueChecked(applied.ShapeReady) ? "true" : "false",
+            }),
+            makeControl({
+                name: "isReleased",
+                label: "Is released",
+                group: rmsGroup,
+                sortOrder: 3,
+                displayControl: DisplayControlEnums.TrueFalseControl,
+                value: isCheckboxValueChecked(applied.isReleased) ? "true" : "false",
+            }),
+            makeControl({
+                name: "ApprovedDate_StartDate",
+                label: "Approved date from",
+                group: rmsGroup,
+                sortOrder: 4,
+                displayControl: DisplayControlEnums.DateControl,
+                value: applied["ApprovedDate_StartDate"] ?? applied["ApprovedDateStartDate"] ?? applied["ApprovedDate"] ?? "",
+                maxDate: todayIsoDate(),
+            }),
+            makeControl({
+                name: "ApprovedDate_EndDate",
+                label: "Approved date to",
+                group: rmsGroup,
+                sortOrder: 5,
+                displayControl: DisplayControlEnums.DateControl,
+                value: applied["ApprovedDate_EndDate"] ?? applied["ApprovedDateEndDate"] ?? "",
+                maxDate: todayIsoDate(),
+            }),
+            makeControl({
+                name: "ReleasedDate_StartDate",
+                label: "Released date from",
+                group: rmsGroup,
+                sortOrder: 6,
+                displayControl: DisplayControlEnums.DateControl,
+                value: applied["ReleasedDate_StartDate"] ?? applied["ReleasedDateStartDate"] ?? applied["ReleasedDate"] ?? "",
+                maxDate: todayIsoDate(),
+            }),
+            makeControl({
+                name: "ReleasedDate_EndDate",
+                label: "Released date to",
+                group: rmsGroup,
+                sortOrder: 7,
+                displayControl: DisplayControlEnums.DateControl,
+                value: applied["ReleasedDate_EndDate"] ?? applied["ReleasedDateEndDate"] ?? "",
+                maxDate: todayIsoDate(),
+            }),
+        ];
+    }
 
     // If this is a Client menu feature ([Client] NetZoom, VisioStencils, SSI…, MCS, Reseller),
     // offer the specific filters requested:

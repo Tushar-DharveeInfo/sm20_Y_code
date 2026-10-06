@@ -22,12 +22,15 @@ import { SettingsLibForm } from '../../settingsform/settingslibform/SettingsLibF
 import { handleContainerKeyDown, handleFormControlsBubbleKeyDown, handleFormControlsKeyDown } from '../../allcommon/basic/FnHandleContainerKeyDown'
 import { ActionImage } from '../../basic/actionimage/ActionImage'
 
-// True when the changed libform field is the Verified / Contact verified checkbox.
-function isVerifiedField(name: string | undefined): boolean {
+// True when the changed libform field is a checkbox (Verified, DataReady, ShapeReady, isReleased).
+function isCheckboxField(name: string | undefined): boolean {
     const field = String(name ?? "").toLowerCase();
     return (
         field === "verified"
         || field === "cverified"
+        || field === "dataready"
+        || field === "shapeready"
+        || field === "isreleased"
         || field.endsWith("_verified")
         || field.endsWith("_cverified")
         || field.includes("_verified_")
@@ -37,7 +40,7 @@ function isVerifiedField(name: string | undefined): boolean {
 
 // Store checkbox values as "true"/"false" (libform may emit 1/0).
 function toFilterValueString(value: unknown, name?: string): string {
-    if (isVerifiedField(name)) {
+    if (isCheckboxField(name)) {
         if (value === true || value === 1 || value === "1" || String(value).toLowerCase() === "true") {
             return "true";
         }

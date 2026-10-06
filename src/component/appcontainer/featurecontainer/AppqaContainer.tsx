@@ -146,7 +146,7 @@ function AppQaContainer(appQaContainerProps: IAppqaContainer) {
                         <AppqaImpersonate
                             uniqueName={'app-qa-impersonate'}
                             featureId={featureContainerProps.appqaId}
-                            headerText={featureContainerProps.headerText || 'Impersonate User'}
+                            headerText={featureContainerProps.headerText || 'Impersonate'}
                             handleShowUserMessage={handleShowUserMessage}
                         />
                     </Suspense>

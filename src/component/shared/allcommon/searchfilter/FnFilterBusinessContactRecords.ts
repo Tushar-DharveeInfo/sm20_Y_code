@@ -102,6 +102,19 @@ const KNOWN_FILTER_FIELDS = [
     "EndDate",
     "dateRange",
     "btype",
+    "DataReady",
+    "ShapeReady",
+    "isReleased",
+    "ApprovedDate",
+    "ApprovedDate_StartDate",
+    "ApprovedDate_EndDate",
+    "ApprovedDateStartDate",
+    "ApprovedDateEndDate",
+    "ReleasedDate",
+    "ReleasedDate_StartDate",
+    "ReleasedDate_EndDate",
+    "ReleasedDateStartDate",
+    "ReleasedDateEndDate",
     "salesexec",
     "tag",
     "selectdatetype",
@@ -225,7 +238,7 @@ export function getAppliedFilterJson(
     Object.entries(form).forEach(([key, value]) => {
         if (!isAppliedValue(value)) return;
         const field = normalizeFilterFieldName(key) ?? key;
-        if (field === "verified" || field === "cverified") {
+        if (field === "verified" || field === "cverified" || field === "DataReady" || field === "ShapeReady" || field === "isReleased") {
             const parsed = parseVerified(String(value));
             if (parsed === true) {
                 applied[field] = "true";

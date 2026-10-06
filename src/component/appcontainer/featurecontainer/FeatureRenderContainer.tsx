@@ -25,6 +25,7 @@ const DeviceLibrary = lazy(() => import('../../features/tickets/devicelibrary/De
 const RequestsReceived = lazy(() => import('../../features/tickets/requestsreceived/RequestsReceived.tsx'))
 const ApprovedTickets = lazy(() => import('../../features/tickets/approvedtickets/ApprovedTickets.tsx'))
 const McsDevelopment = lazy(() => import('../../features/rms/McsDevelopment.tsx'))
+const RmsEqid = lazy(() => import('../../features/rms/RmsEqid.tsx'))
 
 const ImpersonateService = lazy(() => import('../../features/faq/impersonateservice/ImpersonateService.tsx'))
 
@@ -245,6 +246,23 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             uniqueName={'feature-approved-tickets'}
                             featureId={featureContainerProps.featureId}
                             headerText={featureContainerProps.headerText}
+                            featureData={undefined}
+                            selectedFeatureData={featureContainerProps.selectedFeatureData}
+                            selectedNode={selectedNode}
+                            treeData={treeData}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case RmsEnums.EQID:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <RmsEqid
+                            uniqueName={'feature-rms-eqid'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'EQID Development'}
                             featureData={undefined}
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                             selectedNode={selectedNode}

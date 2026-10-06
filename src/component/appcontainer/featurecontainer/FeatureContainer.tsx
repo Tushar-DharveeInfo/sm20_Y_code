@@ -11,7 +11,6 @@ import { ExplorerContainer } from '../explorercontainer/ExplorerContainer'
 import { YesNoFormContainer } from '../../shared/basic/yesnoformcontainer/YesNoFormContainer.tsx'
 import { AppQaContainer } from './AppqaContainer.tsx';
 import { FeatureRenderContainer, FeaturesWithOwnLayout } from './FeatureRenderContainer.tsx';
-import { AppQA } from '../../constants/Feature.ts';
 const ReuseDataForFeatures: string[] = [];
 
 interface IFeatureContainer {
@@ -33,10 +32,9 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
     const [isShowOkButton, setIsShowOkButton] = useState<boolean>();
     const [overlayPosition, setOverlayPosition] = useState<{ left: number; top: number } | null>(null);
 
-    const isModalAppqa = featureContainerProps.appqaId === AppQA.Impersonate;
     const allowAppQaToRender = Boolean(featureContainerProps.appqaId);
     /* Features listed in FeaturesWithOwnLayout replace the explorer content. */
-    const doNotRenderExplorerTree = (!allowAppQaToRender || isModalAppqa)
+    const doNotRenderExplorerTree = !allowAppQaToRender
         && FeaturesWithOwnLayout.includes(featureContainerProps.featureId);
 
 
@@ -270,7 +268,7 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
     return (
         <div ref={containerDivRef} key={featureContainerProps.uniqueName} id="FeatureContainer" className={`nz-feature-container ${getClassNameBasedOnFeatureId(featureContainerProps.featureId)}`}>
             <div style={{
-                display: (allowAppQaToRender && !isModalAppqa) || doNotRenderExplorerTree ? 'none' : 'flex'
+                display: allowAppQaToRender || doNotRenderExplorerTree ? 'none' : 'flex'
             }} className='nz-wh-100 nz-feature-content'>
 
             {!doNotRenderExplorerTree && (
