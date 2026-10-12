@@ -23,7 +23,7 @@ const ApprovedTickets: React.FC<IApprovedTicketsProps> = (props) => {
         uniqueName = 'feature-approvedtickets',
         featureId = TicketsEnums.ApprovedTickets,
         headerText = 'Approved Tickets',
-        libraryMode = 'accepted',
+        libraryMode = 'InProgress',
         selectedNode,
         treeData = [],
     } = props;

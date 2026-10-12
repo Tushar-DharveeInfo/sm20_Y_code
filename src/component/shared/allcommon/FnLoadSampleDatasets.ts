@@ -14,7 +14,7 @@ import type {
     ITicketDoc,
     ITicketNoteDoc,
     ITodoDoc,
-} from "../allinterface/IDatasets";
+} from "../../db/IDatasets";
 import type { ISmDatasetCache } from "../context/allinterface/ISmData";
 
 import activitiesJson from "../../../smsampledata/datasets/activities.json";

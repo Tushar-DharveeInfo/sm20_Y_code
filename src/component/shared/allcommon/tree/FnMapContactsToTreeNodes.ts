@@ -1,4 +1,4 @@
-import { IContactDoc } from "../../allinterface/IDatasets";
+import { IContactDoc } from "../../../db/IDatasets";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { IFeatureTree } from "../../allinterface/tree/ITreeForFlatDataContainer";
 import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";

@@ -97,7 +97,7 @@ export function FnFilterEqidRecords(
     const requireDataReady = isFilterFlagChecked(
         getFilterValue(filters, "DataReady", "dataready", "dataReady")
     );
-    debugger;
+    ;
     const requireShapeReady = isFilterFlagChecked(
         getFilterValue(filters, "ShapeReady", "shapeready", "shapeReady")
     );

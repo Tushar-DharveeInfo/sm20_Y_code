@@ -15,11 +15,11 @@ const FnGetClientExplorerAutoFilter = (
 
     switch (featureId) {
         case ClientEnums.NetZoom:
-            return { btype: "consultant" };
+            return { btype: "netzoom" };
         case ClientEnums.VisioStencils:
-            return { btype: "enduser" };
+            return { btype: "visiostencils" };
         case ClientEnums.SSIAndOtherServices:
-            return { btype: "Client" };
+            return { btype: "ssi" };
         case ClientEnums.Reseller:
             return { btype: "reseller" };
         case ClientEnums.Mcs:

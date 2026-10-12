@@ -476,7 +476,13 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
         nodeMenuProps.featureId === "920" ||
         String(nodeMenuProps.featureId ?? "").toLowerCase() === "delete";
 
-    if (nodeMenuProps.container === "explorer_tree" && !isContactNodeForMenu && !isSettingDeleteFeatureForMenu) {
+    const manufacturerNodeType = String(activeNodeForMenu?.NodeType ?? "").toLowerCase();
+    const isManufacturerTreeNode =
+        manufacturerNodeType === "mfg" ||
+        manufacturerNodeType === "prodline" ||
+        manufacturerNodeType === "mfgeqtype";
+
+    if (nodeMenuProps.container === "explorer_tree" && !isContactNodeForMenu && !isSettingDeleteFeatureForMenu && !isManufacturerTreeNode) {
         return null;
     }
 

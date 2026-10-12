@@ -2,14 +2,15 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { Splitter, SplitterPanel } from 'primereact/splitter';
 import { TicketCardList } from './TicketCardList';
 import { TicketNotesList } from './TicketNotesList';
-import type { ITicketDoc, IContactDoc, ITicketNoteDoc } from '../../../shared/allinterface/IDatasets';
+import type { ITicketDoc, IContactDoc, ITicketNoteDoc } from '../../../db/IDatasets';
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl';
 import { ILibraryTicketMode, filterTicketsByLibraryMode } from '../../appqa/allcommon/FnBuildTicketTree';
 import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 import { useSelectedNodeContext } from '../../../shared/context/hooks/SelectedNodeHooks';
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
+import { useRmsContext } from '../../../shared/context/hooks/RmsHooks';
 import { FnGetSourceDataset } from '../../../shared/allcommon/FnLoadSampleDatasets';
-import { TicketsEnums } from '../../../constants/Feature';
+import { TicketsEnums, RmsEnums } from '../../../constants/Feature';
 import { useBusinessTickets, useTicketNotes, type IFirestoreQueryFilter } from '@n20a/libfsdb';
 import './TicketCardsPane.css';
 
@@ -55,6 +56,7 @@ function FnMapToTicketDoc(record: Record<string, unknown>, fallbackBid: string):
         daterequested: formatTimestampOrDate(record.daterequested),
         datereleased: formatTimestampOrDate(record.datereleased),
         lastupdated: formatTimestampOrDate(record.lastupdated),
+        eqid: record.eqid ? String(record.eqid) : ((record as any).EQID ? String((record as any).EQID) : undefined),
     };
 }
 
@@ -74,6 +76,7 @@ function FnMapToTicketNoteDoc(
         datecreated: formatTimestampOrDate(
             record.datecreated || record.createdat || record.createdAt || new Date().toISOString()
         ),
+        eqid: record.eqid ? String(record.eqid) : ((record as any).EQID ? String((record as any).EQID) : undefined),
     };
 }
 
@@ -131,13 +134,19 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     const smDataContext = useSmDataContext();
     const selectedNodeContext = useSelectedNodeContext();
     const mainAppContext = useMainAppContext();
+    const rmsContext = useRmsContext();
 
-    // Determine library mode: 'received' (status <> Approved) or 'accepted' (status == Approved)
+    const isRmsEqid =
+        featureId === RmsEnums.EQID ||
+        featureId === '404';
+
+    // Determine library mode: 'Open' vs 'InProgress'
     const effectiveMode: ILibraryTicketMode = useMemo(() => {
-        if (propMode) return propMode;
-        if (featureId === TicketsEnums.ApprovedTickets) return 'accepted';
-        return 'received';
-    }, [propMode, featureId]);
+        if (propMode === 'InProgress') return 'InProgress';
+        if (propMode === 'Open') return 'Open';
+        if (featureId === TicketsEnums.ApprovedTickets || isRmsEqid) return 'InProgress';
+        return 'Open';
+    }, [propMode, featureId, isRmsEqid]);
 
     // Determine active tree node
     const activeNode =
@@ -146,32 +155,41 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         selectedNodeContext?.selectedNode ??
         selectedNodeContext?.selectedNodeExplorer?.node;
 
+    const activeNodeKey = activeNode?.key ?? activeNode?.NodeEntID ?? '';
+    const activeNodeType = activeNode?.NodeType ?? '';
+    const selBid = smDataContext.selection?.bid ?? '';
+    const selCid = smDataContext.selection?.cid ?? '';
+
     // Resolve scope
     const scope = useMemo(() => {
         return resolveScopeFromNode(activeNode, smDataContext.selection);
-    }, [activeNode, smDataContext.selection]);
+    }, [activeNodeKey, activeNodeType, selBid, selCid]);
 
     const effectiveBid = useMemo(() => {
         return scope.bid ? String(scope.bid).trim() : '';
     }, [scope.bid]);
 
-    const isRequestsReceived =
-        featureId === TicketsEnums.RequestsReceived ||
-        (!featureId && propMode === 'received');
-
     const isApprovedTickets =
         featureId === TicketsEnums.ApprovedTickets ||
-        (!featureId && propMode === 'accepted');
+        isRmsEqid ||
+        propMode === 'InProgress' ||
+        effectiveMode === 'InProgress';
+
+    const isRequestsReceived =
+        !isApprovedTickets &&
+        (featureId === TicketsEnums.RequestsReceived ||
+            propMode === 'Open' ||
+            effectiveMode === 'Open');
 
     const ticketQueryFilters = useMemo<IFirestoreQueryFilter[] | undefined>(() => {
-        if (isRequestsReceived) {
-            return [{ field: 'status', op: '==', value: 'Received' }];
-        }
         if (isApprovedTickets) {
-            return [{ field: 'status', op: '==', value: 'Released' }];
+            return [{ field: 'status', op: '==', value: 'InProgress' }];
+        }
+        if (isRequestsReceived) {
+            return [{ field: 'status', op: '==', value: 'Open' }];
         }
         return undefined;
-    }, [isRequestsReceived, isApprovedTickets]);
+    }, [isApprovedTickets, isRequestsReceived]);
 
     const ticketFetchByFilter = useMemo(() => {
         if (!ticketQueryFilters || ticketQueryFilters.length === 0) return undefined;
@@ -257,20 +275,22 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         return FnGetSourceDataset('contacts') || [];
     }, [smDataContext.datasets?.contacts]);
 
-    // Filter tickets by library mode ('received' vs 'accepted') or feature status
+    // Filter tickets by library mode ('Open' vs 'InProgress') or feature status
     const modeFilteredTickets = useMemo(() => {
-        if (isRequestsReceived) {
-            return rawTickets.filter(
-                (ticket) => (ticket.status ?? '').trim().toLowerCase() === 'received'
-            );
-        }
         if (isApprovedTickets) {
-            return rawTickets.filter(
-                (ticket) => (ticket.status ?? '').trim().toLowerCase() === 'released'
-            );
+            return rawTickets.filter((ticket) => {
+                const s = (ticket.status ?? '').trim().toLowerCase();
+                return s === 'inprogress' || s === 'in progress' || s === 'released' || s === 'approved' || s === 'accepted';
+            });
+        }
+        if (isRequestsReceived) {
+            return rawTickets.filter((ticket) => {
+                const s = (ticket.status ?? '').trim().toLowerCase();
+                return s === 'open' || s === 'received';
+            });
         }
         return filterTicketsByLibraryMode(rawTickets, effectiveMode);
-    }, [rawTickets, effectiveMode, isRequestsReceived, isApprovedTickets]);
+    }, [rawTickets, effectiveMode, isApprovedTickets, isRequestsReceived]);
 
     // Scope tickets by selected node:
     // Root -> all businesses
@@ -289,7 +309,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         }
         // Root: all tickets across all businesses
         return modeFilteredTickets;
-    }, [modeFilteredTickets, scope]);
+    }, [modeFilteredTickets, scope.nodeType, scope.bid, scope.cid]);
 
     const sortedScopedTickets = useMemo(() => {
         return sortTicketsNewestFirst(scopedTickets);
@@ -324,6 +344,67 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             return sortedScopedTickets[0];
         });
     }, [sortedScopedTickets, currentNodeKey]);
+
+    // Synchronize selected ticket with selectedNodeContext and rmsContext so sidebar tabs display the selected EQID
+    const prevSyncedTicketIdRef = useRef<string | null>(null);
+    const selectedNodeContextRef = useRef(selectedNodeContext);
+    selectedNodeContextRef.current = selectedNodeContext;
+    const rmsContextRef = useRef(rmsContext);
+    rmsContextRef.current = rmsContext;
+    const isRmsEqidRef = useRef(isRmsEqid);
+    isRmsEqidRef.current = isRmsEqid;
+
+    useEffect(() => {
+        if (!isRmsEqid) {
+            if (prevSyncedTicketIdRef.current !== null) {
+                prevSyncedTicketIdRef.current = null;
+                selectedNodeContextRef.current?.setSelectedTicketCard?.(null);
+                rmsContextRef.current?.setSelectedTicketCard?.(null);
+            }
+            return;
+        }
+
+        const currentTicketId = selectedTicket?.ticketid ?? null;
+        if (prevSyncedTicketIdRef.current === currentTicketId) {
+            return;
+        }
+        prevSyncedTicketIdRef.current = currentTicketId;
+
+        if (selectedTicket) {
+            const matchingEqidRecord = (rmsContextRef.current?.eqid ?? []).find(
+                (e: any) => e.ticketid && e.ticketid === selectedTicket.ticketid
+            );
+            const resolvedEqid = (selectedTicket as any).eqid || (selectedTicket as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+            const ticketNode = {
+                key: `ticket-${selectedTicket.ticketid}`,
+                NodeEntID: selectedTicket.ticketid,
+                Name: `${selectedTicket.mfg || 'Device'} ${selectedTicket.prodno || selectedTicket.ticketid}`,
+                Label: `${selectedTicket.mfg || 'Device'} ${selectedTicket.prodno || selectedTicket.ticketid}`,
+                NodeType: 'Ticket',
+                treetype: 'Ticket',
+                ticketid: selectedTicket.ticketid,
+                eqid: resolvedEqid,
+                EQID: resolvedEqid,
+                ...selectedTicket,
+            } as unknown as ITreeNode;
+            selectedNodeContextRef.current?.setSelectedTicketCard?.(ticketNode);
+            rmsContextRef.current?.setSelectedTicketCard?.(ticketNode);
+        } else {
+            selectedNodeContextRef.current?.setSelectedTicketCard?.(null);
+            rmsContextRef.current?.setSelectedTicketCard?.(null);
+        }
+    }, [selectedTicket?.ticketid, isRmsEqid]);
+
+    // Clear selected ticket card on component unmount
+    useEffect(() => {
+        return () => {
+            if (isRmsEqidRef.current) {
+                prevSyncedTicketIdRef.current = null;
+                selectedNodeContextRef.current?.setSelectedTicketCard?.(null);
+                rmsContextRef.current?.setSelectedTicketCard?.(null);
+            }
+        };
+    }, []);
 
     // Load ticket notes using useTicketNotes hook for selected ticket
     const selectedTicketBid = selectedTicket?.bid
@@ -397,6 +478,27 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
 
     const handleSelectTicket = (ticket: ITicketDoc) => {
         setSelectedTicket(ticket);
+        if (isRmsEqid) {
+            const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
+                (e: any) => e.ticketid && e.ticketid === ticket.ticketid
+            );
+            const resolvedEqid = (ticket as any).eqid || (ticket as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+            const ticketNode = {
+                key: `ticket-${ticket.ticketid}`,
+                NodeEntID: ticket.ticketid,
+                Name: `${ticket.mfg || 'Device'} ${ticket.prodno || ticket.ticketid}`,
+                Label: `${ticket.mfg || 'Device'} ${ticket.prodno || ticket.ticketid}`,
+                NodeType: 'Ticket',
+                treetype: 'Ticket',
+                ticketid: ticket.ticketid,
+                eqid: resolvedEqid,
+                EQID: resolvedEqid,
+                ...ticket,
+            } as unknown as ITreeNode;
+            prevSyncedTicketIdRef.current = ticket.ticketid;
+            selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
+            rmsContext?.setSelectedTicketCard?.(ticketNode);
+        }
     };
 
     const handleStatusChange = (ticket: ITicketDoc, newStatus: string) => {
@@ -404,7 +506,28 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         ticket.lastupdated = new Date().toISOString();
 
         if (selectedTicket?.ticketid === ticket.ticketid) {
-            setSelectedTicket({ ...ticket, status: newStatus, lastupdated: ticket.lastupdated });
+            const updated = { ...ticket, status: newStatus, lastupdated: ticket.lastupdated };
+            setSelectedTicket(updated);
+            if (isRmsEqid) {
+                const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
+                    (e: any) => e.ticketid && e.ticketid === ticket.ticketid
+                );
+                const resolvedEqid = (ticket as any).eqid || (ticket as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+                const ticketNode = {
+                    key: `ticket-${ticket.ticketid}`,
+                    NodeEntID: ticket.ticketid,
+                    Name: `${ticket.mfg || 'Device'} ${ticket.prodno || ticket.ticketid}`,
+                    Label: `${ticket.mfg || 'Device'} ${ticket.prodno || ticket.ticketid}`,
+                    NodeType: 'Ticket',
+                    treetype: 'Ticket',
+                    ticketid: ticket.ticketid,
+                    eqid: resolvedEqid,
+                    EQID: resolvedEqid,
+                    ...updated,
+                } as unknown as ITreeNode;
+                selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
+                rmsContext?.setSelectedTicketCard?.(ticketNode);
+            }
         }
 
         if (smDataContext.datasets?.tickets) {
@@ -422,6 +545,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         async (newNote: ITicketNoteDoc) => {
             if (!selectedTicketBid || !selectedTicketId) return;
             try {
+                const noteEqid = newNote.eqid || selectedTicket?.eqid || (selectedTicket as any)?.EQID || '';
                 await createTicketNote({
                     bid: selectedTicketBid,
                     cid: newNote.cid || selectedTicket?.cid || '',
@@ -431,13 +555,14 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                     datecreated: newNote.datecreated || new Date().toISOString(),
                     monitor: false,
                     monitorupdated: new Date().toISOString(),
+                    ...(noteEqid ? { eqid: noteEqid } : {}),
                 });
                 void getTicketNotes();
             } catch (err) {
                 console.error('Failed to create ticket note in Firestore:', err);
             }
         },
-        [selectedTicketBid, selectedTicketId, selectedTicket?.cid, createTicketNote, getTicketNotes]
+        [selectedTicketBid, selectedTicketId, selectedTicket, createTicketNote, getTicketNotes]
     );
 
     return (

@@ -9,7 +9,6 @@ import { Image } from '../../basic/image/Image';
 import { NodeMenu } from '../../menu/nodemenu/NodeMenu';
 import { getfeaturesData } from '../../context/contextandprovider/MainApp';
 import { IFeatureItem } from '../../allinterface/menu/INodeMenu';
-import { SettingEnums } from '../../../constants/Feature';
 
 const TreeNodeTitle = (
     treeNode: ITreeNode,
@@ -95,27 +94,11 @@ const TreeNodeTitle = (
             : null;
         const StatusIcon = statusIconConfig?.Icon;
 
-        const isContactNode = Boolean(
-            treeNode.NodeType?.toLowerCase() === "contact" ||
-            treeNode.treetype?.toLowerCase() === "contact" ||
-            treeNode.NodeEntityname?.toLowerCase() === "contact" ||
-            (treeNode.cid && treeNode.cid !== treeNode.bid)
-        );
-
         const isRootNode =
             treeNode.key === "root-businesses" ||
             treeNode.NodeType?.toLowerCase() === "root";
 
-        const isSettingDeleteFeature =
-            featureId === SettingEnums.Delete ||
-            featureId === "920" ||
-            String(featureId).toLowerCase() === "delete";
-
-        const allowKebab =
-            showKebabIcon &&
-            handleKebabMenuSelect &&
-            !isRootNode &&
-            (isContactNode || isSettingDeleteFeature);
+        const allowKebab = Boolean(showKebabIcon && handleKebabMenuSelect && !isRootNode);
 
         return (
             <span className="nz-tree-node-icons-wrapper" key={`node-icons-${treeNode.key}`}>

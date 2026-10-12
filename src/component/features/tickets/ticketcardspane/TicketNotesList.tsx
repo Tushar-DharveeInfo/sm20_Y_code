@@ -4,13 +4,13 @@ import type { INote } from '@n20a/libavnotes';
 import '@n20a/libavnotes/style.css';
 import '../../../shared/sidebar/notes/FqaNotes.css';
 import './TicketNotesList.css';
-import { Attach24x24 } from '@n20a/libicon';
+import { Attach24x24, Info24x24 } from '@n20a/libicon';
 import { Image } from '../../../shared/basic/image/Image';
 import { Label } from '../../../shared/basic/label/Label';
 import { FilterKeywordControl } from '../../../shared/searchfilter/filterkeywordcontrol/FilterKeywordControl';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { FnFormatDateWithAppFormat } from '../../../appcontainer/allcommon/FnFormatDateWithAppFormat';
-import type { ITicketNoteDoc, ITicketDoc } from '../../../shared/allinterface/IDatasets';
+import type { ITicketNoteDoc, ITicketDoc } from '../../../db/IDatasets';
 import { useFileDownload } from '@n20a/libfsdb';
 import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks';
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
@@ -91,11 +91,50 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
         const base = ticketnotes.filter(
             (n) => String(n.ticketid ?? '').trim() === targetId
         );
-        const added = localNotes.filter(
-            (n) => String(n.ticketid ?? '').trim() === targetId
-        );
-        return [...base, ...added];
+        // Only include local notes not already present in base
+        const added = localNotes.filter((local) => {
+            if (String(local.ticketid ?? '').trim() !== targetId) return false;
+            const existsInBase = base.some((b) => {
+                const sameNotes = String(b.notes || '').trim() === String(local.notes || '').trim();
+                const sameFile = String(b.filename || '') === String(local.filename || '');
+                const bTime = b.datecreated ? new Date(b.datecreated).getTime() : 0;
+                const lTime = local.datecreated ? new Date(local.datecreated).getTime() : 0;
+                const timeClose = Math.abs(bTime - lTime) < 30000;
+                return sameNotes && sameFile && (timeClose || !bTime || !lTime);
+            });
+            return !existsInBase;
+        });
+
+        // Deduplicate base notes in case of backend duplicate records
+        const seen = new Set<string>();
+        const dedupedBase = base.filter((note) => {
+            const key = `${String(note.ticketid || '')}|${String(note.notes || '').trim()}|${String(note.filename || '')}|${String(note.datecreated || '')}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
+        return [...dedupedBase, ...added];
     }, [ticketId, ticketnotes, localNotes]);
+
+    // Clear localNotes once they appear in the ticketnotes dataset
+    useEffect(() => {
+        if (!ticketnotes.length || !localNotes.length) return;
+        setLocalNotes((prev) =>
+            prev.filter((local) => {
+                const existsInBase = ticketnotes.some((b) => {
+                    const sameTicket = String(b.ticketid ?? '').trim() === String(local.ticketid ?? '').trim();
+                    const sameNotes = String(b.notes || '').trim() === String(local.notes || '').trim();
+                    const sameFile = String(b.filename || '') === String(local.filename || '');
+                    const bTime = b.datecreated ? new Date(b.datecreated).getTime() : 0;
+                    const lTime = local.datecreated ? new Date(local.datecreated).getTime() : 0;
+                    const timeClose = Math.abs(bTime - lTime) < 30000;
+                    return sameTicket && sameNotes && sameFile && (timeClose || !bTime || !lTime);
+                });
+                return !existsInBase;
+            })
+        );
+    }, [ticketnotes, localNotes.length]);
 
     const sorted = useMemo(() => sortNotesOldestFirst(allNotesForTicket), [allNotesForTicket]);
 
@@ -122,10 +161,11 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
         });
         setRefreshToken((v) => v + 1);
     }, []);
-    // Reset editor and search filter when switching tickets
+    // Reset editor, local notes, and search filter when switching tickets
     useEffect(() => {
         resetEditor();
         setFilterText('');
+        setLocalNotes([]);
     }, [ticketId, resetEditor]);
 
     // Auto-scroll to bottom of list when notes change
@@ -316,6 +356,7 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
                                 const isSelected = editingItem === item;
                                 const formattedDate = FnFormatDateWithAppFormat(item.datecreated, true);
                                 const cleanName = getCleanFileName(item.filename || '');
+                                const hasFile = Boolean(cleanName || (item.filename && item.filename.trim().length > 0));
                                 const tooltipText = cleanName
                                     ? `Click to download ${cleanName}`
                                     : 'Click to download attachment';
@@ -342,28 +383,45 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
                                             </div>
                                         </div>
                                         <div className="nz-info-div">
-                                            <div
-                                                className="nz-info-image"
-                                                style={{ cursor: 'pointer' }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    void handleDownloadFile(item, e);
-                                                    handleSelectCardToEdit(item);
-                                                }}
-                                            >
-                                                <Image
-                                                    uniqueName={`attach-${index}`}
-                                                    source={
-                                                        <Attach24x24
-                                                            size={FnGetCssVariable('--image-size-1')}
-                                                            fill="none"
-                                                            strokeWidth={1}
-                                                        />
-                                                    }
-                                                    w="var(--image-size-2)"
-                                                    tooltip={tooltipText}
-                                                />
-                                            </div>
+                                            {hasFile ? (
+                                                <div
+                                                    className="nz-info-image"
+                                                    style={{ cursor: 'pointer' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        void handleDownloadFile(item, e);
+                                                        handleSelectCardToEdit(item);
+                                                    }}
+                                                >
+                                                    <Image
+                                                        uniqueName={`attach-${index}`}
+                                                        source={
+                                                            <Attach24x24
+                                                                size={FnGetCssVariable('--image-size-1')}
+                                                                fill="none"
+                                                                strokeWidth={1}
+                                                            />
+                                                        }
+                                                        w="var(--image-size-2)"
+                                                        tooltip={tooltipText}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="nz-info-image">
+                                                    <Image
+                                                        uniqueName={`info-${index}`}
+                                                        source={
+                                                            <Info24x24
+                                                                size={FnGetCssVariable('--image-size-1')}
+                                                                fill="none"
+                                                                strokeWidth={1}
+                                                            />
+                                                        }
+                                                        w="var(--image-size-2)"
+                                                        tooltip="Info"
+                                                    />
+                                                </div>
+                                            )}
                                             <div className="nz-nodes-text">
                                                 <Label uniqueName={`notes-${index}`} label={item.notes} />
                                             </div>

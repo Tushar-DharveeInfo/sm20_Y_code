@@ -10,6 +10,7 @@ function SelectedNodeProvider({ children }: IAppContextWrapper) {
     const [selectedNode, setSelectedNodeState] = useState<ITreeNode>();
     const [selectedNodeProperty, setSelectedNodePropertyState] = useState<ISelectedNodeProperty>();
     const [selectedNodeExplorer, setSelectedNodeExplorerState] = useState<ITreeNode>();
+    const [selectedTicketCard, setSelectedTicketCardState] = useState<any>(null);
 
     const setSelectedNode = useCallback((node?: ITreeNode) => {
         setSelectedNodeState((prev) => {
@@ -35,20 +36,37 @@ function SelectedNodeProvider({ children }: IAppContextWrapper) {
         setSelectedNodePropertyState(prop);
     }, []);
 
+    const setSelectedTicketCard = useCallback((ticket?: any) => {
+        setSelectedTicketCardState((prev: any) => {
+            if (prev === ticket) return prev;
+            if (!prev && !ticket) return prev;
+            const prevId = prev?.ticketid || prev?.id || prev?.key || prev?.NodeEntID;
+            const nextId = ticket?.ticketid || ticket?.id || ticket?.key || ticket?.NodeEntID;
+            if (prevId && nextId && prevId === nextId) {
+                return prev;
+            }
+            return ticket ?? null;
+        });
+    }, []);
+
     const contextValue = useMemo(() => ({
         selectedNode,
         selectedNodeProperty,
         selectedNodeExplorer,
+        selectedTicketCard,
         setSelectedNode,
         setSelectedNodeProperty,
         setSelectedNodeExplorer,
+        setSelectedTicketCard,
     }), [
         selectedNode,
         selectedNodeProperty,
         selectedNodeExplorer,
+        selectedTicketCard,
         setSelectedNode,
         setSelectedNodeProperty,
         setSelectedNodeExplorer,
+        setSelectedTicketCard,
     ]);
 
     return (

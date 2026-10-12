@@ -347,13 +347,13 @@ export async function FnResolveEmailTemplate(
 ): Promise<string> {
     if (!templateContent) return '';
     let result = templateContent;
-    debugger
+
     // Rule: if datasource is missing then do not try to resolve variables
     if (dataSource && dataSource.trim() !== '') {
         try {
             // First call fn and get datajson string
             const dataJson = await FnExecuteEmailVarsDataSource(dataSource, context);
-            debugger
+
             if (dataJson && dataJson.trim()) {
                 let parsed: Record<string, unknown> = {};
                 try {

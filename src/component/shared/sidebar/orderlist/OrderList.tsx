@@ -5,7 +5,7 @@ import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariab
 import { handleNestedZoneContainerKeyDown } from "../../allcommon/basic/FnHandleContainerKeyDown";
 import { Label } from "../../basic/label/Label";
 import { CardLayout, ICardLayoutField } from "../../cardlayout/CardLayout";
-import type { IOrderDoc } from "../../allinterface/IDatasets";
+import type { IOrderDoc } from "../../../db/IDatasets";
 import { useSmDataContext } from "../../context/hooks/SmDataHooks";
 import { useOrders } from "@n20a/libfsdb";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";

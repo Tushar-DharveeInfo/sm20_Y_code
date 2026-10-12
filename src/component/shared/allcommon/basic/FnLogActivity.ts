@@ -1,4 +1,4 @@
-import type { IActivityDoc, CollectionName, ICollectionDocMap } from '../../allinterface/IDatasets';
+import type { IActivityDoc, CollectionName, ICollectionDocMap } from '../../../db/IDatasets';
 
 interface IFnLogActivityParams {
     bid: string;

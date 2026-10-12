@@ -29,7 +29,7 @@ import { useMainAppContext } from '../../context/hooks/MainAppHooks'
 import { FnLogActivity } from '../../allcommon/basic/FnLogActivity'
 import { YesNoFormContainer } from '../../basic/yesnoformcontainer/YesNoFormContainer'
 import { isPrimaryCompanyContact } from './ProfileAddFormContainer'
-import type { IBusinessDoc, IContactDoc } from '../../allinterface/IDatasets'
+import type { IBusinessDoc, IContactDoc } from '../../../db/IDatasets'
 
 const addressFieldNames = new Set([
     "address1",

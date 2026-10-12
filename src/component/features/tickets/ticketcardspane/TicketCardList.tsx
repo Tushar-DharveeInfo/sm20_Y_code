@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { TicketCard } from './TicketCard';
 import { Label } from '../../../shared/basic/label/Label';
 import { EditTextXControl } from '@n20a/libform';
-import type { ITicketDoc, IContactDoc } from '../../../shared/allinterface/IDatasets';
+import type { ITicketDoc, IContactDoc } from '../../../db/IDatasets';
 import './TicketCardList.css';
 
 interface ITicketCardListProps {

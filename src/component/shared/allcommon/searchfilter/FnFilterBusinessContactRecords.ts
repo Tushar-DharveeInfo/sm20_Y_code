@@ -1,5 +1,5 @@
 // Apply explorer filter json to businesses/contacts; skip ANY and empty values.
-import { IBusinessDoc, IContactDoc } from "../../allinterface/IDatasets";
+import { IBusinessDoc, IContactDoc } from "../../../db/IDatasets";
 import { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import { FILTER_ANY } from "./FnGetDistinctDatasetValues";
 import { ProspectEnums } from "../../../constants/Feature";

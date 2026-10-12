@@ -192,7 +192,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
             };
             bid = bidCid?.bid;
             cid = bidCid?.cid;
-            debugger
+
             const urlParams = new URLSearchParams(window.location.search);
             const queryBid = urlParams.get('bid')?.trim();
             const queryCid = urlParams.get('cid')?.trim();

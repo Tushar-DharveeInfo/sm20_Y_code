@@ -1,4 +1,4 @@
-import type { IBusinessDoc, IContactDoc } from "../../allinterface/IDatasets";
+import type { IBusinessDoc, IContactDoc } from "../../../db/IDatasets";
 
 // Distinct combo values from cached businesses/contacts datasets.
 const FILTER_ANY = "ANY"; // First combo option; omitted from saved filter json.

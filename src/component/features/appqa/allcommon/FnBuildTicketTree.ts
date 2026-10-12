@@ -2,8 +2,8 @@ import { IFeatureTree } from "../../../shared/allinterface/tree/ITreeForHierarch
 import { TreeNodeIcon } from "../../../shared/tree/treenodeicon/TreeNodeIcon";
 import { TreeNodeTitle } from "../../../shared/tree/treenodetitle/TreeNodeTitle";
 import { FnFormatTicketDateOnly } from "../../../shared/allcommon/tree/FnFormatTicketDate";
-import type { ITicketDoc } from "../../../shared/allinterface/IDatasets";
-import { ITicketFilterValues } from "../../library/librarytickets/ticketexplorercontainer/TicketFilterForm";
+import type { ITicketDoc } from "../../../db/IDatasets";
+import { ITicketFilterValues } from "../../tickets/tickets/ticketexplorercontainer/TicketFilterForm";
 import { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
 
 type NodeContext = {
@@ -37,7 +37,7 @@ function toLeafNodeStatus(status: string): "Released" | "Accepted" | "Received" 
 
 function isClosedLibraryStatus(status: string): boolean {
     const normalized = status.toLowerCase();
-    return normalized === "accepted" || normalized === "resolved" || normalized === "released";
+    return normalized === "InProgress" || normalized === "Open"
 }
 
 function isOpenLibraryStatus(status: string): boolean {
@@ -64,7 +64,7 @@ export function filterTickets(
 }
 
 /* Library ticket list modes (Received = not Accepted, Approved = Accepted only). */
-export type ILibraryTicketMode = "received" | "accepted" | "all" | "mcs";
+export type ILibraryTicketMode = "Open" | "InProgress" | "all" | "mcs";
 
 export interface ILibraryBusinessScope {
     /* Root / all businesses → no scope. */
@@ -81,7 +81,7 @@ export function filterTicketsByLibraryMode(
     mode?: ILibraryTicketMode
 ): ITicketDoc[] {
     if (!mode || mode === "all" || mode === "mcs") return [...tickets];
-    if (mode === "accepted") {
+    if (mode === "InProgress") {
         return tickets.filter((ticket) => isClosedLibraryStatus(ticketStatus(ticket)));
     }
     // received: tickets not yet accepted / resolved

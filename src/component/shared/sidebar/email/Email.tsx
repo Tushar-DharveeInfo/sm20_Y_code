@@ -1,6 +1,6 @@
 import { useMemo, useEffect } from 'react';
 import { ITreeNode } from '../../allinterface/tree/ITreeControl';
-import type { IContactDoc } from '../../allinterface/IDatasets';
+import type { IContactDoc } from '../../../db/IDatasets';
 import { SendEmailToContact } from '../contactlist/SendEmailToContact';
 import { useContacts } from '@n20a/libfsdb';
 import { useSmDataContext } from '../../context/hooks/SmDataHooks';

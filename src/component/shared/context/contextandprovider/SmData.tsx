@@ -3,7 +3,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import { useBusinesses } from "@n20a/libfsdb";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { IExplorerSelection, ISmData, ISmDatasetCache } from "../allinterface/ISmData";
-import type { CollectionName, ICollectionDocMap, IContactDoc } from "../../allinterface/IDatasets";
+import type { CollectionName, ICollectionDocMap, IContactDoc } from "../../../db/IDatasets";
 import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import {
@@ -14,7 +14,7 @@ import { FnLoadScopedDatasets } from "../../allcommon/dataset/FnFilterScopedData
 import { FnMapToBusinessDocs } from "../../allcommon/dataset/FnMapToBusinessDoc";
 import { filterContactRecords } from "../../allcommon/searchfilter/FnFilterBusinessContactRecords";
 
-import {useLoadRemoteJson, type IUseLoadRemoteJsonOptions } from "../../allcommon/LoadRemoteJsonHooks";
+import { useLoadRemoteJson, type IUseLoadRemoteJsonOptions } from "../../allcommon/LoadRemoteJsonHooks";
 
 const FILTER_OP = "==" as const;
 
@@ -119,7 +119,7 @@ function SmDataProvider({ children }: IAppContextWrapper) {
     const businessesLoadedRef = useRef(false);
     const selectionKeyRef = useRef(selectionCacheKey(emptySelection()));
 
-////////////////////////////////////////////load eqid vs stencils
+    ////////////////////////////////////////////load eqid vs stencils
     const [eqidVsStencils, setEqidVsStencils] = useState<IEqidVsStencils>([]);
     const [eqidVsStencilsError, setEqidVsStencilsError] = useState<string | null>(null);
 
@@ -139,24 +139,21 @@ function SmDataProvider({ children }: IAppContextWrapper) {
     };
 
     useLoadRemoteJson(options);
-//////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////
 
     const getStencilName = useCallback((EQID: string): string | null => {
-      console.log("Y-ServiceData: Getting stencil name for EQID:", EQID);
-        try 
-        {
-          if (!EQID || !Array.isArray(eqidVsStencils) || eqidVsStencils.length == 0) 
-          {
+        console.log("Y-ServiceData: Getting stencil name for EQID:", EQID);
+        try {
+            if (!EQID || !Array.isArray(eqidVsStencils) || eqidVsStencils.length == 0) {
+                return null;
+            }
+            const match = eqidVsStencils.find((item) => item.EQID === EQID);
+            return match?.StencilName ?? null;
+        }
+        catch (error) {
+            console.log("Y-ServiceData: Error occurred while getting stencil name for EQID:", EQID, "Error:", error);
+
             return null;
-          }
-          const match = eqidVsStencils.find((item) => item.EQID === EQID);
-          return match?.StencilName ?? null;
-        } 
-        catch (error) 
-        {
-          console.log("Y-ServiceData: Error occurred while getting stencil name for EQID:", EQID, "Error:", error);
-          
-          return null;
         }
     }, [eqidVsStencils]);
 

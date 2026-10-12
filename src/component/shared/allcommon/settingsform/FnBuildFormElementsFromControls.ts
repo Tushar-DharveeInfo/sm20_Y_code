@@ -491,6 +491,8 @@ const FnBuildFormElementsFromControls = (
                         sourceunit: sourceUnit,
                         required: isRequired,
                         nullAllowed: col.NullNotAllowed ? false : true,
+                        allowCustom: col.allowCustom === true,
+                        height: typeof col.Height === 'number' ? col.Height : undefined,
                         disabled: isDisabled || isReadOnlyControl,
                         onChangedValue: isReadOnlyControl ? undefined : handleChangedControlValue,
                         multiple: displayControl === "fileSelect" ? false : undefined,

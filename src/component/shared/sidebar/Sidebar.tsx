@@ -60,12 +60,13 @@ interface IEMRecord {
 interface IKebabMenuResponse {
     KebabMenu?: IMenuItem[];
 }
-import { SidebarEnum } from '../../constants/Feature';
+import { SidebarEnum, RmsEnums } from '../../constants/Feature';
 import { isEqual } from 'lodash';
 import { FnParseJsonSafely } from '../../appcontainer/allcommon/FnParseJsonSafely';
 import {
     sampleBusinessPropertyKebabMenuResponse,
     sampleContactPropertyKebabMenuResponse,
+    sampleEqidPropertyKebabMenuResponse,
     samplePropertyKebabMenuResponse,
 } from './propertyformcontainer/PropertySampleData';
 import { FnIsRootBusinessNode } from '../allcommon/tree/FnIsRootBusinessNode';
@@ -115,8 +116,14 @@ const Sidebar = (sidebarProps: ISidebar) => {
     const getMenuSelectionValue = (item: IMenuItem): string =>
         item._Feature?.toString?.() ?? item.Label?.toString?.() ?? "";
 
+    const isRmsEqid = sidebarProps.featureId === RmsEnums.EQID || sidebarProps.featureId === '404';
+
     const isPropertyLikeSidebarTab = (label?: string): boolean =>
-        label === SidebarEnum.Property || label === SidebarEnum.Profile || label === "Details";
+        label === SidebarEnum.Property ||
+        label === SidebarEnum.Profile ||
+        label === "Details" ||
+        label === "EQID" ||
+        label === "eqid";
 
     useEffect(() => {
         isShowSubMenuRef.current = isShowSubMenu;
@@ -367,7 +374,7 @@ const Sidebar = (sidebarProps: ISidebar) => {
             try {
                 if (filterData.length) {
                     const propertyQaData = filterData.find(
-                        (item) => item?.Label === "Property" || item?.Label === "Profile" || item?.Label === "Details"
+                        (item) => item?.Label === "Property" || item?.Label === "Profile" || item?.Label === "Details" || item?.Label === "EQID"
                     );
                     const selectDefaultQa = filterData.filter(
                         (item) => item?.DefaultQA === true
@@ -747,7 +754,7 @@ const Sidebar = (sidebarProps: ISidebar) => {
             setSelectedNodeMenu(payload);
         }
 
-        setActiveTab(SidebarEnum.Property);
+        setActiveTab(isRmsEqid ? "EQID" : SidebarEnum.Property);
     }
 
     // Display submenu for the currently active sidebar action.
@@ -770,11 +777,14 @@ const Sidebar = (sidebarProps: ISidebar) => {
 
     // Fetch and prepare node-specific submenu actions for the Property tab.
     const FnSetSubmenu = async (label: string): Promise<void> => {
+        const isEqid = isRmsEqid || label === "EQID" || label === "eqid";
         if (
             !isPropertyLikeSidebarTab(label) ||
-            !sidebarProps.selectedNode ||
-            sidebarProps.selectedNode.NodeType?.toLowerCase() === "alldatacenters" ||
-            FnIsRootBusinessNode(sidebarProps.selectedNode)
+            (!isEqid && (
+                !sidebarProps.selectedNode ||
+                sidebarProps.selectedNode.NodeType?.toLowerCase() === "alldatacenters" ||
+                FnIsRootBusinessNode(sidebarProps.selectedNode)
+            ))
         ) {
             setMenuData([]);
             return;
@@ -836,21 +846,7 @@ const Sidebar = (sidebarProps: ISidebar) => {
                         )
                     };
 
-                    const emPgTableRecord =
-                        Array.isArray(mainAppContext?.emRecords)
-                            ? mainAppContext.emRecords.find(
-                                (item) =>
-                                    (item?.TableName ?? "").toLowerCase() ===
-                                    ((element as Record<string, unknown>)["Name"] as string ?? "")
-                                        .toLowerCase() &&
-                                    (item?.DefaultValue ?? "")
-                                        .toLowerCase()
-                                        .includes("nzf_") &&
-                                    !item?.RequiredToAddRecord &&
-                                    !item?.RequiredToUpdateRecord &&
-                                    item?.DisplayControl !== "TextControl"
-                            )
-                            : undefined;
+                    const emPgTableRecord = undefined;
 
                     if (!emPgTableRecord) {
                         menu.push(updatedElement);
@@ -867,34 +863,21 @@ const Sidebar = (sidebarProps: ISidebar) => {
             }
         };
 
-        if (!sidebarProps.selectedNode.NodeEntityname) {
+        if (!isEqid && !sidebarProps.selectedNode?.NodeEntityname) {
             setMenuData([]);
             return;
         }
 
-        // SAMPLE DATA: PROPERTY.GetKebabMenu API commented out.
-        // axiosInterceptor(
-        //     {
-        //         url: PROPERTY.GetKebabMenu,
-        //         data: {
-        //             selectedNodeEntity: sidebarProps.selectedNode.NodeEntityname,
-        //             selectedNodeType: sidebarProps.selectedNode.MountedDeviceID
-        //                 ? "Device"
-        //                 : sidebarProps.selectedNode.NodeType
-        //         },
-        //         allowShowLoader: true,
-        //         setFetchData: handleApiGetKebabMenu
-        //     },
-        //     statusBarContext
-        // );
         const entityName =
-            sidebarProps.selectedNode.NodeEntityname?.toLowerCase() ?? "";
+            sidebarProps.selectedNode?.NodeEntityname?.toLowerCase() ?? "";
         const kebabMenuResponse =
-            entityName === "business"
-                ? sampleBusinessPropertyKebabMenuResponse
-                : entityName === "contact"
-                    ? sampleContactPropertyKebabMenuResponse
-                    : samplePropertyKebabMenuResponse;
+            isEqid || entityName === "eqid"
+                ? sampleEqidPropertyKebabMenuResponse
+                : entityName === "business"
+                    ? sampleBusinessPropertyKebabMenuResponse
+                    : entityName === "contact"
+                        ? sampleContactPropertyKebabMenuResponse
+                        : samplePropertyKebabMenuResponse;
         handleApiGetKebabMenu(kebabMenuResponse, "200");
     };
 

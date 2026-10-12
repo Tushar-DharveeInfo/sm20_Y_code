@@ -219,6 +219,7 @@ const isAddressEqual = (a?: IAddress, b?: IAddress): boolean => {
 };
 
 const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSectionHeader, isDisableForm, allowHelp, testApiJson, featureId, isAutoSave, allowTestIcon, allowShowHeader, controls, isAddressFormRequired, profileString, headerText, isFormValueChangedExternal, handleSaveForm, handleActionImageClick, handleShowMessage, handleValueChange, handleValueChangeExternal }: ISettingsLibForm) => {
+    console.log('id SettingsLibForm', id)
     const [formElements, setFormElements] = useState<IFormElements>();
     const [selectedProfile, setSelectedProfile] = useState<Record<string, unknown>>();
     const [groupNames, setGroupNames] = useState<string[]>();
@@ -852,10 +853,10 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                 const kLower = k.toLowerCase();
                 const normK = kLower.replace(/[^a-z0-9]/g, "");
                 return kLower === colNameLower ||
-                       normK === cleanColName ||
-                       normK.startsWith(classKeyPrefix) ||
-                       kLower.endsWith(`_${colNameLower}`) ||
-                       kLower.includes(`_${colNameLower}_`);
+                    normK === cleanColName ||
+                    normK.startsWith(classKeyPrefix) ||
+                    kLower.endsWith(`_${colNameLower}`) ||
+                    kLower.includes(`_${colNameLower}_`);
             });
             const rawVal = classKey ? values[classKey] : (values[colName] ?? (selectedProfile ? (selectedProfile[colName] ?? selectedProfile[colNameLower]) : undefined));
             if (rawVal === null || rawVal === undefined) return true;

@@ -26,6 +26,7 @@ const RequestsReceived = lazy(() => import('../../features/tickets/requestsrecei
 const ApprovedTickets = lazy(() => import('../../features/tickets/approvedtickets/ApprovedTickets.tsx'))
 const McsDevelopment = lazy(() => import('../../features/rms/McsDevelopment.tsx'))
 const RmsEqid = lazy(() => import('../../features/rms/RmsEqid.tsx'))
+const Manufacturer = lazy(() => import('../../features/rms/manufacturer/Manufacturer.tsx'))
 
 const ImpersonateService = lazy(() => import('../../features/faq/impersonateservice/ImpersonateService.tsx'))
 
@@ -72,6 +73,7 @@ const FeaturesWithOwnLayout: string[] = [
     FAQEnums.DownloadExcelTemplates,
     AboutEnums.About,
     AboutEnums.AboutNetZoom,
+    RmsEnums.Manufacturer,
 ];
 
 const getAuthToken = async (): Promise<string> => {
@@ -250,6 +252,19 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                             selectedFeatureData={featureContainerProps.selectedFeatureData}
                             selectedNode={selectedNode}
                             treeData={treeData}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case RmsEnums.Manufacturer:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <Manufacturer
+                            uniqueName={'feature-rms-manufacturer'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? 'Manufacturers'}
                         />
                     </Suspense>
                 </ErrorBoundary>

@@ -23,8 +23,10 @@ interface ISelectedNode {
     selectedNode?: ITreeNode;
     selectedNodeExplorer?: ITreeNode; // Optional, can be used to store the selected node in the explorer
     selectedNodeProperty?: ISelectedNodeProperty;
+    selectedTicketCard?: ITreeNode | any;
     setSelectedNode: (treeNode: ITreeNode) => void;
     setSelectedNodeProperty: (selectedNodeProperty: ISelectedNodeProperty) => void;
     setSelectedNodeExplorer: (selectedNodeExplorer?: ITreeNode) => void;
+    setSelectedTicketCard: (ticket?: any) => void;
 }
 export type { ISelectedNode, ISelectedNodeProperty }

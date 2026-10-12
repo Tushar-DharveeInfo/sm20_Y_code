@@ -11,7 +11,7 @@ import {
 } from '../allcommon/searchfilter/FnFilterBusinessContactRecords.ts'
 import { FnMapToBusinessDocs } from '../allcommon/dataset/FnMapToBusinessDoc.ts'
 import { FnMapToContactDocs } from '../allcommon/dataset/FnMapToContactDoc.ts'
-import type { IBusinessDoc, IContactDoc } from '../allinterface/IDatasets.ts'
+import type { IBusinessDoc, IContactDoc } from '../../db/IDatasets.ts'
 import { useSmDataContext } from '../context/hooks/SmDataHooks.ts'
 import {
   FnGetClientExplorerAutoFilter,
@@ -42,7 +42,7 @@ import { FnCopyToClipboard } from '../allcommon/basic/FnCopyToClipboard.ts'
 const isRmsEqidFeature = (featureId?: string) => {
   if (!featureId) return false;
   const fid = String(featureId).toLowerCase().trim();
-  return featureId === RmsEnums.EQID || featureId === '402' || fid === '402' || fid === 'eqid';
+  return featureId === RmsEnums.EQID || featureId === '404' || fid === '404' || fid === 'eqid';
 };
 
 const isReviewDeletedFeature = (featureId?: string) => {
@@ -798,7 +798,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
             resolvedBusinesses = FnMapToBusinessDocs(apiBs);
             smDataContext.setDatasets((prev) => ({ ...prev, businesses: resolvedBusinesses }));
           }
-        } catch {}
+        } catch { }
       }
 
       const filterRes = FnFilterRmsEqidTree(resolvedBusinesses, eqidData, mergedForm);
@@ -825,7 +825,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               for (const doc of newlyFetched) {
                 const idx = merged.findIndex(
                   (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase() &&
-                         String(c.bid).toLowerCase() === String(doc.bid).toLowerCase()
+                    String(c.bid).toLowerCase() === String(doc.bid).toLowerCase()
                 );
                 if (idx >= 0) {
                   merged[idx] = { ...merged[idx], ...doc };
@@ -1134,7 +1134,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               for (const doc of allFetchedContacts) {
                 const idx = merged.findIndex(
                   (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase() &&
-                         String(c.bid).toLowerCase() === String(doc.bid).toLowerCase()
+                    String(c.bid).toLowerCase() === String(doc.bid).toLowerCase()
                 );
                 if (idx >= 0) {
                   merged[idx] = { ...merged[idx], ...doc };

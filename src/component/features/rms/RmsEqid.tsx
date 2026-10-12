@@ -1,5 +1,5 @@
 import React from 'react';
-import { TicketCardsPane } from './ticketcardspane/TicketCardsPane';
+import { TicketCardsPane } from '../tickets/ticketcardspane/TicketCardsPane';
 import { IFeatureItem } from '../../shared/context/allinterface/IMainApp';
 import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu';
 import { ITreeNode } from '../../shared/allinterface/tree/ITreeControl';
@@ -23,7 +23,7 @@ const RmsEqid: React.FC<IRmsEqidProps> = (props) => {
         uniqueName = 'feature-rms-eqid',
         featureId = RmsEnums.EQID,
         headerText = 'EQID Development',
-        libraryMode = 'accepted',
+        libraryMode = 'InProgress',
         selectedNode,
         treeData = [],
     } = props;

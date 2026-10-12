@@ -355,7 +355,7 @@ function DashboardChart(ChartsProps: IDashboardChart) {
 
     useEffect(() => {
         if (!chartApiJson) {
-            debugger
+
             void getChartApi();
         }
         if (!chartProfileJson) {

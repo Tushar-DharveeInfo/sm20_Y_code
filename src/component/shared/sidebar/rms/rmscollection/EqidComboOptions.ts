@@ -1,0 +1,25 @@
+const EqidComboOptions = {
+  AmpUnits: ["Ampere", "Milliampere"],
+  ApprovedStatus: ["Approved", "ForcedApproved", "Rejected"],
+  Attributes: ["Card", "Module", "Chassis", "RackMountable", "Slot", "Stackable", "Rack", "zModule", "zLogical", "zAccessory", "zRackAccessory", "PDU", "PatchPanel", "Server", "Cooling", "NoAttributes", "BladeServer", "Enclosure", "Switch", "Storage"],
+  ConnectorInOut: ["In", "Out", "Both"],
+  ConnectorPortType: ["Power", "Data"],
+  DataPortType: ["Copper", "Fiber", "Other"],
+  DimUnits: ["Centimeter", "Inch", "Millimeter"],
+  Gender: ["Male", "Female", "Both"],
+  HeatUnits: ["BTU/Hr"],
+  PowerUnits: ["VoltAmpere", "Watt", "KiloWatt"],
+  RackLoadUnits: ["Pound", "Kilogram"],
+  RackType: ["2", "4", "C", "I"],
+  RelationType: ["C", "U", "None"],
+  Scale: ["10", "16", "32", "64"],
+  Source: ["Others", "MCS", "Customer", "INTERNAL"],
+  Style: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "B", "C", "D", "I", "J", "L", "R", "T", "Y", "Z"],
+  TemperatureUnits: ["Celsius", "Fahrenheit"],
+  VoltUnits: ["Volts", "Millivolts", "VDC"],
+  WtUnits: ["Kilogram", "Pound"],
+  EQType: ["Accessory", "Appliance", "AV and Broadcasting", "Blade Fiber", "Blade Server", "Blade Storage", "BMS SNMP Gateway", "Cable", "Chassis", "Connector", "Cooling", "Display", "Door", "Enclosure", "Frame", "Furniture", "Logical", "Module", "Networking", "Patch Panel", "Power", "Printer", "Rack", "RFID Asset Tag", "RFID Locator Tag", "RFID Reader", "RFID Sensor Tag", "Security", "Server", "Shelf", "Smart PDU", "Storage", "Surface Mount Box", "Switch", "Telco", "Wall Mount Box", "Watermark", "Workstation"],
+  Color: [" Black", " Clear", " Computer White", " Glacier White", " Gray", " Light Gray", " Signature Blue", " Silver", " Steel Gray", " White", "Aqua", "Basic Black", "Beige", "Black", "Blue", "Cyan", "Gray", "Green", "Grey", "Light Gray", "Magenta", "Maple", "NULL", "Oak", "Orange", "Pink", "Purple", "Red", "Royal Blue", "Silver", "Tan", "Violet", "White", "Yellow"],
+}
+
+export default EqidComboOptions

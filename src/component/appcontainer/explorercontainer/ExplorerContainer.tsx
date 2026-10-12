@@ -30,6 +30,7 @@ import { SidebarContainer } from '../sidebarcontainer/SidebarContainer'
 import { FeatureRenderContainer } from '../featurecontainer/FeatureRenderContainer'
 import { YesNoFormContainer } from '../../shared/basic/yesnoformcontainer/YesNoFormContainer'
 import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks'
+import { ITicketDoc } from '../../db/IDatasets'
 
 
 interface IExplorerContainer {
@@ -91,6 +92,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     const statusBarContext = useStatusBarContext();
     const firestore = useFirestore();
 
+    const isRmsEqid = explorerContainerProps.featureId === RmsEnums.EQID || explorerContainerProps.featureId === '404';
+
     const saasCompanyItems: IActionLabelItem[] = useMemo(() => {
         const businesses = smDataContext.datasets?.businesses ?? [];
         return businesses
@@ -124,6 +127,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     useEffect(() => {
         featureIdRef.current = explorerContainerProps.featureId;
         setDefaultCheckedKeys([])
+        setIsShowSidebar(false);
+        setIsSidebar('sidebarClose');
         const MSCTree = [RmsEnums.McsDevelopment, TicketsEnums.ApprovedTickets, TicketsEnums.RequestsReceived] as string[]
         if (explorerContainerProps.featureId && MSCTree.includes(explorerContainerProps.featureId)) {
             setExplorerToRender("MCS");
@@ -241,14 +246,15 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             );
         });
         // Open sidebar on a user click, not on the tree's first auto-select.
-        const isAutoSelection =
-            info.event === "auto-select"
-            || info.event === "found-select"
-            || info.event === "auto-select-expand";
-        if (!isAutoSelection && (hasSidebarQa || isShowSidebar)) {
-            setIsShowSidebar(false);
-            setIsSidebar('sidebarClose');
-        }
+        // const isAutoSelection =
+        //     info.event === "auto-select"
+        //     || info.event === "found-select"
+        //     || info.event === "auto-select-expand";
+        // if (!isAutoSelection && (hasSidebarQa || isShowSidebar)) {
+        //     setIsShowSidebar(false);
+        //     setIsSidebar('SidebarOpen');
+        //     
+        // }
         if (info.event === "select" || info.nativeEvent) {
             setManuallyNodeSelected(true);
         }
@@ -328,8 +334,9 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         else {
             sessionContext.setSessionList([...sessionContext.SessionList, sidebarVariable]);
         }
-        const explorerNode = selectedNodeContext.selectedNodeExplorer ?? selectedNodeContext.selectedNode;
-        if (!selectedNodeInfo?.node && explorerNode) {
+        const targetTicket = isRmsEqid ? selectedNodeContext.selectedTicketCard : null;
+        const explorerNode = targetTicket ?? selectedNodeContext.selectedNodeExplorer ?? selectedNodeContext.selectedNode;
+        if (explorerNode && selectedNodeInfo?.node?.key !== explorerNode.key) {
             setSelectedNodeInfo({
                 event: "select",
                 selected: true,
@@ -382,7 +389,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         }
     };
 
-    
+
     /**
      * Writes an activity log entry for every kebab-menu status change.
      * Called after a successful Firestore write so only committed changes are logged.
@@ -740,9 +747,199 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         setPendingPermanentDelete(null);
     };
 
+    const handleSplitTicket = async (targetNode?: ITreeNode | null) => {
+        alert("Split ticket feature is not yet implemented.");
+        // statusBarContext?.setIsLoading?.(true);
+        // statusBarContext?.setLoadingLabel?.('Splitting ticket...');
+
+        // try {
+        //     // 1. Resolve source ticket record
+        //     let baseTicket: Partial<ITicketDoc> | null =
+        //         (targetNode?.ticketRecord as ITicketDoc) ||
+        //         (targetNode?.ticket as ITicketDoc) ||
+        //         null;
+
+        //     const rawKey = String(targetNode?.key ?? targetNode?.NodeEntID ?? '').trim();
+        //     const rawTicketId = String(targetNode?.ticketid ?? targetNode?.ticketId ?? '').trim();
+        //     const cleanIdFromKey = rawKey.includes('##') ? rawKey.split('##').pop()! : rawKey;
+
+        //     if (!baseTicket && smDataContext.datasets?.tickets) {
+        //         baseTicket = smDataContext.datasets.tickets.find((t) => {
+        //             const tid = String(t.ticketid ?? '').trim().toLowerCase();
+        //             if (!tid) return false;
+        //             return (
+        //                 tid === rawTicketId.toLowerCase() ||
+        //                 tid === rawKey.toLowerCase() ||
+        //                 tid === cleanIdFromKey.toLowerCase() ||
+        //                 rawKey.toLowerCase().includes(tid)
+        //             );
+        //         }) ?? null;
+        //     }
+
+        //     // Fallback: check selectedNodeContext or active node
+        //     if (!baseTicket) {
+        //         const activeNode = (selectedNodeContext?.selectedNode || selectedNodeContext?.selectedNodeExplorer) as any;
+        //         if (activeNode?.ticketRecord) {
+        //             baseTicket = activeNode.ticketRecord;
+        //         } else if (activeNode?.ticket) {
+        //             baseTicket = activeNode.ticket;
+        //         } else if (activeNode?.ticketid && smDataContext.datasets?.tickets) {
+        //             baseTicket = smDataContext.datasets.tickets.find(
+        //                 (t) => String(t.ticketid).toLowerCase() === String(activeNode.ticketid).toLowerCase()
+        //             ) ?? null;
+        //         }
+        //     }
+
+        //     // 2. Resolve business (bid) and contact (cid)
+        //     let bid = String(
+        //         baseTicket?.bid ||
+        //         targetNode?.bid ||
+        //         targetNode?.parentEntID ||
+        //         explorerContainerProps.bid ||
+        //         smDataContext.selection?.bid ||
+        //         mainAppContext.authSession?.bid ||
+        //         ''
+        //     ).trim();
+
+        //     if (!bid || bid.toLowerCase() === 'root-businesses' || bid.toLowerCase() === 'businesses') {
+        //         const match = String(baseTicket?.ticketid || rawKey || targetNode?.cid || '').match(/bid_([a-zA-Z0-9_-]+)/i);
+        //         if (match) {
+        //             bid = `bid_${match[1]}`;
+        //         } else if (smDataContext.selection?.bid) {
+        //             bid = smDataContext.selection.bid;
+        //         }
+        //     }
+
+        //     let cid = String(
+        //         baseTicket?.cid ||
+        //         targetNode?.cid ||
+        //         explorerContainerProps.cid ||
+        //         smDataContext.selection?.cid ||
+        //         mainAppContext.authSession?.cid ||
+        //         ''
+        //     ).trim();
+
+        //     // 3. If baseTicket still not found, try Firestore query with ticket id
+        //     const lookupTicketId = rawTicketId || cleanIdFromKey;
+        //     if (!baseTicket && bid && lookupTicketId) {
+        //         try {
+        //             const docRes = await firestore.getDocument({
+        //                 pathSegments: ['businesses', bid, 'tickets', lookupTicketId],
+        //             });
+        //             if (docRes?.data) {
+        //                 baseTicket = docRes.data as ITicketDoc;
+        //             }
+        //         } catch (err) {
+        //             console.warn('firestore getDocument ticket lookup failed:', err);
+        //         }
+        //     }
+
+        //     // 4. Generate new ticket id
+        //     const origTicketId = String(baseTicket?.ticketid || lookupTicketId || '').trim();
+        //     const timestamp = Date.now();
+        //     const newTicketId = origTicketId
+        //         ? `${origTicketId}_split_${timestamp}`
+        //         : `ticket_${bid || 'gen'}_${cid || 'split'}_${timestamp}`;
+
+        //     // 5. Construct cloned ticket record
+        //     const nowIso = new Date().toISOString();
+        //     const newTicketRecord: ITicketDoc = {
+        //         bid: bid,
+        //         cid: cid,
+        //         ticketid: newTicketId,
+        //         tickettype: baseTicket?.tickettype || 'support',
+        //         subscription: baseTicket?.subscription || '',
+        //         mfg: baseTicket?.mfg || (targetNode?.mfg ?? targetNode?.Name ?? ''),
+        //         eqtype: baseTicket?.eqtype || (targetNode?.eqtype ?? ''),
+        //         prodno: baseTicket?.prodno || (targetNode?.prodno ?? targetNode?.Name ?? ''),
+        //         moreinfo: baseTicket?.moreinfo || (targetNode?.Description ?? ''),
+        //         status: baseTicket?.status || 'Received',
+        //         daterequested: nowIso,
+        //         datereleased: baseTicket?.datereleased || '',
+        //         lastupdated: nowIso,
+        //         monitorupdated: nowIso,
+        //         monitor: baseTicket?.monitor ?? false,
+        //     };
+
+        //     if (baseTicket) {
+        //         Object.assign(newTicketRecord, {
+        //             ...baseTicket,
+        //             bid: bid,
+        //             cid: cid,
+        //             ticketid: newTicketId,
+        //             daterequested: nowIso,
+        //             lastupdated: nowIso,
+        //             monitorupdated: nowIso,
+        //             id: newTicketId,
+        //         });
+        //     }
+
+        //     // 6. Save copied record to tickets table (Firestore businesses/{bid}/tickets/{newTicketId})
+        //     if (bid) {
+        //         try {
+        //             await firestore.upsertDocument({
+        //                 pathSegments: ['businesses', bid, 'tickets', newTicketId],
+        //                 data: newTicketRecord as any,
+        //             });
+        //         } catch (e) {
+        //             console.warn('firestore upsertDocument ticket split failed:', e);
+        //         }
+        //     }
+
+        //     // 7. Add copied record to local tickets dataset in smDataContext
+        //     if (smDataContext.datasets?.tickets) {
+        //         const nextTickets = [...smDataContext.datasets.tickets, newTicketRecord];
+        //         smDataContext.updateDataset('tickets', nextTickets);
+        //     }
+        //     if (smDataContext.setDatasets) {
+        //         smDataContext.setDatasets((prev) => ({
+        //             ...prev,
+        //             tickets: [...(prev.tickets ?? []), newTicketRecord],
+        //         }));
+        //     }
+
+        //     // 8. Log the activity
+        //     const activityMessage = `Ticket split: created new ticket [${newTicketId}] from [${origTicketId || 'original'}] for business: ${bid}`;
+        //     await mainAppContext.createActivityLog?.(activityMessage);
+
+        //     // 9. Trigger tree reload / update
+        //     commonVariableContext.setReloadTreeFor({
+        //         featureId: String(explorerContainerProps.featureId),
+        //         entId: newTicketId,
+        //         dropNodeEntId: bid,
+        //         timestamp: Date.now(),
+        //     });
+
+        //     explorerContainerProps.handleReloadTree?.(String(explorerContainerProps.featureId), newTicketId);
+
+        //     // 10. User notifications
+        //     const userMsg = `Ticket split successfully. New Ticket ID: ${newTicketId}`;
+        //     if (explorerContainerProps.handleShowUserMessage) {
+        //         explorerContainerProps.handleShowUserMessage(userMsg);
+        //     }
+        //     statusBarContext?.setActionLogData?.(userMsg);
+        // } catch (error) {
+        //     console.error('handleSplitTicket error:', error);
+        //     const errMsg = `Failed to split ticket: ${error instanceof Error ? error.message : String(error)}`;
+        //     if (explorerContainerProps.handleShowUserMessage) {
+        //         explorerContainerProps.handleShowUserMessage(errMsg);
+        //     }
+        // } finally {
+        //     statusBarContext?.setIsLoading?.(false);
+        //     statusBarContext?.setLoadingLabel?.(undefined);
+        // }
+    };
+
     const handleKebabMenuSelect = async (selectedItem: any, selectedNodeInfoParam?: ISelectedNodeInfo) => {
         const payload = selectedItem?.payload ?? selectedItem;
-        const targetNode = selectedNodeInfoParam?.node ?? selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer;
+        const targetNode =
+            selectedNodeInfoParam?.node ??
+            ((selectedNodeInfoParam as any)?.key || (selectedNodeInfoParam as any)?.NodeType
+                ? (selectedNodeInfoParam as any as ITreeNode)
+                : undefined) ??
+            selectedNodeInfo?.node ??
+            selectedNodeContext.selectedNodeExplorer ??
+            selectedNodeContext.selectedNode;
         const label = String(payload?.Label ?? '').trim().toLowerCase();
         const alias = String(payload?.Alias ?? '').trim().toLowerCase();
 
@@ -753,6 +950,12 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         const isCopy = label === kebabMenuEnums.Copy;
         const isAddBusiness = label === kebabMenuEnums.AddBusiness;
         const isAddContact = label === kebabMenuEnums.AddContact;
+        const isSplit = label === kebabMenuEnums.Split
+
+        if (isSplit) {
+            await handleSplitTicket(targetNode);
+            return;
+        }
 
         const isSettingDeleteFeature =
             String(explorerContainerProps.featureId) === SettingEnums.Delete ||
@@ -1016,20 +1219,26 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                                 <div className="nz-d-flex-row nz-align-center nz-w-100">
                                     <div className='nz-fq-container-header'>
                                         <Label uniqueName={`${explorerContainerProps.uniqueName}-fqa-container`}
-                                            label={selectedNodeInfo?.node ? `${selectedNodeInfo.node.NodeType}: ${selectedNodeInfo.node.Name}` : "Layout"}
+                                            label={
+                                                isRmsEqid && selectedNodeContext.selectedTicketCard
+                                                    ? `Ticket: ${selectedNodeContext.selectedTicketCard.prodno || selectedNodeContext.selectedTicketCard.ticketid || selectedNodeContext.selectedTicketCard.Name || ''}`
+                                                    : (selectedNodeInfo?.node ? `${selectedNodeInfo.node.NodeType}: ${selectedNodeInfo.node.Name}` : "Layout")
+                                            }
                                         />
                                     </div>
                                 </div>
-                                {featureQAData?.length && isShowSidebarIcon && treeData?.length ? <ActionImage uniqueName={`${explorerContainerProps.uniqueName}-explorer-tree-info-ai`}
-                                    image={{
-                                        uniqueName: `${explorerContainerProps.uniqueName}-explorer-tree-info-image`,
-                                        source: <OpenSidebar24x24 size={FnGetCssVariable('--image-size-2')}
-                                            fill="none"
-                                            strokeWidth={1} />,
-                                        w: 'var(--image-size-2)',
-                                        tooltip: "Click to view node details in sidebar",
-                                        type: "svg"
-                                    }} w={'var(--node_height)'} h={'var(--node_height)'} actionCode={'information'} handleMouse={handleClickInformation} /> : <></>
+                                {(isRmsEqid
+                                    ? Boolean(featureQAData?.length && isShowSidebarIcon && selectedNodeContext.selectedTicketCard)
+                                    : Boolean(featureQAData?.length && isShowSidebarIcon && treeData?.length)) ? <ActionImage uniqueName={`${explorerContainerProps.uniqueName}-explorer-tree-info-ai`}
+                                        image={{
+                                            uniqueName: `${explorerContainerProps.uniqueName}-explorer-tree-info-image`,
+                                            source: <OpenSidebar24x24 size={FnGetCssVariable('--image-size-2')}
+                                                fill="none"
+                                                strokeWidth={1} />,
+                                            w: 'var(--image-size-2)',
+                                            tooltip: isRmsEqid ? "Click to view ticket details in sidebar" : "Click to view node details in sidebar",
+                                            type: "svg"
+                                        }} w={'var(--node_height)'} h={'var(--node_height)'} actionCode={'information'} handleMouse={handleClickInformation} /> : <></>
                                 }
                             </div>
                         )}
@@ -1056,9 +1265,8 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                         </div>
                     </SplitterPanel>
                 </Splitter>}
-                {/* siderbar render container */}
-                {(explorerContainerProps.selectedNodeExplorer || selectedNodeInfo?.node || selectedNodeContext.selectedNodeExplorer) && isSidebar === "sidebarOpen" &&
-                    featureQAData?.length ?
+                {((isRmsEqid ? Boolean(selectedNodeContext.selectedTicketCard) : (explorerContainerProps.selectedNodeExplorer || selectedNodeInfo?.node || selectedNodeContext.selectedNodeExplorer)) && isSidebar === "sidebarOpen" &&
+                    featureQAData?.length) ?
                     <SidebarContainer
                         uniqueName={`${explorerContainerProps.uniqueName}-sidebar`}
                         isShowSidebar={isShowSidebar}
@@ -1066,15 +1274,21 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                         onResetProfileAddMode={() => setProfileAddMode(null)}
                         featureQaList={featureQAData ?? []}
                         selectedNode={
-                            explorerContainerProps.subTreeFeatureId
-                                ? explorerContainerProps.selectedNodeExplorer && !manuallyNodeSelected
-                                    ? explorerContainerProps.selectedNodeExplorer.node
-                                    : selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer
-                                : selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer
+                            isRmsEqid
+                                ? (selectedNodeContext.selectedTicketCard ?? selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer)
+                                : (explorerContainerProps.subTreeFeatureId
+                                    ? explorerContainerProps.selectedNodeExplorer && !manuallyNodeSelected
+                                        ? explorerContainerProps.selectedNodeExplorer.node
+                                        : selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer
+                                    : selectedNodeInfo?.node ?? selectedNodeContext.selectedNodeExplorer)
                         }
                         featureId={explorerContainerProps.featureId}
                         subTreeFeatureId={explorerContainerProps.subTreeFeatureId}
-                        headerText={""}
+                        headerText={
+                            isRmsEqid && selectedNodeContext.selectedTicketCard
+                                ? (selectedNodeContext.selectedTicketCard.prodno || selectedNodeContext.selectedTicketCard.ticketid || selectedNodeContext.selectedTicketCard.Name || "")
+                                : ""
+                        }
                         selectedFeatureQa={selectedKebabMenuExplorer ?? null}
                         showPopupSidebar={false}
                         selectedMenuFeature={explorerContainerProps.selectedFeatureData}

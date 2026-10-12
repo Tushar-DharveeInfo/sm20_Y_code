@@ -51,6 +51,46 @@ const sampleContactPropertyKebabMenuResponse = {
     }),
 };
 
+/* Property kebab submenu for EQID (matches Property, Menu 1, Menu 2, Menu 3). */
+const sampleEqidPropertyKebabMenuResponse = {
+    kebabJson: JSON.stringify({
+        KebabMenu: [
+            {
+                ID: 1,
+                Name: "property",
+                Label: "Property",
+                Description: "EQID Properties",
+                SortOrder: 1,
+                TotalCount: 4,
+            },
+            {
+                ID: 2,
+                Name: "menu1",
+                Label: "Menu 1",
+                Description: "Menu 1",
+                SortOrder: 2,
+                TotalCount: 4,
+            },
+            {
+                ID: 3,
+                Name: "menu2",
+                Label: "Menu 2",
+                Description: "Menu 2",
+                SortOrder: 3,
+                TotalCount: 4,
+            },
+            {
+                ID: 4,
+                Name: "menu3",
+                Label: "Menu 3",
+                Description: "Menu 3",
+                SortOrder: 4,
+                TotalCount: 4,
+            },
+        ],
+    }),
+};
+
 /*
 * Property values returned by NODE.GetKebabMenuData / FnNodeGetKebabMenuData.
 * Source: get_kebab_menu_data / NZNode_get_entity_vs_property_tab `data.propertyJson` (parsed).
@@ -352,6 +392,7 @@ export {
     samplePropertyKebabMenuResponse,
     sampleBusinessPropertyKebabMenuResponse,
     sampleContactPropertyKebabMenuResponse,
+    sampleEqidPropertyKebabMenuResponse,
     samplePropertyKebabMenuData,
     buildEditTextPropertyFormFromRecord,
     buildPropertyFormDataFromSelectedNode,

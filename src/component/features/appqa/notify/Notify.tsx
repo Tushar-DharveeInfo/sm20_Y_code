@@ -18,7 +18,7 @@ import { useMainAppContext } from "../../../shared/context/hooks/MainAppHooks";
 import { useStatusBarContext } from "../../../shared/context/hooks/StatusBarHooks";
 import { useSmDataContext } from "../../../shared/context/hooks/SmDataHooks";
 import { FnGetSourceDataset } from "../../../shared/allcommon/FnLoadSampleDatasets";
-import type { IBusinessDoc } from "../../../shared/allinterface/IDatasets";
+import type { IBusinessDoc } from "../../../db/IDatasets";
 import { FnResolvedHtmlVariable } from "../allcommon/FnResolvedHtmlVariable";
 import { FnResolveEmailTemplate } from "../../../shared/allcommon/FnGetEmailVars";
 import { useFileDownload } from "@n20a/libfsdb";
@@ -489,7 +489,7 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
                 // If datasource is missing then do not try to resolve variables;
                 // Otherwise fn will produce value for vars used in email template.
                 // Finally resolve #Signature# using PlainEmailSignature.
-                debugger
+
                 const resolvedContent = await FnResolveEmailTemplate(
                     content,
                     template?.dataSource,

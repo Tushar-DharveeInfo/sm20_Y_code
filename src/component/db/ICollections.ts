@@ -1,4 +1,3 @@
-
 /*
 Make sure the contents of this file are identical to copies of this file in fsdb and cloudrun
 */
@@ -16,10 +15,6 @@ export interface IBusinessDoc {
   bname: string;
   country: string;
   state: string;
-  address1?: string;
-  address2?: string;
-  city?: string;
-  zip?: string;
   daysnoticeperiod?: number;
   mmfinyear: number;
   relatedbids: string[];
@@ -104,6 +99,7 @@ export interface ITicketDoc {
   daterequested: string;
   datereleased: string;
   lastupdated: string;
+  eqid?: string;
 }
 
 /** Subcollection: businesses/{bid}/tickets/{ticketid}/ticketnotes */
@@ -116,6 +112,7 @@ export interface ITicketNoteDoc {
   notes: string;
   filename?: string;  //optional, to save file name of uploaded file
   datecreated: string;
+  eqid?: string;
 }
 
 /** Subcollection: businesses/{bid}/activities */
@@ -186,17 +183,13 @@ export interface ISubDoc {
   purchaser: string;
   subsid: string;
   product: string;
-  productkey:string;  //it is set to 'netzoom' or 'vss' or '', set '' if prouct is a service hours or else for other products
   status: string;     //blocked, active, expired, cancelled
   statusupdatedby: string;
   statusreason: string;
-  UserCount: number;
-  RackCount: number;
   startdate: string;
   enddate: string;
   datecreated: string;
 }
-
 
 /** Subcollection: businesses/{bid}/subs/{subsid}/downloads */
 export interface IVssDownloadDoc {
@@ -205,7 +198,6 @@ export interface IVssDownloadDoc {
   subsid: string;
   monitorupdated: string;
   monitor: boolean;
-  eqid: string;
   filename: string;
   dateused: string;
 }
@@ -220,21 +212,46 @@ export interface ITodoDoc {
   duedate: string;
   addedby: string;
   filename?: string;
+  eqid?: string;
 }
 
-  /** Top-level collection: prospect */
-  export interface IProspectDoc {
-    bid: string;
-    cid: string;
-    status: string;
-    whattodo: string;
-  }
+/** Top-level collection: prospect */
+export interface IProspectDoc {
+  bid: string;
+  cid: string;
+  status: string;
+  whattodo: string;
+}
 
-  export interface ITenantIdMapDoc {
-    tenantid: string;
-    displayname: string;
-    lastupdated: string;
-  }
+export interface ITenantIdMapDoc {
+  tenantid: string;
+  displayname: string;
+  lastupdated: string;
+}
+
+/** Top-level collection: mfg */
+export interface IMfg {
+  [mfgkey: string]: string;
+}
+export type IMfgDoc = IMfg;
+
+/** mfg sub-collection: eqidallocated */
+export interface IEQIDAllocated {
+  [mfgkey: string]: string[];
+}
+export type IEqidAllocatedDoc = IEQIDAllocated;
+
+/** mfg sub-collection: mfgvsprodline */
+export interface IMfgVsProdline {
+  [mfgkey: string]: string[];
+}
+export type IMfgVsProdlineDoc = IMfgVsProdline;
+
+/** mfg sub-collection: mfgvsmfgeqtype */
+export interface IMfgVsMfgEqtype {
+  [mfgkey: string]: string[];
+}
+export type IMfgVsMfgEqtypeDoc = IMfgVsMfgEqtype;
 
 /** Maps each collection name from CollectionsAndFieldsPolicy.json to its document interface. */
 export interface ICollectionDocMap {
@@ -252,6 +269,10 @@ export interface ICollectionDocMap {
   todo: ITodoDoc;
   prospect: IProspectDoc;
   tenantidmap: ITenantIdMapDoc;
+  mfg: IMfg;
+  eqidallocated: IEQIDAllocated;
+  mfgvsprodline: IMfgVsProdline;
+  mfgvsmfgeqtype: IMfgVsMfgEqtype;
 }
 
 export type CollectionName = keyof ICollectionDocMap;

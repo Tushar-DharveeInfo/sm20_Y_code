@@ -23,7 +23,7 @@ const RequestsReceived: React.FC<IRequestsReceivedProps> = (props) => {
         uniqueName = 'feature-requestsreceived',
         featureId = TicketsEnums.RequestsReceived,
         headerText = 'Requests Received',
-        libraryMode = 'received',
+        libraryMode = 'Open',
         selectedNode,
         treeData = [],
     } = props;

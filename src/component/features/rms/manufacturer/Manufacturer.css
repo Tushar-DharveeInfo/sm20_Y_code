@@ -1,0 +1,218 @@
+.nz-mfg-feature {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    background: var(--bg-color, #fff);
+}
+
+.nz-mfg-splitter {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+
+.nz-mfg-tree-pane {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg-color, #fff);
+}
+
+.nz-mfg-search {
+    padding: 8px;
+}
+
+.nz-mfg-search input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color, #d9d9d9);
+    background: var(--bg-color, #fff);
+    color: inherit;
+}
+
+.nz-mfg-tree-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.nz-mfg-tree-body-loading {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 12px;
+}
+
+.nz-mfg-detail-pane {
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-color, #fff);
+}
+
+.nz-mfg-detail-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.nz-mfg-command-wrap {
+    padding: 16px;
+}
+
+.nz-mfg-command {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.nz-mfg-command input[type="text"] {
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color, #d9d9d9);
+    background: var(--bg-color, #fff);
+    color: inherit;
+}
+
+.nz-mfg-relate-list {
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid var(--border-color, #d9d9d9);
+    padding: 8px;
+}
+
+.nz-mfg-relate-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.nz-mfg-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.nz-mfg-actions button {
+    height: 28px;
+    padding: 0 12px;
+    cursor: pointer;
+}
+
+.nz-mfg-detail-form-container {
+    height: 100%;
+    width: 100%;
+    overflow: auto;
+}
+
+.nz-mfg-detail-form-container .nz-form-action-header .nz-form-header-action-save {
+    align-items: center;
+    justify-content: center;
+}
+
+.nz-mfg-status {
+    margin-top: 8px;
+}
+
+.nz-mfg-form-error {
+    margin-top: 8px;
+    color: #a4262c;
+}
+
+.nz-mfg-popup-dialog .MuiDialog-paper {
+    border-radius: var(--border-radius-2, 6px);
+    background-color: var(--theme-bg-color, #ffffff);
+    color: var(--theme-text-color, #333333);
+    box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.2);
+    overflow: visible !important;
+    min-width: 520px;
+    max-width: 620px;
+    min-height: 340px;
+}
+
+.nz-mfg-popup-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 340px;
+    overflow: visible !important;
+}
+
+.nz-mfg-popup-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--theme-border-color, #e0e0e0);
+    background-color: var(--theme-header-bg, #f5f5f5);
+    min-height: 40px;
+}
+
+.nz-mfg-popup-body {
+    padding: 16px 20px;
+    overflow: visible !important;
+    flex: 1;
+}
+
+/* Ensure SettingsLibForm inside popup dialog allows dropdown menu to overflow and displays all options */
+.nz-mfg-popup-container .nz-settings-lib-form-container,
+.nz-mfg-popup-container .nz-settings-lib-form-content,
+.nz-mfg-popup-container .nz-settings-lib-form-controls {
+    overflow: visible !important;
+    height: 200px !important;
+}
+
+.nz-mfg-popup-footer {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-top: 1px solid var(--theme-border-color, #e0e0e0);
+    background-color: var(--theme-header-bg, #f5f5f5);
+    min-height: 48px;
+    flex-shrink: 0;
+}
+
+.nz-mfg-popup-footer-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+.nz-mfg-popup-footer-actions .nz-action-image-container {
+    cursor: pointer;
+    border-radius: 50%;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.nz-mfg-popup-footer-actions .nz-action-image-container:hover {
+    background-color: var(--hover, rgba(0, 0, 0, 0.08));
+    transform: scale(1.08);
+}
+
+.nz-mfg-popup-footer-actions .nz-action-image-container:active {
+    transform: scale(0.92);
+}
+
+.nz-mfg-popup-status {
+    padding: 6px 12px;
+    color: #123a70;
+    background: #f0f4fa;
+    border: 1px solid #d0deee;
+    border-radius: 4px;
+    font-size: 13px;
+}

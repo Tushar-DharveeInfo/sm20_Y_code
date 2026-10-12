@@ -1,4 +1,4 @@
-import type { IBusinessDoc, IContactDoc } from "../../../shared/allinterface/IDatasets";
+import type { IBusinessDoc, IContactDoc } from "../../../db/IDatasets";
 import type { IEqidDoc } from "../../../shared/context/allinterface/IRms";
 import type { IDCFilterControlValues } from "../../../shared/allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
@@ -6,6 +6,7 @@ import type { IFeatureTree } from "../../../shared/allinterface/tree/ITreeForFla
 import { FnFilterEqidRecords } from "./FnFilterEqidRecords";
 import { FnMapBusinessesToTreeNodes } from "../../../shared/allcommon/tree/FnMapBusinessesToTreeNodes";
 import { FnMapContactsToTreeNodes } from "../../../shared/allcommon/tree/FnMapContactsToTreeNodes";
+import { RmsEnums } from "../../../constants/Feature";
 
 export interface IFnFilterRmsEqidTreeResult {
     /** The matching EQID records after applying the filter */
@@ -248,7 +249,7 @@ export function FnBuildRmsEqidTree(
     eqidRecords: IEqidDoc[] = [],
     filters: IDCFilterControlValues = {},
     featureProps?: IFeatureTree,
-    featureId: string = "402",
+    featureId: string = RmsEnums.EQID,
     wrapWithRootLabel: string = "Businesses",
     handleKebabMenuSelect?: (selectedItem: any) => void
 ): ITreeNode[] {

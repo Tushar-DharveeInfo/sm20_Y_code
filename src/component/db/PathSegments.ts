@@ -8,6 +8,7 @@ interface IBusinessPathSegmentProfile {
   activityid?: string;
   orderid?: string;
   subsid?: string;
+  mfgkey?: string;
 }
 
 const BusinessPathSegment = (requiredBusinessPath: IBusinessPathSegmentProfile) => {
@@ -38,6 +39,14 @@ const BusinessPathSegment = (requiredBusinessPath: IBusinessPathSegmentProfile) 
             return { pathSegments: ['todo']};
         case 'prospect':
             return { pathSegments: ['prospect', requiredBusinessPath.cid] };
+        case 'mfg':
+            return { pathSegments: requiredBusinessPath.mfgkey ? ['mfg', requiredBusinessPath.mfgkey] : ['mfg'] };
+        case 'eqidallocated':
+            return { pathSegments: ['mfg', requiredBusinessPath.mfgkey || '', 'eqidallocated'] };
+        case 'mfgvsprodline':
+            return { pathSegments: ['mfg', requiredBusinessPath.mfgkey || '', 'mfgvsprodline'] };
+        case 'mfgvsmfgeqtype':
+            return { pathSegments: ['mfg', requiredBusinessPath.mfgkey || '', 'mfgvsmfgeqtype'] };
         default:
             throw new Error(`Unknown collection name: ${requiredBusinessPath.collectionName}`);
     }

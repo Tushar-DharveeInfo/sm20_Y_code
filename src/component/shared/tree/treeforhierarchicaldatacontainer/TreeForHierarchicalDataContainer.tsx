@@ -41,6 +41,30 @@ const TreeForHierarchicalDataContainer = (treeContainerHierarchicalDataProps: IT
         }
     }, [])
 
+    // Marks the tree for refresh when the context-menu refresh action is selected.
+    const handleKebabMenuSelect = useCallback((selectedItem: IActionImageForSubMenu, node?: ITreeNode) => {
+        treeContainerHierarchicalDataProps.handleKebabMenuSelect?.(selectedItem, node);
+    }, [treeContainerHierarchicalDataProps]);
+
+    // Updates copy/kebab icons on the selected node when selection changes.
+    const handleSelectedKeyChange = useCallback((currentTreeData: ITreeNode[]) => {
+        const targetKey = defaultSelectedKeys[0];
+        if (!targetKey) return;
+        const updatedTreeData = FnUpdateTreeNodeBasedOnKeyForHierarchicalData(
+            currentTreeData, // Pass dynamic treeData explicitly
+            targetKey,
+            treeContainerHierarchicalDataProps.featureTreeProps.hideCopyIcon === false,
+            treeContainerHierarchicalDataProps.featureTreeProps.hideKebabMenu === false,
+            treeContainerHierarchicalDataProps,
+            treeContainerHierarchicalDataProps.selectedNodeExplorer,
+            handleKebabMenuSelect
+        );
+        // Only update if data has changed to prevent infinite loops
+        treeDataRef.current = updatedTreeData;
+        setTreeData([...updatedTreeData]);
+
+    }, [defaultSelectedKeys, treeContainerHierarchicalDataProps, handleKebabMenuSelect]);
+
     // Builds tree state from API data or applies pre-generated tree props.
     useEffect(() => {
         if (treeContainerHierarchicalDataProps.allowGenerateTreeData) {
@@ -79,47 +103,41 @@ const TreeForHierarchicalDataContainer = (treeContainerHierarchicalDataProps: IT
         }
         else {
             const apiData = treeContainerHierarchicalDataProps.apiData;
+            const targetSelectedKeys = treeContainerHierarchicalDataProps.defaultSelectedKeys || [];
             if (Array.isArray(apiData)) {
-                setTreeData(apiData);
-                treeDataRef.current = apiData;
+                const activeKey = targetSelectedKeys[0] || defaultSelectedKeys[0];
+                if (activeKey && !treeContainerHierarchicalDataProps.featureTreeProps.hideKebabMenu) {
+                    const updated = FnUpdateTreeNodeBasedOnKeyForHierarchicalData(
+                        apiData,
+                        activeKey,
+                        treeContainerHierarchicalDataProps.featureTreeProps.hideCopyIcon === false,
+                        treeContainerHierarchicalDataProps.featureTreeProps.hideKebabMenu === false,
+                        treeContainerHierarchicalDataProps,
+                        treeContainerHierarchicalDataProps.selectedNodeExplorer,
+                        handleKebabMenuSelect
+                    );
+                    treeDataRef.current = updated;
+                    setTreeData([...updated]);
+                } else {
+                    setTreeData(apiData);
+                    treeDataRef.current = apiData;
+                }
+                lastHandledKeysRef.current = activeKey ? String(activeKey) : "";
+                needToUpdateTreeNodeRef.current = false;
             }
             setDefaultExpandedKeys(treeContainerHierarchicalDataProps.defaultExpandedKeys || []);
-            setDefaultSelectedKeys(treeContainerHierarchicalDataProps.defaultSelectedKeys || []);
+            setDefaultSelectedKeys(targetSelectedKeys);
             if (treeContainerHierarchicalDataProps.featureTreeProps.allowCheckStrictly) {
-                setDefaultStrictlyCheckedKeys(treeContainerHierarchicalDataProps.defaultStrictlyCheckedKeys)
+                setDefaultStrictlyCheckedKeys(treeContainerHierarchicalDataProps.defaultStrictlyCheckedKeys);
             }
             else {
                 setDefaultCheckedKeys(treeContainerHierarchicalDataProps.defaultCheckedKeys || []);
             }
             setDefaultSelectedNodeInfo(treeContainerHierarchicalDataProps.defaultSelectedNodeInfo || null);
         }
-    }, [treeContainerHierarchicalDataProps, treeContainerHierarchicalDataProps.apiData, treeContainerHierarchicalDataProps.defaultExpandedKeys])
+    }, [treeContainerHierarchicalDataProps, treeContainerHierarchicalDataProps.apiData, treeContainerHierarchicalDataProps.defaultExpandedKeys, handleKebabMenuSelect])
 
 
-    // Marks the tree for refresh when the context-menu refresh action is selected.
-    const handleKebabMenuSelect = useCallback((selectedItem: IActionImageForSubMenu) => {
-        // if (selectedItem.payload?.Label?.toLowerCase() === RightMouseMenuTreeNode.Refresh.toLowerCase()) {
-        //     needToUpdateTreeNodeRef.current = true;
-        // }
-        treeContainerHierarchicalDataProps.handleKebabMenuSelect && treeContainerHierarchicalDataProps.handleKebabMenuSelect(selectedItem);
-    }, [treeContainerHierarchicalDataProps]);
-
-    // Updates copy/kebab icons on the selected node when selection changes.
-    const handleSelectedKeyChange = useCallback(async (currentTreeData: ITreeNode[]) => {
-        const updatedTreeData = await FnUpdateTreeNodeBasedOnKeyForHierarchicalData(
-            currentTreeData, // Pass dynamic treeData explicitly
-            defaultSelectedKeys[0],
-            treeContainerHierarchicalDataProps.featureTreeProps.hideCopyIcon === false,
-            treeContainerHierarchicalDataProps.featureTreeProps.hideKebabMenu === false,
-            treeContainerHierarchicalDataProps,
-            treeContainerHierarchicalDataProps.selectedNodeExplorer,
-            handleKebabMenuSelect
-        );
-        // Only update if data has changed to prevent infinite loops
-        treeDataRef.current = updatedTreeData;
-        setTreeData([...updatedTreeData]);
-
-    }, [defaultSelectedKeys, treeContainerHierarchicalDataProps, handleKebabMenuSelect]);
 
 
     // Re-renders node chrome when selected keys change and copy/kebab icons are enabled.
@@ -137,6 +155,7 @@ const TreeForHierarchicalDataContainer = (treeContainerHierarchicalDataProps: IT
         }
 
         lastHandledKeysRef.current = keySignature;
+        needToUpdateTreeNodeRef.current = false;
         handleSelectedKeyChange(treeDataRef.current);
 
     }, [
@@ -250,6 +269,7 @@ const TreeForHierarchicalDataContainer = (treeContainerHierarchicalDataProps: IT
             ) {
                 treeContainerHierarchicalDataProps.handleNodeExpand(expandedNodeKeys, info);
             } else if (treeContainerHierarchicalDataProps.handleNodeExpand) {
+                setDefaultExpandedKeys(expandedNodeKeys);
                 treeContainerHierarchicalDataProps.handleNodeExpand(expandedNodeKeys, info);
             }
             else {
@@ -278,16 +298,15 @@ const TreeForHierarchicalDataContainer = (treeContainerHierarchicalDataProps: IT
     }
 
     // Syncs local selection state and forwards the select event to the parent handler.
-    async function handleNodeSelect(selectedKeys: Key[], info: ISelectedNodeInfo, expandedNodeKeys?: Key[]) {
-        if (info.node.key === defaultSelectedNodeInfo?.node.key) {
-            treeContainerHierarchicalDataProps.handleNodeSelect && treeContainerHierarchicalDataProps.handleNodeSelect([info.node.key], info, expandedNodeKeys || defaultExpandedKeys);
-            return;
-        }
+    function handleNodeSelect(selectedKeys: Key[], info: ISelectedNodeInfo, expandedNodeKeys?: Key[]) {
         if (expandedNodeKeys) {
             setDefaultExpandedKeys(expandedNodeKeys);
         }
         setDefaultSelectedKeys([info.node.key]);
-        setDefaultSelectedNodeInfo(info)
+        setDefaultSelectedNodeInfo(info);
+        lastHandledKeysRef.current = String(info.node.key);
+        needToUpdateTreeNodeRef.current = false;
+        handleSelectedKeyChange(treeDataRef.current);
         treeContainerHierarchicalDataProps.handleNodeSelect && treeContainerHierarchicalDataProps.handleNodeSelect(selectedKeys, info, expandedNodeKeys || defaultExpandedKeys);
     }
 

@@ -1,4 +1,4 @@
-import type { IContactDoc } from "../../allinterface/IDatasets";
+import type { IContactDoc } from "../../../db/IDatasets";
 
 function asString(value: unknown): string {
     if (value === undefined || value === null) {

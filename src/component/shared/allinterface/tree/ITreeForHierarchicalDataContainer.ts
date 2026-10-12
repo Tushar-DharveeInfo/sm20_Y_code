@@ -88,7 +88,7 @@ interface ITreeForHierarchicalDataContainer {
     handleAIClick?: (event: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>, actionCode?: string) => void; // Callback for AI button click
     handleNodeCheck?: (checked: Key[] | { checked: Key[]; halfChecked: Key[]; }, info: CheckInfo<ITreeNode>) => void;
     handleNodeSelect?: (selectedKeys: Key[], info: ISelectedNodeInfo, expandedKeys: Key[]) => void;
-    handleKebabMenuSelect?: (selectedItem: IActionImageForSubMenu) => void;//Handle kebabmeu select action if needed
+    handleKebabMenuSelect?: (selectedItem: IActionImageForSubMenu, node?: ITreeNode) => void;//Handle kebabmeu select action if needed
     handleGeneratedTreedata?: (newTreedata: ITreeNode[], uniqueName: string) => void;// callback to generated tree data
     handleNodeExpand?: (expandedNodeKeys: Key[], info: IExpandedNodeInfo) => void;// when API call is required for expand
     onDrop?: (info: NodeDragEventParams<ITreeNode> & {

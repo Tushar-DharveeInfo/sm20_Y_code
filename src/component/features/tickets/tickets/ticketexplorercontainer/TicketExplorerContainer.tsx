@@ -34,6 +34,7 @@ export interface ITicketDoc {
     daterequested: string;
     datereleased: string;
     lastupdated: string;
+    eqid?: string;
 }
 
 function formatTimestampOrDate(value: unknown): string {
@@ -66,6 +67,7 @@ function FnMapToTicketDoc(record: Record<string, unknown>, fallbackBid: string):
         daterequested: formatTimestampOrDate(record.daterequested),
         datereleased: formatTimestampOrDate(record.datereleased),
         lastupdated: formatTimestampOrDate(record.lastupdated),
+        eqid: record.eqid ? String(record.eqid) : ((record as any).EQID ? String((record as any).EQID) : undefined),
     };
 }
 

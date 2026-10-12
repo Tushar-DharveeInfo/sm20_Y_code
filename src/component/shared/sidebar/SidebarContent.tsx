@@ -4,7 +4,8 @@ import { useMainAppContext } from '../context/hooks/MainAppHooks'
 import { useCommonVariableContext } from '../context/hooks/CommonVariableHooks'
 import { useStatusBarContext } from '../context/hooks/StatusBarHooks'
 import './SidebarContent.css'
-import { SidebarEnum } from '../../constants/Feature'
+import { SidebarEnum, RmsEnums } from '../../constants/Feature'
+import { EQIDSidebarRouter } from './rms/eqidsidebar/EQIDSidebarRouter'
 import { ITreeNode } from '../allinterface/tree/ITreeControl'
 import { IErrorData } from '../allinterface/IApiResponse'
 // import { DeviceModel } from './devicemodel/DeviceModel'
@@ -353,6 +354,20 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
         }
     };
 
+
+    const isRmsEqid = sidebarProps.featureId === RmsEnums.EQID || sidebarProps.featureId === '404';
+    if (isRmsEqid) {
+        return (
+            <div className="nz-sidebar-container">
+                <EQIDSidebarRouter
+                    Label={Label}
+                    selectedNode={selectedNode ?? sidebarProps.selectedNode}
+                    featureId={sidebarProps.featureId}
+                    selectedNodeMenu={sidebarProps.selectedNodeMenu}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="nz-sidebar-container">

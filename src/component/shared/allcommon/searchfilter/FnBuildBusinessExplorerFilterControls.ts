@@ -1,5 +1,5 @@
 // Builds libform filter controls from cached businesses/contacts; combos start with ANY.
-import type { IBusinessDoc, IContactDoc } from "../../allinterface/IDatasets";
+import type { IBusinessDoc, IContactDoc } from "../../../db/IDatasets";
 import type { IControl } from "../../allinterface/settingsform/ISettingsLibForm";
 import { DisplayControlEnums } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
 import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
@@ -145,8 +145,8 @@ function FnBuildBusinessExplorerFilterControls(
         distinctFiscalQuarters.length > 0 ? distinctFiscalQuarters : FIN_YEAR_QUARTERS
     );
 
-    // RMS Menu: EQID Feature (402) filters
-    if (featureId === RmsEnums.EQID || featureId === "402") {
+    // RMS Menu: EQID Feature (404) filters
+    if (featureId === RmsEnums.EQID || featureId === "404") {
         const rmsGroup = "Filter EQID";
 
         return [

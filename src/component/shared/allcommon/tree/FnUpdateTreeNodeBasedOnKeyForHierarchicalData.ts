@@ -6,7 +6,7 @@ import { TreeNodeTitle } from "../../tree/treenodetitle/TreeNodeTitle";
 import { IActionImageForSubMenu } from "../../allinterface/basic/IActionImageList";
 
 // This function will update tree node if HideKebabMenu or HideCopyIcon is false
-const FnUpdateTreeNodeBasedOnKeyForHierarchicalData = async (
+const FnUpdateTreeNodeBasedOnKeyForHierarchicalData = (
     treeData: ITreeNode[],            // Hierarchical tree data
     key: Key,                   // Key to match the node
     showCopyIcon: boolean,      // show/hide copy icon
@@ -14,7 +14,7 @@ const FnUpdateTreeNodeBasedOnKeyForHierarchicalData = async (
     treeContainerProps: ITreeForHierarchicalDataContainer,
     selectedNodeExplorer: ISelectedNodeInfo | null = null,   // Explorer node
     handleKebabMenuSelect?: (selectedItem: IActionImageForSubMenu) => void
-): Promise<ITreeNode[]> => {
+): ITreeNode[] => {
     try {
         // Loop through each node
         for (const item of treeData) {
@@ -23,14 +23,20 @@ const FnUpdateTreeNodeBasedOnKeyForHierarchicalData = async (
                 // Update the matched node
                 item.title = TreeNodeTitle(
                     item,
-                    treeContainerProps.featureTreeProps
+                    treeContainerProps.featureTreeProps,
+                    treeContainerProps.featureId,
+                    showKebabIcon,
+                    showCopyIcon,
+                    selectedNodeExplorer || ({ node: item } as ISelectedNodeInfo),
+                    handleKebabMenuSelect
                 );
-                return treeData; // Return updated tree
+            } else if (typeof item.title !== 'string') {
+                item.title = item.TableLabel || item.Name || item.Description || '';
             }
 
             // Recursively check children
             if (item.children && item.children.length > 0) {
-                await FnUpdateTreeNodeBasedOnKeyForHierarchicalData(
+                FnUpdateTreeNodeBasedOnKeyForHierarchicalData(
                     item.children,
                     key,
                     showCopyIcon,

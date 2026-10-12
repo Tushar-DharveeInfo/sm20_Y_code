@@ -1,0 +1,91 @@
+/*
+  Scoped styles for EQIDEditForm, matching the section/control look & feel of
+  libform's FormElementsRenderer (see libform/libform/components/FormElementsRenderer.tsx).
+
+  This file is a CSS Module (".module.css"): Vite rewrites every class name below
+  into a unique, build-time hashed identifier that is only ever applied via the
+  `styles.xxx` object imported in EQIDEditForm.tsx. That guarantees these rules can
+  never be shadowed by, or leak into, any parent/global stylesheet in the host app -
+  no matter what container the form is rendered inside.
+
+  All baseline typography/color/box-sizing is declared explicitly (rather than
+  inherited) so the form keeps the same look regardless of the surrounding page.
+*/
+
+.root {
+  display: grid;
+  gap: 6px;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #111827;
+  line-height: 1.35;
+}
+
+.root *,
+.root *::before,
+.root *::after {
+  box-sizing: border-box;
+}
+
+.section {
+  margin: 0;
+  min-width: 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 7.5px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.legend {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px 0;
+  padding: 0 0 3px 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #34495e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #3498db;
+}
+
+.fields {
+  display: grid;
+  gap: 10px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.saveButton {
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: #3498db;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.saveButton:hover {
+  background-color: #2f87c1;
+  border-color: #2f87c1;
+}
+
+.saveButton:active {
+  background-color: #2874a6;
+}
+
+.saveButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

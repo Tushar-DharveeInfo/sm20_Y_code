@@ -35,6 +35,17 @@ export type {
   ICollectionDocMap,
 } from '@n20a/libfsdb';
 
+export type {
+  IMfg,
+  IMfgDoc,
+  IEQIDAllocated,
+  IEqidAllocatedDoc,
+  IMfgVsProdline,
+  IMfgVsProdlineDoc,
+  IMfgVsMfgEqtype,
+  IMfgVsMfgEqtypeDoc,
+} from './ICollections';
+
 export {
   // Root collection hooks
   useBusinesses,
@@ -56,7 +67,7 @@ export {
   useSubDownloads,
 } from '@n20a/libfsdb';
 
-export { useImportCollections} from '@n20a/libfsdb';
+export { useImportCollections } from '@n20a/libfsdb';
 
 export {
   // Generic state management hooks

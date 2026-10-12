@@ -6,7 +6,7 @@ import { handleNestedZoneContainerKeyDown } from "../../allcommon/basic/FnHandle
 import { Label } from "../../basic/label/Label";
 import { CardLayout } from "../../cardlayout/CardLayout";
 import { ICardLayoutField } from "../../cardlayout/CardLayout";
-import type { IContactDoc } from "../../allinterface/IDatasets";
+import type { IContactDoc } from "../../../db/IDatasets";
 import { useSmDataContext } from "../../context/hooks/SmDataHooks";
 import { useCommonVariableContext } from "../../context/hooks/CommonVariableHooks";
 import { YesNoFormContainer } from "../../basic/yesnoformcontainer/YesNoFormContainer";

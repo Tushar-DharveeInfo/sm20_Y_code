@@ -4,7 +4,7 @@ import { FnFormatTicketDate } from '../../../shared/allcommon/tree/FnFormatTicke
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { LibraryColor128x128, NetZoom24x24, Visio } from '@n20a/libicon';
 import { useBusinessTickets } from '@n20a/libfsdb';
-import type { ITicketDoc, IContactDoc } from '../../../shared/allinterface/IDatasets';
+import type { ITicketDoc, IContactDoc } from '../../../db/IDatasets';
 import './TicketCard.css';
 
 interface ITicketCardProps {
@@ -113,6 +113,8 @@ const TicketCard: React.FC<ITicketCardProps> = ({
         displayedStatus = 'Received';
     } else if (rawStatus.toLowerCase() === 'open') {
         displayedStatus = 'Open';
+    } else if (rawStatus.toLowerCase() === 'inprogress' || rawStatus.toLowerCase() === 'in progress') {
+        displayedStatus = 'InProgress';
     } else if (rawStatus.toLowerCase() === 'close' || rawStatus.toLowerCase() === 'closed') {
         displayedStatus = 'Close';
     } else if (rawStatus.toLowerCase() === 'not accepted') {
@@ -121,11 +123,11 @@ const TicketCard: React.FC<ITicketCardProps> = ({
 
     let actionButton: 'Accept' | 'Close' | 'Reopen' | null = null;
     const lowerStatus = displayedStatus.toLowerCase();
-    if (lowerStatus === 'received' || lowerStatus === 'not accepted') {
+    if (lowerStatus === 'received' || lowerStatus === 'open' || lowerStatus === 'not accepted') {
         actionButton = 'Accept';
-    } else if (lowerStatus === 'open' || lowerStatus === 'in progress') {
+    } else if (lowerStatus === 'inprogress' || lowerStatus === 'in progress') {
         actionButton = 'Close';
-    } else if (lowerStatus === 'close') {
+    } else if (lowerStatus === 'close' || lowerStatus === 'closed') {
         actionButton = 'Reopen';
     }
 
@@ -167,7 +169,9 @@ const TicketCard: React.FC<ITicketCardProps> = ({
                             title={`${actionButton} ticket`}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                if (actionButton === 'Accept' || actionButton === 'Reopen') {
+                                if (actionButton === 'Accept') {
+                                    handleStatusUpdate('InProgress');
+                                } else if (actionButton === 'Reopen') {
                                     handleStatusUpdate('Open');
                                 } else if (actionButton === 'Close') {
                                     handleStatusUpdate('Close');

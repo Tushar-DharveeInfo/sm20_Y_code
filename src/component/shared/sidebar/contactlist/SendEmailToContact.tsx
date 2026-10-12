@@ -20,7 +20,7 @@ import { FnResolvedHtmlVariable } from "../../../features/appqa/allcommon/FnReso
 import { FnGenerateUID } from "../../allcommon/settingsform/FnGenerateUID";
 import { FnResolveEmailTemplate } from "../../allcommon/FnGetEmailVars";
 import { YesNoFormContainer } from "../../basic/yesnoformcontainer/YesNoFormContainer";
-import type { IBusinessDoc, IContactDoc } from "../../allinterface/IDatasets";
+import type { IBusinessDoc, IContactDoc } from "../../../db/IDatasets";
 import notifySampleData from "../../../../smsampledata/appqa/NotifySampleData.json";
 import "./SendEmailToContact.css";
 

@@ -7,7 +7,7 @@ import { useStatusBarContext } from '../../context/hooks/StatusBarHooks';
 import { useCommonVariableContext } from '../../context/hooks/CommonVariableHooks';
 import { useMainAppContext } from '../../context/hooks/MainAppHooks';
 import { FnLogActivity } from '../../allcommon/basic/FnLogActivity';
-import type { IBusinessDoc, IContactDoc } from '../../allinterface/IDatasets';
+import type { IBusinessDoc, IContactDoc } from '../../../db/IDatasets';
 import type { ITreeNode } from '../../allinterface/tree/ITreeControl';
 import { FnHideShowSaveIconForForm } from '../../allcommon/basic/FnHideShowSaveIconForForm';
 import './ProfileAddFormContainer.css';

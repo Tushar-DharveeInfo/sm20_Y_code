@@ -1,4 +1,4 @@
-import type { IBusinessDoc } from "../../allinterface/IDatasets";
+import type { IBusinessDoc } from "../../../db/IDatasets";
 
 function asString(value: unknown): string {
     if (value === undefined || value === null) {

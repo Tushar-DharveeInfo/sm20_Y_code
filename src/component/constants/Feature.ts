@@ -70,11 +70,12 @@ enum TicketsEnums {
 // RMS menu feature ids — match public/smFeatures.json MenuID 400
 enum RmsEnums {
     RMS = "400",
-    EQID = "402",
-    RMSLibrary = "404",
-    McsDevelopment = "404",
-    ReviewDeviceLibrary = "406",
-    ReviewVisioStencils = "408",
+    EQID = "404",
+    Manufacturer = "408",
+    RMSLibrary = "412",
+    McsDevelopment = "412",
+    ReviewDeviceLibrary = "416",
+    ReviewVisioStencils = "420",
 }
 
 // FAQ menu feature ids — match public/smFeatures.json MenuID 600
@@ -107,16 +108,24 @@ enum AboutEnums {
 
 // Kebab Services menu feature ids — match public/smFeatures.json
 enum KebabServicesEnums {
-    NetZoomServices = "10208",
-    VisioStencilsServices = "10212",
-    SSIAndOtherServices = "10216",
-    ResellerServices = "10218",
-    McsServices = "10220",
-    RequestsReceivedServices = "10308",
-    ApprovedTicketsServices = "10312",
-    ClientIdentityManagementServices = "10904",
+    NetZoomServices = "13208",
+    VisioStencilsServices = "13212",
+    SSIAndOtherServices = "13216",
+    ResellerServices = "13218",
+    McsServices = "13220",
+    RequestsReceivedServices = "13308",
+    ApprovedTicketsServices = "13312",
+    ClientIdentityManagementServices = "13904",
 }
 
+// EQID feature QA ids — match public/smFeatures.json MenuID 404
+enum EqidQaEnums {
+    Properties = "4040",
+    Notes = "4042",
+    Shapes = "4044",
+    ToDo = "4046",
+    AI = "4048",
+}
 
 enum kebabMenuEnums {
     Services = 'services',
@@ -129,6 +138,14 @@ enum kebabMenuEnums {
     Copy = 'copy',
     AddBusiness = 'add business',
     AddContact = 'add contact',
+    Split = 'split',
+    Edit = 'edit',
+    Relate = 'relate',
+    Add = 'add',
+    EditMfg = 'edit mfg',
+    EditMfgRelation = 'edit mfgrelation',
+    EditProdline = 'edit prodline',
+    EditMfgEqType = 'edit mfgeqtype',
 }
 
 // Feature QA ToDo IDs across menus — match public/smFeatures.json
@@ -144,6 +161,7 @@ enum FeatureToDoEnums {
     ProspectReviewDeleted = "2588",
     RequestsReceived = "3094",
     ApprovedTickets = "3134",
+    EQID = "4046",
 }
 
 // Feature QA Profile IDs across menus — match public/smFeatures.json
@@ -223,6 +241,7 @@ enum FeatureNotesEnums {
     RequestsReceived = "3082",
     ApprovedTickets = "3122",
     SAASInstance = "9122",
+    EQID = "4042",
 }
 
 enum deviceModelTabs {
@@ -261,6 +280,7 @@ export {
     SettingEnums,
     AboutEnums,
     KebabServicesEnums,
+    EqidQaEnums,
     FeatureToDoEnums,
     FeatureProfileEnums,
     FeatureListEnums,
