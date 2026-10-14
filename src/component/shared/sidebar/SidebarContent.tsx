@@ -355,7 +355,7 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
     };
 
 
-    const isRmsEqid = sidebarProps.featureId === RmsEnums.EQID || sidebarProps.featureId === '404';
+    const isRmsEqid = sidebarProps.featureId === RmsEnums.EQID;
     if (isRmsEqid) {
         return (
             <div className="nz-sidebar-container">

@@ -27,13 +27,10 @@ const FnGetClientExplorerAutoFilter = (
         case "feature-mcsdevelopment":
             return { btype: "mcs" };
 
-        // Requests Received: businesses where verified == false
+        // Requests Received & Approved Tickets: BS Tree is dynamically filtered based on tickets (bid & cid)
         case TicketsEnums.RequestsReceived:
-            return { verified: "false" };
-
-        // Approved Tickets: businesses where verified == true
         case TicketsEnums.ApprovedTickets:
-            return { verified: "true" };
+            return {};
 
         // [Prospect] Review Deleted & [Setting] Delete: businesses that have at least one contact where status == deleted
         case ProspectEnums.ReviewDeleted:

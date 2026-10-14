@@ -1,4 +1,4 @@
-import type { IContactDoc } from "../../../db/IDatasets";
+import type { IContactDoc } from "@n20a/libfsdb";
 
 function asString(value: unknown): string {
     if (value === undefined || value === null) {

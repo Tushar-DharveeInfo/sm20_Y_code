@@ -1013,6 +1013,7 @@ const AddToDo = (props: IAddToDo) => {
 									sendTooltip={selectedItem ? 'Update To Do' : 'Add To Do'}
 									sendNote={sendTodo}
 									handleDelete={handleDeleteAttachment}
+									placeholderMessage="Enter a to do here..."
 								/>
 							)}
 						</div>

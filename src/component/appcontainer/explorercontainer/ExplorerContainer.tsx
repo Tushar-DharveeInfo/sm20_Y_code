@@ -30,7 +30,6 @@ import { SidebarContainer } from '../sidebarcontainer/SidebarContainer'
 import { FeatureRenderContainer } from '../featurecontainer/FeatureRenderContainer'
 import { YesNoFormContainer } from '../../shared/basic/yesnoformcontainer/YesNoFormContainer'
 import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks'
-import { ITicketDoc } from '../../db/IDatasets'
 
 
 interface IExplorerContainer {
@@ -224,6 +223,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
 
         if (!explorerContainerProps.subTreeFeatureId) {
             selectedNodeContext.setSelectedNodeExplorer(info.node);
+            selectedNodeContext.setSelectedNode(info.node);
         }
 
         else {
@@ -334,15 +334,16 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         else {
             sessionContext.setSessionList([...sessionContext.SessionList, sidebarVariable]);
         }
-        const targetTicket = isRmsEqid ? selectedNodeContext.selectedTicketCard : null;
-        const explorerNode = targetTicket ?? selectedNodeContext.selectedNodeExplorer ?? selectedNodeContext.selectedNode;
-        if (explorerNode && selectedNodeInfo?.node?.key !== explorerNode.key) {
-            setSelectedNodeInfo({
-                event: "select",
-                selected: true,
-                node: explorerNode,
-                selectedNodes: [explorerNode],
-            });
+        if (!isRmsEqid) {
+            const explorerNode = selectedNodeContext.selectedNodeExplorer ?? selectedNodeContext.selectedNode;
+            if (!selectedNodeInfo?.node && explorerNode) {
+                setSelectedNodeInfo({
+                    event: "select",
+                    selected: true,
+                    node: explorerNode,
+                    selectedNodes: [explorerNode],
+                });
+            }
         }
         setIsShowSidebar(true);
         setIsSidebar('sidebarOpen');

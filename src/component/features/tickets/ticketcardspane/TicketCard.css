@@ -3,15 +3,32 @@
     margin-bottom: var(--spacing-1, 6px);
 }
 
+/* Apps + Actions row */
+.nz-ticket-card-apps-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    padding: 2px 0 4px 0;
+}
+
+.nz-ticket-card .nz-cardlayout-detail-row--one {
+    width: 100%;
+}
+
+.nz-ticket-card .nz-cardlayout-detail-row--one .nz-cardlayout-field-item {
+    width: 100%;
+    flex: 1 1 auto;
+}
+
 .nz-ticket-card-skus {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
     gap: 5px;
-    padding: 4px 0 6px 0;
-    /* border-bottom: 1px solid var(--border-color, #2f2d2d); */
-    /* margin-bottom: 4px; */
 }
 
 .nz-ticket-sku-chip {
@@ -38,15 +55,40 @@
     min-width: 26px;
 }
 
-.nz-ticket-sku-chip:hover {
+.nz-ticket-sku-chip:not(:disabled):not(.nz-ticket-sku-chip-disabled):hover {
     background: var(--primary, #2c7bb6);
     color: #fff;
     transform: scale(1.05);
 }
 
-.nz-ticket-sku-chip.nz-ticket-sku-chip-icon:hover {
+.nz-ticket-sku-chip.nz-ticket-sku-chip-icon:not(:disabled):not(.nz-ticket-sku-chip-disabled):hover {
     background: var(--primary, #2c7bb6);
     color: #fff;
+}
+
+/* Disabled state for app chips */
+.nz-ticket-sku-chip.nz-ticket-sku-chip-disabled,
+.nz-ticket-sku-chip:disabled {
+    border: 1px solid var(--borderandscrollbar, #ccc);
+    color: var(--textsecondary, #777);
+    background: transparent;
+    cursor: default;
+    opacity: 0.6;
+    transform: none;
+}
+
+.nz-ticket-sku-chip.nz-ticket-sku-chip-disabled:hover,
+.nz-ticket-sku-chip:disabled:hover {
+    background: transparent;
+    color: var(--textsecondary, #777);
+    border-color: var(--borderandscrollbar, #ccc);
+    transform: none;
+}
+
+.nz-ticket-sku-chip.nz-ticket-sku-chip-disabled .nz-ticket-sku-icon-wrapper svg,
+.nz-ticket-sku-chip:disabled .nz-ticket-sku-icon-wrapper svg {
+    filter: grayscale(80%);
+    opacity: 0.7;
 }
 
 .nz-ticket-sku-icon-wrapper {
@@ -58,6 +100,15 @@
 .nz-ticket-card .nz-cardlayout-detail-row--inline {
     flex-wrap: wrap;
     column-gap: var(--spacing-3, 12px);
+}
+
+/* Actions layout */
+.nz-ticket-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 /* Header action buttons and status layout */
@@ -88,6 +139,13 @@
 
 .nz-ticket-action-btn:hover {
     transform: scale(1.03);
+}
+
+.nz-ticket-action-btn.nz-ticket-action-btn-icon {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    min-width: 20px;
 }
 
 /* Discard */

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { useFirestore } from '@n20a/libfsdb';
 import type { IOptionItem } from '@n20a/libform';
-import { IEqid } from '../rmscollection/IEqid';
-import { getEqtypes } from '../rmscollection/EQIDEditForm';
+import { IEqidDoc } from '@n20a/libfsdb';
+import { getEqtypes } from '@n20a/libform';
 import EQIDAllocatedData from '../rmscollection/EQIDAllocated.json';
 import MfgVsProdlineData from '../rmscollection/MfgVsProdline.json';
 
@@ -77,6 +77,38 @@ export function extractListEntry(record: Record<string, string[]>): { key: strin
   const key = keys[0];
   const items = Array.isArray(record[key]) ? record[key] : [];
   return { key, items };
+}
+
+/**
+ * Safely extracts a string array associated with cleanKey or any array field from a Firestore document.
+ */
+export function extractArrayFromDoc(doc: any, targetKey: string): string[] | null {
+  if (!doc || typeof doc !== 'object') return null;
+  const clean = (targetKey || '').trim();
+  const upper = clean.toUpperCase();
+  const lower = clean.toLowerCase();
+
+  if (Array.isArray(doc[clean]) && doc[clean].length > 0) return doc[clean].map(String);
+  if (Array.isArray(doc[upper]) && doc[upper].length > 0) return doc[upper].map(String);
+  if (Array.isArray(doc[lower]) && doc[lower].length > 0) return doc[lower].map(String);
+  if (Array.isArray(doc.prodlines) && doc.prodlines.length > 0) return doc.prodlines.map(String);
+  if (Array.isArray(doc.mfgeqtypes) && doc.mfgeqtypes.length > 0) return doc.mfgeqtypes.map(String);
+  if (Array.isArray(doc.eqids) && doc.eqids.length > 0) return doc.eqids.map(String);
+  if (Array.isArray(doc.keys) && doc.keys.length > 0) return doc.keys.map(String);
+
+  // Search any other array property excluding metadata fields
+  const ignored = new Set(['id', 'path', 'lastupdated', '_id']);
+  for (const k of Object.keys(doc)) {
+    if (!ignored.has(k) && Array.isArray(doc[k]) && doc[k].length > 0) {
+      return doc[k].map(String);
+    }
+  }
+
+  if (Array.isArray(doc[clean])) return [];
+  if (Array.isArray(doc[upper])) return [];
+  if (Array.isArray(doc[lower])) return [];
+
+  return null;
 }
 
 // ============================================================================
@@ -168,27 +200,18 @@ export async function fetchEQIDAllocated(mfgkey: string, firestore: FirestoreIns
 
   if (firestore) {
     try {
-      // 1. Try reading document mfg/{mfgkey}/eqidallocated/{mfgkey}
-      const directDoc = await firestore.getDocument({
-        pathSegments: ['mfg', cleanKey, 'eqidallocated', cleanKey],
-      });
-      if (directDoc?.data) {
-        const val = directDoc.data[cleanKey] || directDoc.data.eqids || directDoc.data.keys;
-        if (Array.isArray(val) && val.length > 0) {
-          return val.map(String);
-        }
-      }
-
-      // 2. Try querying subcollection mfg/{mfgkey}/eqidallocated
       const queryResult = await firestore.queryDocuments({
         pathSegments: ['mfg', cleanKey, 'eqidallocated'],
       });
-      if (queryResult && Array.isArray(queryResult.data) && queryResult.data.length > 0) {
-        for (const doc of queryResult.data) {
-          const list = doc[cleanKey] || doc.eqids || doc.keys || Object.values(doc)[0];
-          if (Array.isArray(list) && list.length > 0) {
-            return list.map(String);
-          }
+      const docs = Array.isArray(queryResult?.data)
+        ? queryResult.data
+        : Array.isArray((queryResult as any)?.result?.data)
+          ? (queryResult as any).result.data
+          : [];
+      for (const doc of docs) {
+        const list = extractArrayFromDoc(doc, cleanKey);
+        if (list && list.length > 0) {
+          return list;
         }
       }
     } catch (err) {
@@ -279,25 +302,18 @@ export async function fetchMfgVsProdline(mfgkey: string, firestore: FirestoreIns
 
   if (firestore) {
     try {
-      const directDoc = await firestore.getDocument({
-        pathSegments: ['mfg', cleanKey, 'mfgvsprodline', cleanKey],
-      });
-      if (directDoc?.data) {
-        const val = directDoc.data[cleanKey] || directDoc.data.prodlines || directDoc.data.keys;
-        if (Array.isArray(val) && val.length > 0) {
-          return val.map(String);
-        }
-      }
-
       const queryResult = await firestore.queryDocuments({
         pathSegments: ['mfg', cleanKey, 'mfgvsprodline'],
       });
-      if (queryResult && Array.isArray(queryResult.data) && queryResult.data.length > 0) {
-        for (const doc of queryResult.data) {
-          const list = doc[cleanKey] || doc.prodlines || doc.keys || Object.values(doc)[0];
-          if (Array.isArray(list) && list.length > 0) {
-            return list.map(String);
-          }
+      const docs = Array.isArray(queryResult?.data)
+        ? queryResult.data
+        : Array.isArray((queryResult as any)?.result?.data)
+          ? (queryResult as any).result.data
+          : [];
+      for (const doc of docs) {
+        const list = extractArrayFromDoc(doc, cleanKey);
+        if (list && list.length > 0) {
+          return list;
         }
       }
     } catch (err) {
@@ -388,25 +404,18 @@ export async function fetchMfgVsMfgEqtype(mfgkey: string, firestore: FirestoreIn
 
   if (firestore) {
     try {
-      const directDoc = await firestore.getDocument({
-        pathSegments: ['mfg', cleanKey, 'mfgvsmfgeqtype', cleanKey],
-      });
-      if (directDoc?.data) {
-        const val = directDoc.data[cleanKey] || directDoc.data.mfgeqtypes || directDoc.data.keys;
-        if (Array.isArray(val) && val.length > 0) {
-          return val.map(String);
-        }
-      }
-
       const queryResult = await firestore.queryDocuments({
         pathSegments: ['mfg', cleanKey, 'mfgvsmfgeqtype'],
       });
-      if (queryResult && Array.isArray(queryResult.data) && queryResult.data.length > 0) {
-        for (const doc of queryResult.data) {
-          const list = doc[cleanKey] || doc.mfgeqtypes || doc.keys || Object.values(doc)[0];
-          if (Array.isArray(list) && list.length > 0) {
-            return list.map(String);
-          }
+      const docs = Array.isArray(queryResult?.data)
+        ? queryResult.data
+        : Array.isArray((queryResult as any)?.result?.data)
+          ? (queryResult as any).result.data
+          : [];
+      for (const doc of docs) {
+        const list = extractArrayFromDoc(doc, cleanKey);
+        if (list && list.length > 0) {
+          return list;
         }
       }
     } catch (err) {
@@ -477,7 +486,7 @@ export async function deleteMfgVsMfgEqtype(
 /**
  * Saves an updated EQID record to cloud Firestore root collection 'eqid'.
  */
-export async function saveEQIDToCloud(record: IEqid, firestore: FirestoreInstance): Promise<boolean> {
+export async function saveEQIDToCloud(record: IEqidDoc, firestore: FirestoreInstance): Promise<boolean> {
   if (!record || !firestore) return false;
   const eqidKey = String((record as any).eqid || record.ticketid || '').trim();
   if (!eqidKey) return false;
@@ -516,7 +525,7 @@ export interface IUseMfgCollectionsResult {
   getEQIDAllocated: (mfgkey: string) => string[];
   getMfgProdLine: (mfgkey: string) => string[];
   getMfgEqType: (eqtypeOrMfg: string) => string[];
-  SaveEQID: (updatedEQIDRecord: IEqid) => Promise<boolean>;
+  SaveEQID: (updatedEQIDRecord: IEqidDoc) => Promise<boolean>;
 
   // CRUD operations
   addMfg: (record: IMfg) => Promise<boolean>;
@@ -764,7 +773,7 @@ export function useMfgCollections(firestore: FirestoreInstance): IUseMfgCollecti
   }, [firestore]);
 
   // SaveEQID: saves updated EQID record to cloud
-  const handleSaveEQID = useCallback(async (updatedEQIDRecord: IEqid): Promise<boolean> => {
+  const handleSaveEQID = useCallback(async (updatedEQIDRecord: IEqidDoc): Promise<boolean> => {
     const ok = await saveEQIDToCloud(updatedEQIDRecord, firestore);
     return ok;
   }, [firestore]);

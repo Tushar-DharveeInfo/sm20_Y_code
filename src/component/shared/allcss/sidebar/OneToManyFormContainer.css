@@ -1,0 +1,54 @@
+.nz-one-to-many-form-container {
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.nz-one-to-many-add-edit-container {
+    flex: 0 0 auto;
+}
+
+.nz-one-to-many-grid-wrapper {
+    flex: 0 0 auto;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+.nz-one-to-many-grid-wrapper .nz-grid-container-div {
+    height: 100%;
+    width: 100%;
+    position: relative;
+    padding: 0;
+}
+
+.nz-one-to-many-grid-wrapper .nz-ag-container {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100% !important;
+}
+
+.nz-one-to-many-grid-wrapper .ag-overlay-wrapper {
+    font-size: var(--default_font_size);
+    color: var(--textsecondary);
+}
+
+.nz-one-to-many-grid-wrapper .nz-grid-container-div .ag-cell-wrapper.ag-checkbox-cell {
+    display: flex;
+    flex-direction: row;
+    justify-content: start;
+}
+
+.nz-one-to-many-grid-wrapper .nz-no-data-row,
+.nz-no-data-row {
+    pointer-events: none;
+    cursor: default !important;
+    user-select: none;
+}

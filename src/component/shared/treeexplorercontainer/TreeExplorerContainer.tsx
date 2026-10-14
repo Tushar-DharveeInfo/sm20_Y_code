@@ -11,7 +11,7 @@ import {
 } from '../allcommon/searchfilter/FnFilterBusinessContactRecords.ts'
 import { FnMapToBusinessDocs } from '../allcommon/dataset/FnMapToBusinessDoc.ts'
 import { FnMapToContactDocs } from '../allcommon/dataset/FnMapToContactDoc.ts'
-import type { IBusinessDoc, IContactDoc } from '../../db/IDatasets.ts'
+import type { IBusinessDoc, IContactDoc, ITicketDoc } from '@n20a/libfsdb'
 import { useSmDataContext } from '../context/hooks/SmDataHooks.ts'
 import {
   FnGetClientExplorerAutoFilter,
@@ -36,8 +36,23 @@ import { kebabMenuEnums, ProspectEnums, SettingEnums, RmsEnums } from '../../con
 import { useStatusBarContext } from '../context/hooks/StatusBarHooks.ts'
 import { useRmsContext } from '../context/hooks/RmsHooks.ts'
 import { FnFilterRmsEqidTree, FnBuildRmsEqidTree } from '../../features/rms/allcommon/FnFilterRmsEqidTree.ts'
+import {
+  isTicketsFeature,
+  FnFilterTicketTree,
+  FnBuildTicketBsTree,
+  cleanId,
+} from '../../features/tickets/allcommon/FnFilterTicketTree.ts'
+import {
+  loadFullTickets,
+  getFullTicketsCached,
+} from '../../features/tickets/allcommon/TicketsDataStore.ts'
 import { FnUpdateTreeNodeBasedOnKey } from '../allcommon/tree/FnUpdateTreeNodeBasedOnKey.ts'
 import { FnCopyToClipboard } from '../allcommon/basic/FnCopyToClipboard.ts'
+import { FnGetSourceDataset } from '../allcommon/FnLoadSampleDatasets.ts'
+
+const getTicketsForTree = (): ITicketDoc[] => {
+  return getFullTicketsCached();
+};
 
 const isRmsEqidFeature = (featureId?: string) => {
   if (!featureId) return false;
@@ -135,6 +150,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     // Handled if outside RmsProvider
   }
   const { getBusinesses, updateBusiness } = useBusinesses()
+  const getBusinessesRef = useRef(getBusinesses)
+  getBusinessesRef.current = getBusinesses
   const treeDataRef = useRef<ITreeNode[] | undefined>(undefined)
   const originalTreeDataRef = useRef<ITreeNode[]>([])
   const getContactsRef = useRef<ReturnType<typeof useContacts>['getContacts'] | null>(null)
@@ -457,8 +474,11 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     try {
       const featureProps = featureTreeProps ?? buildFeatureTreeProps(!!treeExplorerContainerProps.allowCheckbox);
 
-      // Refresh businesses from API to include any newly added business
-      const apiBusinesses = await getBusinesses().catch(() => null);
+      // Only fetch businesses from API if not already present in memory
+      const existingBs = smDataContext.datasets.businesses ?? [];
+      const apiBusinesses = !existingBs.length
+        ? await getBusinessesRef.current().catch(() => null)
+        : null;
       if (apiBusinesses?.length) {
         smDataContext.setDatasets((prev) => ({
           ...prev,
@@ -469,9 +489,10 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       const autoFilter = FnGetClientExplorerAutoFilter(treeExplorerContainerProps.featureId);
       const mergedForm: IDCFilterControlValues = { ...autoFilter, ...filterFormDataRef.current };
 
+      const freshBusinesses = apiBusinesses?.length ? FnMapToBusinessDocs(apiBusinesses) : [];
       const sourceBusinesses = [
+        ...freshBusinesses,
         ...(smDataContext.datasets.businesses ?? []),
-        ...(apiBusinesses?.length ? FnMapToBusinessDocs(apiBusinesses) : []),
       ];
 
       const seenBids = new Set<string>();
@@ -489,13 +510,219 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         }
       }
       let businesses: IBusinessDoc[];
-      if (isRmsEqidFeature(treeExplorerContainerProps.featureId)) {
-        let eqidDocs = rmsContext?.eqid ?? [];
-        if ((!eqidDocs || eqidDocs.length === 0) && rmsContext?.loadEqid) {
-          eqidDocs = (await rmsContext.loadEqid()) ?? [];
+      let activeTicketsForRefresh: ITicketDoc[] = [];
+      const isRmsEqid = isRmsEqidFeature(treeExplorerContainerProps.featureId);
+      const isTickets = isTicketsFeature(treeExplorerContainerProps.featureId);
+
+      if (isRmsEqid || isTickets) {
+        let treeNodes: ITreeNode[];
+        let rmsResult: ReturnType<typeof FnFilterRmsEqidTree> | undefined;
+        let ticketResult: ReturnType<typeof FnFilterTicketTree> | undefined;
+        const allKnownContacts = smDataContext.datasets.contacts ?? [];
+
+        if (isRmsEqid) {
+          let eqidDocs = rmsContext?.eqid ?? [];
+          if ((!eqidDocs || eqidDocs.length === 0) && rmsContext?.loadEqid) {
+            eqidDocs = (await rmsContext.loadEqid()) ?? [];
+          }
+          activeTicketsForRefresh = await loadFullTickets(firestore);
+          rmsResult = FnFilterRmsEqidTree(
+            uniqueBusinesses,
+            eqidDocs,
+            mergedForm,
+            allKnownContacts,
+            activeTicketsForRefresh
+          );
+          businesses = rmsResult.filteredBusinesses;
+
+          treeNodes = FnBuildRmsEqidTree(
+            businesses,
+            allKnownContacts,
+            eqidDocs,
+            mergedForm,
+            featureProps,
+            treeExplorerContainerProps.featureId,
+            treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses',
+            handleKebabMenuSelect,
+            activeTicketsForRefresh
+          );
+        } else {
+          // Step 1: First load tickets (fresh from store / firestore)
+          activeTicketsForRefresh = await loadFullTickets(firestore);
+          // Step 2: And then load tree based on tickets
+          ticketResult = FnFilterTicketTree(
+            uniqueBusinesses,
+            activeTicketsForRefresh,
+            treeExplorerContainerProps.featureId,
+            allKnownContacts
+          );
+          businesses = ticketResult.filteredBusinesses;
+
+          treeNodes = FnBuildTicketBsTree(
+            businesses,
+            allKnownContacts,
+            activeTicketsForRefresh,
+            featureProps,
+            treeExplorerContainerProps.featureId,
+            treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses',
+            handleKebabMenuSelect
+          );
         }
-        const rmsResult = FnFilterRmsEqidTree(uniqueBusinesses, eqidDocs, mergedForm);
-        businesses = rmsResult.filteredBusinesses;
+
+        contactsRequestRef.current += 1;
+        setExpandedBusinessId('');
+
+        // Determine target business and contact from targetEntId, hintParentBid, defaultSelectedNodeInfo, or selection
+        const cleanTargetId = (targetEntId ?? '').trim().toLowerCase();
+        let targetBid = '';
+        let targetCid = '';
+
+        if (cleanTargetId) {
+          if (cleanTargetId.startsWith('bid_') || uniqueBusinesses.some((b) => cleanId(b.bid) === cleanTargetId)) {
+            targetBid = cleanTargetId;
+          } else if (cleanTargetId.startsWith('cid_')) {
+            targetCid = cleanTargetId;
+            const parts = cleanTargetId.split('_');
+            if (parts.length >= 3) {
+              targetBid = `${parts[1]}_${parts[2]}`;
+            }
+          }
+        }
+        if (!targetBid && hintParentBid) {
+          targetBid = String(hintParentBid).trim().toLowerCase();
+        }
+        if (!targetBid && defaultSelectedNodeInfo?.node) {
+          const prev = defaultSelectedNodeInfo.node;
+          if (prev.NodeType === 'Business' || String(prev.key || '').startsWith('bid_')) {
+            targetBid = String(prev.NodeEntID || prev.key || (prev as any).bid || '').trim().toLowerCase();
+          } else if (prev.NodeType === 'Contact' || String(prev.key || '').startsWith('cid_')) {
+            targetBid = String((prev as any).bid || prev.parentEntID || '').trim().toLowerCase();
+            targetCid = String(prev.NodeEntID || prev.key || (prev as any).cid || '').trim().toLowerCase();
+          }
+        }
+        if (!targetBid && smDataContext.selection?.bid) {
+          targetBid = String(smDataContext.selection.bid).trim().toLowerCase();
+        }
+
+        const businessNodes = treeNodes[0]?.children ?? [];
+        const normTargetBid = targetBid.replace(/^bid[_-]?/i, '');
+        const targetBusinessNode = targetBid
+          ? businessNodes.find((bn) => {
+            const bKey = String(bn.NodeEntID || bn.key || (bn as any).bid || '').trim().toLowerCase();
+            const normKey = bKey.replace(/^bid[_-]?/i, '');
+            return bKey === targetBid || (normTargetBid && normKey === normTargetBid);
+          })
+          : undefined;
+
+        if (targetBusinessNode) {
+          const actualBid = String(targetBusinessNode.NodeEntID || targetBusinessNode.key || (targetBusinessNode as any).bid || targetBid);
+          setExpandedBusinessId(actualBid);
+
+          // Fetch contacts for the target business via API/hook
+          let apiRecords = await fetchContactsFromApi(actualBid);
+          if (!apiRecords?.length && getContactsRef.current) {
+            try {
+              const hookRecs = await getContactsRef.current();
+              if (hookRecs?.length) apiRecords = hookRecs;
+            } catch { }
+          }
+          const apiContacts = FnMapToContactDocs(apiRecords, actualBid);
+          const fallbackContacts = (FnGetSourceDataset('contacts') || []).filter(
+            (c) => String(c.bid).trim().toLowerCase() === actualBid.toLowerCase()
+          );
+          const combined = [...apiContacts, ...fallbackContacts];
+          const seenCids = new Set<string>();
+          const mappedContacts: IContactDoc[] = [];
+          for (const c of combined) {
+            const cid = String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase();
+            if (cid && !seenCids.has(cid)) {
+              seenCids.add(cid);
+              mappedContacts.push(c);
+            }
+          }
+
+          smDataContext.setDatasets((prev) => ({
+            ...prev,
+            contacts: [
+              ...(prev.contacts ?? []).filter(
+                (c) => String(c.bid).trim().toLowerCase() !== actualBid.toLowerCase()
+              ),
+              ...mappedContacts,
+            ],
+          }));
+
+          const filteredContactsForBid = isRmsEqid && rmsResult
+            ? rmsResult.filterContactsForBid(mappedContacts, actualBid)
+            : ticketResult
+              ? ticketResult.filterContactsForBid(mappedContacts, actualBid)
+              : mappedContacts;
+          const contactNodes = FnMapContactsToTreeNodes(
+            filteredContactsForBid,
+            featureProps,
+            treeExplorerContainerProps.featureId,
+            targetBusinessNode.key as string,
+            handleKebabMenuSelect
+          );
+
+          const updatedTreeData = await FnAddSubNode(
+            treeNodes,
+            actualBid,
+            contactNodes,
+            featureProps,
+            treeExplorerContainerProps.featureId,
+            false,
+            0
+          );
+          const updatedOriginalData = await FnAddSubNode(
+            treeNodes,
+            actualBid,
+            contactNodes,
+            featureProps,
+            treeExplorerContainerProps.featureId,
+            true,
+            0
+          );
+
+          const nextExpanded = [treeNodes[0].key, targetBusinessNode.key];
+          setTreeData(updatedTreeData);
+          setOriginalTreeData(updatedOriginalData);
+          treeDataRef.current = updatedTreeData;
+          originalTreeDataRef.current = updatedOriginalData;
+          setDefaultExpandedKeys(nextExpanded);
+
+          let nodeToSelect: ITreeNode | undefined;
+          if (targetCid) {
+            nodeToSelect = contactNodes.find((cn) => {
+              const cKey = String(cn.NodeEntID || cn.key || (cn as any).cid || '').trim().toLowerCase();
+              return cKey === targetCid;
+            });
+          }
+          if (!nodeToSelect) {
+            nodeToSelect = targetBusinessNode;
+          }
+
+          selectNode(nodeToSelect, nextExpanded, updatedTreeData, 'select');
+          return updatedTreeData;
+        } else if (treeNodes.length > 0) {
+          setTreeData(treeNodes);
+          setOriginalTreeData(treeNodes);
+          treeDataRef.current = treeNodes;
+          originalTreeDataRef.current = treeNodes;
+          const rootKey = [treeNodes[0].key];
+          setDefaultExpandedKeys(rootKey);
+          selectNode(treeNodes[0], rootKey, treeNodes, 'auto-select');
+          return treeNodes;
+        } else {
+          setTreeData([]);
+          setOriginalTreeData([]);
+          treeDataRef.current = [];
+          originalTreeDataRef.current = [];
+          setDefaultExpandedKeys([]);
+          setDefaultSelectedKeys([]);
+          setDefaultSelectedNodeInfo(null);
+          smDataContext.setExplorerSelection(undefined, getAppliedFilterJson(filterFormDataRef.current));
+          return treeNodes;
+        }
       } else {
         businesses = filterBusinessRecords(uniqueBusinesses, mergedForm, treeExplorerContainerProps.featureId);
         const isReviewDeleted = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
@@ -668,8 +895,14 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               console.warn('Direct query eqid error in refreshTreeAndSelectNode:', e);
             }
           }
-          const rmsResult = FnFilterRmsEqidTree([], eqidDocs, filterFormDataRef.current, uniqueContactsForBid);
+          const rmsResult = FnFilterRmsEqidTree([], eqidDocs, filterFormDataRef.current, uniqueContactsForBid, getTicketsForTree());
           filteredContacts = rmsResult.filterContactsForBid(uniqueContactsForBid, targetBusinessId);
+        } else if (isTicketsFeature(treeExplorerContainerProps.featureId)) {
+          if (!activeTicketsForRefresh.length) {
+            activeTicketsForRefresh = getTicketsForTree();
+          }
+          const ticketResult = FnFilterTicketTree([], activeTicketsForRefresh, treeExplorerContainerProps.featureId, uniqueContactsForBid);
+          filteredContacts = ticketResult.filterContactsForBid(uniqueContactsForBid, targetBusinessId);
         } else {
           const isReviewDeletedNode = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
           const contactsToFilterForBid = isReviewDeletedNode
@@ -762,7 +995,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     source?: IBusinessDoc[],
     isMenuSwitch?: boolean,
     eqidSource?: any[],
-    contactsSource?: IContactDoc[]
+    contactsSource?: IContactDoc[],
+    ticketsSource?: ITicketDoc[]
   ) => {
     const autoFilter = FnGetClientExplorerAutoFilter(featureId)
     const mergedForm: IDCFilterControlValues = { ...autoFilter, ...form }
@@ -793,7 +1027,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       let resolvedBusinesses = sourceBusinesses;
       if (!resolvedBusinesses.length) {
         try {
-          const apiBs = await getBusinesses().catch(() => null);
+          const apiBs = await getBusinessesRef.current().catch(() => null);
           if (apiBs?.length) {
             resolvedBusinesses = FnMapToBusinessDocs(apiBs);
             smDataContext.setDatasets((prev) => ({ ...prev, businesses: resolvedBusinesses }));
@@ -801,7 +1035,12 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         } catch { }
       }
 
-      const filterRes = FnFilterRmsEqidTree(resolvedBusinesses, eqidData, mergedForm);
+      let activeTickets = ticketsSource;
+      if (!activeTickets || activeTickets.length === 0) {
+        activeTickets = await loadFullTickets(firestore);
+      }
+
+      const filterRes = FnFilterRmsEqidTree(resolvedBusinesses, eqidData, mergedForm, contactsSource, activeTickets);
       const matchingBidsList = Array.from(filterRes.matchingBids);
       const existingContacts = smDataContext.datasets.contacts ?? [];
       const bidsMissingContacts = matchingBidsList.filter(
@@ -850,7 +1089,8 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         featureProps,
         featureId,
         treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses',
-        handleKebabMenuSelect
+        handleKebabMenuSelect,
+        activeTickets
       );
 
       setTreeData(treeNodes);
@@ -896,6 +1136,98 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               return cKey === prevCid.toLowerCase();
             });
             targetNodeToSelect = foundContact ?? foundBusiness;
+          } else {
+            targetNodeToSelect = foundBusiness;
+          }
+        }
+      }
+
+      if (!targetNodeToSelect && treeNodes.length > 0) {
+        targetNodeToSelect = treeNodes[0];
+        expandedKeysToSet = ['root-businesses'];
+      }
+
+      setDefaultExpandedKeys(expandedKeysToSet);
+      if (targetNodeToSelect) {
+        selectNode(targetNodeToSelect, expandedKeysToSet, treeNodes, isMenuSwitch ? 'select' : 'auto-select');
+      }
+      return;
+    }
+
+    const isTickets = isTicketsFeature(featureId);
+    if (isTickets) {
+      // Step 1: First load full tickets
+      const ticketsData = ticketsSource ?? (await loadFullTickets(firestore));
+      let resolvedBusinesses = sourceBusinesses;
+      if (!resolvedBusinesses.length) {
+        try {
+          const apiBs = await getBusinessesRef.current().catch(() => null);
+          if (apiBs?.length) {
+            resolvedBusinesses = FnMapToBusinessDocs(apiBs);
+            smDataContext.setDatasets((prev) => ({ ...prev, businesses: resolvedBusinesses }));
+          }
+        } catch { }
+      }
+
+      const allKnownContacts = contactsSource ?? smDataContext.datasets.contacts ?? [];
+
+      const treeNodes = FnBuildTicketBsTree(
+        resolvedBusinesses,
+        allKnownContacts,
+        ticketsData,
+        featureProps,
+        featureId,
+        treeExplorerContainerProps.wrapWithRootLabel ?? 'Businesses',
+        handleKebabMenuSelect
+      );
+
+      setTreeData(treeNodes);
+      setOriginalTreeData(treeNodes);
+      treeDataRef.current = treeNodes;
+      originalTreeDataRef.current = treeNodes;
+      contactsRequestRef.current += 1;
+      setExpandedBusinessId('');
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const prevNode = defaultSelectedNodeInfo?.node;
+      let prevBid = (urlParams.get('bid') || '').trim();
+      let prevCid = (urlParams.get('cid') || '').trim();
+
+      if (!prevBid && prevNode) {
+        if (prevNode.NodeType === 'Root' || prevNode.key === 'root-businesses') {
+          prevBid = '';
+        } else if (prevNode.NodeType === 'Business' || String(prevNode.key || '').startsWith('bid_')) {
+          prevBid = String(prevNode.NodeEntID || prevNode.key || (prevNode as any).bid || '').trim();
+        } else if (prevNode.NodeType === 'Contact' || String(prevNode.key || '').startsWith('cid_')) {
+          prevBid = String((prevNode as any).bid || prevNode.parentEntID || '').trim();
+          prevCid = String(prevNode.NodeEntID || prevNode.key || (prevNode as any).cid || '').trim();
+        }
+      }
+      if (!prevBid && !prevNode && smDataContext.selection?.bid) {
+        prevBid = String(smDataContext.selection.bid).trim();
+      }
+
+      const businessNodes = treeNodes[0]?.children ?? [];
+      let targetNodeToSelect: ITreeNode | undefined;
+      let expandedKeysToSet: Key[] = ['root-businesses'];
+
+      if (prevBid) {
+        const normPrevBid = prevBid.toLowerCase().replace(/^bid[_-]?/i, '');
+        const foundBusiness = businessNodes.find((bn) => {
+          const bKey = String(bn.NodeEntID || bn.key || (bn as any).bid || '').trim().toLowerCase();
+          const normKey = bKey.replace(/^bid[_-]?/i, '');
+          return bKey === prevBid.toLowerCase() || (normPrevBid && normKey === normPrevBid);
+        });
+        if (foundBusiness) {
+          expandedKeysToSet = ['root-businesses', foundBusiness.key];
+          if (prevCid) {
+            const foundContact = foundBusiness.children?.find((cn) => {
+              const cKey = String(cn.NodeEntID || cn.key || (cn as any).cid || '').trim().toLowerCase();
+              return cKey === prevCid.toLowerCase();
+            });
+            targetNodeToSelect = foundContact ?? (foundBusiness.children?.[0] || foundBusiness);
+          } else if (foundBusiness.children && foundBusiness.children.length > 0) {
+            targetNodeToSelect = foundBusiness.children[0];
           } else {
             targetNodeToSelect = foundBusiness;
           }
@@ -991,7 +1323,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
           try {
             let currentBusinesses = smDataContext.datasets.businesses ?? [];
             if (!currentBusinesses.length) {
-              const apiBs = await getBusinesses().catch(() => null);
+              const apiBs = await getBusinessesRef.current().catch(() => null);
               if (apiBs?.length) {
                 currentBusinesses = FnMapToBusinessDocs(apiBs);
                 smDataContext.setDatasets((prev) => ({ ...prev, businesses: currentBusinesses }));
@@ -1098,10 +1430,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               }
             }
 
+            // Step 1b: Load full tickets (cached or from firestore)
+            const ticketsData = await loadFullTickets(firestore);
+
             // 2. Get businesses
             let currentBusinesses = smDataContext.datasets.businesses ?? [];
             if (!currentBusinesses.length) {
-              const apiBusinesses = await getBusinesses().catch(() => null);
+              const apiBusinesses = await getBusinessesRef.current().catch(() => null);
               if (apiBusinesses?.length) {
                 currentBusinesses = FnMapToBusinessDocs(apiBusinesses);
                 smDataContext.setDatasets((prev) => ({
@@ -1116,7 +1451,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
             }
 
             // 3. Match bid and cid of eqid table with BS tree
-            const rmsFilterResult = FnFilterRmsEqidTree(currentBusinesses, eqidDocs, autoFilter);
+            const rmsFilterResult = FnFilterRmsEqidTree(
+              currentBusinesses,
+              eqidDocs,
+              autoFilter,
+              smDataContext.datasets.contacts ?? [],
+              ticketsData
+            );
             const matchingBids = Array.from(rmsFilterResult.matchingBids);
 
             // Fetch contacts for matching businesses
@@ -1158,12 +1499,51 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               currentBusinesses,
               true,
               eqidDocs,
-              combinedContacts
+              combinedContacts,
+              ticketsData
             );
             return;
           }
 
-          const apiBusinesses = await getBusinesses();
+          if (isTicketsFeature(treeExplorerContainerProps.featureId)) {
+            statusBarContext?.setIsLoading?.(true);
+            statusBarContext?.setLoadingLabel?.('Loading Tickets...');
+
+            // Step 1: First load full tickets
+            const ticketsData = await loadFullTickets(firestore);
+
+            // Step 2: Get businesses
+            let currentBusinesses = smDataContext.datasets.businesses ?? [];
+            if (!currentBusinesses.length) {
+              const apiBusinesses = await getBusinessesRef.current().catch(() => null);
+              if (apiBusinesses?.length) {
+                currentBusinesses = FnMapToBusinessDocs(apiBusinesses);
+                smDataContext.setDatasets((prev) => ({
+                  ...prev,
+                  businesses: currentBusinesses,
+                }));
+              }
+            }
+
+            if (prevFeatureIdRef.current !== currentConfigKey) {
+              return;
+            }
+
+            // Step 3: And then load tree
+            await applyBusinessTreeFromFilter(
+              autoFilter,
+              featureProps,
+              treeExplorerContainerProps.featureId,
+              currentBusinesses,
+              true,
+              undefined,
+              undefined,
+              ticketsData
+            );
+            return;
+          }
+
+          const apiBusinesses = await getBusinessesRef.current();
           if (prevFeatureIdRef.current !== currentConfigKey) {
             return;
           }
@@ -1195,7 +1575,6 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     treeExplorerContainerProps.allowCheckbox,
     smDataContext.isBusinessesLoaded,
     mainAppContext.featureRecords,
-    getBusinesses,
   ])
 
   useEffect(() => {
@@ -1205,9 +1584,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     void refreshTreeAndSelectNode(entId, dropNodeEntId);
   }, [commonVariableContext.reloadTreeFor]);
 
+  const lastAppliedEqidRef = useRef<IEqidDoc[] | null>(null);
+
   useEffect(() => {
     if (!isRmsEqidFeature(treeExplorerContainerProps.featureId)) return;
     if (!featureTreeProps || !rmsContext?.eqid?.length) return;
+    if (lastAppliedEqidRef.current === rmsContext.eqid) return;
+    lastAppliedEqidRef.current = rmsContext.eqid;
     void applyBusinessTreeFromFilter(
       filterFormDataRef.current,
       featureTreeProps,
@@ -1217,6 +1600,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       rmsContext.eqid
     );
   }, [rmsContext?.eqid, treeExplorerContainerProps.featureId, featureTreeProps]);
+
 
   const applyContactsToBusiness = async (
     businessId: string,
@@ -1230,8 +1614,11 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     const contextContacts = (smDataContext.datasets.contacts ?? []).filter(
       (c) => String(c.bid).trim().toLowerCase() === businessId.trim().toLowerCase()
     );
+    const fallbackContacts = (FnGetSourceDataset('contacts') || []).filter(
+      (c) => String(c.bid).trim().toLowerCase() === businessId.trim().toLowerCase()
+    );
 
-    const combined = [...contextContacts, ...apiContacts];
+    const combined = [...contextContacts, ...apiContacts, ...fallbackContacts];
     const seenCids = new Set<string>();
     const mappedContacts: IContactDoc[] = [];
     for (const c of combined) {
@@ -1282,8 +1669,12 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
           console.warn('Direct query eqid error in applyContactsToBusiness:', e);
         }
       }
-      const rmsResult = FnFilterRmsEqidTree([], eqidDocs, filterFormDataRef.current, mappedContacts);
+      const rmsResult = FnFilterRmsEqidTree([], eqidDocs, filterFormDataRef.current, mappedContacts, getTicketsForTree());
       filteredContacts = rmsResult.filterContactsForBid(mappedContacts, businessId);
+    } else if (isTicketsFeature(treeExplorerContainerProps.featureId)) {
+      const allTickets = getTicketsForTree();
+      const ticketResult = FnFilterTicketTree([], allTickets, treeExplorerContainerProps.featureId, mappedContacts);
+      filteredContacts = ticketResult.filterContactsForBid(mappedContacts, businessId);
     } else {
       filteredContacts = filterContactRecords(
         contactsToFilter,
@@ -1334,6 +1725,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     setDefaultExpandedKeys(nextExpandedKeys);
     if (autoSelectFirstChild && uniqueContactNodes.length > 0) {
       selectNode(uniqueContactNodes[0], nextExpandedKeys, updatedTreeData, 'select');
+    } else {
+      const businessNode = (updatedTreeData[0]?.children ?? []).find((b: any) =>
+        b.key === businessId || b.NodeEntID === businessId || (b as any).bid === businessId
+      );
+      if (businessNode) {
+        selectNode(businessNode, nextExpandedKeys, updatedTreeData, 'select');
+      }
     }
   };
 
@@ -1349,6 +1747,14 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     if (!isBusinessNode(info.node)) {
       if (info.expanded) {
         setDefaultExpandedKeys(expandedNodeKeys)
+        if (isTicketsFeature(treeExplorerContainerProps.featureId)) {
+          const firstChild = (info.node.children && info.node.children.length > 0)
+            ? info.node.children[0]
+            : (treeData?.[0]?.children && treeData[0].children.length > 0 ? treeData[0].children[0] : undefined);
+          if (firstChild) {
+            selectNode(firstChild, expandedNodeKeys, treeData ?? [], 'select');
+          }
+        }
       }
       return
     }
@@ -1357,6 +1763,9 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       contactsRequestRef.current += 1
       setExpandedBusinessId('')
       setDefaultExpandedKeys(expandedNodeKeys)
+      if (isTicketsFeature(treeExplorerContainerProps.featureId)) {
+        selectNode(info.node, expandedNodeKeys, treeData ?? [], 'select');
+      }
       return
     }
 
@@ -1373,7 +1782,26 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       setExpandedBusinessId(businessId)
     })
 
-    const records = await fetchContactsFromApi(businessId)
+    const isTickets = isTicketsFeature(treeExplorerContainerProps.featureId)
+
+    const nodeFromTree = (treeData?.[0]?.children ?? []).find(
+      (b: any) => b.key === businessId || b.NodeEntID === businessId || (b as any).bid === businessId
+    );
+    const existingChildren = (info.node.children && info.node.children.length > 0)
+      ? info.node.children
+      : nodeFromTree?.children;
+
+    if (isTickets && existingChildren && existingChildren.length > 0) {
+      selectNode(existingChildren[0], expandedNodeKeys, treeData ?? [], 'select');
+    }
+
+    let records = await fetchContactsFromApi(businessId)
+    if (!records?.length && getContactsRef.current) {
+      try {
+        const hookRecs = await getContactsRef.current()
+        if (hookRecs?.length) records = hookRecs
+      } catch { }
+    }
     if (requestId !== contactsRequestRef.current) {
       return
     }
@@ -1419,10 +1847,19 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     )
 
     // Fetch and bind contacts data into dataset on selection without expanding the node
-    if (isBusinessNode(info.node) && !treeExplorerContainerProps.businessesOnly) {
+    if (
+      isBusinessNode(info.node) &&
+      !treeExplorerContainerProps.businessesOnly
+    ) {
       const businessId = getBusinessNodeId(info.node)
       if (businessId) {
-        const records = await fetchContactsFromApi(businessId)
+        let records = await fetchContactsFromApi(businessId)
+        if (!records?.length && getContactsRef.current) {
+          try {
+            const hookRecs = await getContactsRef.current()
+            if (hookRecs?.length) records = hookRecs
+          } catch { }
+        }
         if (records?.length) {
           const apiContacts = FnMapToContactDocs(records, businessId)
           smDataContext.setDatasets((prev) => ({

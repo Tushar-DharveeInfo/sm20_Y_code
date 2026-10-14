@@ -1,4 +1,4 @@
-import type { CollectionName, ICollectionDocMap } from "../../../db/IDatasets";
+import type { CollectionName, ICollectionDocMap } from "@n20a/libfsdb";
 import type { IExplorerSelection } from "../../context/allinterface/ISmData";
 import { FnGetSourceDataset } from "../FnLoadSampleDatasets";
 

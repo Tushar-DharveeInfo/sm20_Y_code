@@ -186,3 +186,13 @@
     box-shadow: 0 0 10px rgba(245, 158, 11, 0.4) !important;
 }
 
+.nz-notes-empty,
+.nz-notes-loading {
+    display: flex;
+    justify-content: left;
+    align-items: center;
+    margin: var(--spacing-1);
+    height: 100%;
+    width: 100%;
+    opacity: 1 !important;
+}

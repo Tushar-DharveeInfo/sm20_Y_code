@@ -8,10 +8,21 @@ import { ILibraryTicketMode, filterTicketsByLibraryMode } from '../../appqa/allc
 import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 import { useSelectedNodeContext } from '../../../shared/context/hooks/SelectedNodeHooks';
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
+import { useCommonVariableContext } from '../../../shared/context/hooks/CommonVariableHooks';
 import { useRmsContext } from '../../../shared/context/hooks/RmsHooks';
 import { FnGetSourceDataset } from '../../../shared/allcommon/FnLoadSampleDatasets';
 import { TicketsEnums, RmsEnums } from '../../../constants/Feature';
-import { useBusinessTickets, useTicketNotes, type IFirestoreQueryFilter } from '@n20a/libfsdb';
+import { useBusinessTickets, useFirestore, useTicketNotes, type IFirestoreQueryFilter } from '@n20a/libfsdb';
+import {
+    loadFullTickets,
+    getFullTicketsCached,
+    updateTicketStatusInStore,
+} from '../allcommon/TicketsDataStore';
+import {
+    filterTicketsByFeature,
+    normalizeBidKey,
+} from '../allcommon/FnFilterTicketTree';
+import { isTicketInProcess } from '../../rms/allcommon/FnFilterRmsEqidTree';
 import './TicketCardsPane.css';
 
 interface ITicketCardsPaneProps {
@@ -135,6 +146,8 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     const selectedNodeContext = useSelectedNodeContext();
     const mainAppContext = useMainAppContext();
     const rmsContext = useRmsContext();
+    const commonVariableContext = useCommonVariableContext();
+    const firestore = useFirestore();
 
     const isRmsEqid =
         featureId === RmsEnums.EQID ||
@@ -149,11 +162,25 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     }, [propMode, featureId, isRmsEqid]);
 
     // Determine active tree node
+    const candidateNodes = [
+        selectedNode,
+        smDataContext.selectedNode,
+        selectedNodeContext?.selectedNode,
+        selectedNodeContext?.selectedNodeExplorer,
+        (selectedNodeContext?.selectedNodeExplorer as any)?.node,
+    ];
+    const isTicketNode = (node?: ITreeNode | null) =>
+        Boolean(
+            node && (
+                String(node.NodeType || '').toLowerCase() === 'ticket' ||
+                String(node.treetype || '').toLowerCase() === 'ticket' ||
+                Boolean((node as any).ticketid)
+            )
+        );
     const activeNode =
+        candidateNodes.find((n) => n && !isTicketNode(n)) ??
         selectedNode ??
-        smDataContext.selectedNode ??
-        selectedNodeContext?.selectedNode ??
-        selectedNodeContext?.selectedNodeExplorer?.node;
+        ({ NodeType: 'Root', key: 'root' } as ITreeNode);
 
     const activeNodeKey = activeNode?.key ?? activeNode?.NodeEntID ?? '';
     const activeNodeType = activeNode?.NodeType ?? '';
@@ -181,6 +208,14 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             propMode === 'Open' ||
             effectiveMode === 'Open');
 
+    // Step 1: Ensure full tickets data is loaded across all businesses
+    useEffect(() => {
+        void loadFullTickets(firestore);
+        if (isRmsEqid && (!rmsContext?.eqid || rmsContext.eqid.length === 0) && rmsContext?.loadEqid) {
+            void rmsContext.loadEqid();
+        }
+    }, [firestore, featureId, isRmsEqid, rmsContext]);
+
     const ticketQueryFilters = useMemo<IFirestoreQueryFilter[] | undefined>(() => {
         if (isApprovedTickets) {
             return [{ field: 'status', op: '==', value: 'InProgress' }];
@@ -199,17 +234,17 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         };
     }, [ticketQueryFilters]);
 
-    // Call useBusinessTickets hook based on selected node business id
+    // Call useBusinessTickets hook only if not in standard tickets feature
     const {
         tickets: apiTickets,
         getTickets,
     } = useBusinessTickets(effectiveBid);
 
     useEffect(() => {
-        if (effectiveBid) {
+        if (isRmsEqid && effectiveBid) {
             void getTickets(ticketQueryFilters, ticketFetchByFilter);
         }
-    }, [effectiveBid, getTickets, ticketQueryFilters, ticketFetchByFilter]);
+    }, [isRmsEqid, effectiveBid, getTickets, ticketQueryFilters, ticketFetchByFilter]);
 
     const mappedApiTickets = useMemo<ITicketDoc[] | null>(() => {
         if (!effectiveBid || !Array.isArray(apiTickets)) {
@@ -217,19 +252,6 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         }
         return apiTickets.map((r) => FnMapToTicketDoc(r, effectiveBid));
     }, [effectiveBid, apiTickets]);
-
-    // Keep smDataContext synchronized with tickets loaded from Firestore
-    useEffect(() => {
-        if (effectiveBid && mappedApiTickets !== null) {
-            smDataContext.setDatasets((prev) => {
-                const otherTickets = (prev.tickets ?? []).filter((t) => t.bid !== effectiveBid);
-                return {
-                    ...prev,
-                    tickets: [...otherTickets, ...mappedApiTickets],
-                };
-            });
-        }
-    }, [effectiveBid, mappedApiTickets]);
 
     // Purchased SKUs from IMainApp
     const purchasedSkus = useMemo(() => {
@@ -244,27 +266,23 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         return DEFAULT_PURCHASED_SKUS;
     }, [mainAppContext]);
 
-    // Sourced tickets: hook tickets when available, else scoped dataset / fallback
+    // Store version counter to trigger rawTickets recomputation on ticket updates
+    const [ticketStoreVersion, setTicketStoreVersion] = useState(0);
+
+    // Sourced tickets: uses full tickets cache (or scoped by business if selected)
     const rawTickets: ITicketDoc[] = useMemo(() => {
+        const allTickets = getFullTicketsCached();
         if (effectiveBid) {
-            if (mappedApiTickets !== null) {
-                return mappedApiTickets;
-            }
-            const ctxTickets = (smDataContext.datasets?.tickets || []).filter(
-                (t) => t.bid === effectiveBid
-            );
-            if (ctxTickets.length > 0) {
-                return ctxTickets;
-            }
-            return [];
+            const cleanBid = effectiveBid.trim().toLowerCase();
+            const normBid = normalizeBidKey(cleanBid);
+            return allTickets.filter((t) => {
+                const tBid = String(t.bid || '').trim().toLowerCase();
+                const tNormBid = normalizeBidKey(tBid);
+                return tBid === cleanBid || tNormBid === normBid;
+            });
         }
-        // Root node
-        const ctxTickets = smDataContext.datasets?.tickets;
-        if (ctxTickets && ctxTickets.length > 0) {
-            return ctxTickets;
-        }
-        return FnGetSourceDataset('tickets') || [];
-    }, [effectiveBid, mappedApiTickets, smDataContext.datasets?.tickets]);
+        return allTickets;
+    }, [effectiveBid, ticketStoreVersion]);
 
     // Sourced contacts
     const contacts: IContactDoc[] = useMemo(() => {
@@ -275,22 +293,32 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         return FnGetSourceDataset('contacts') || [];
     }, [smDataContext.datasets?.contacts]);
 
-    // Filter tickets by library mode ('Open' vs 'InProgress') or feature status
+    // Filter tickets by active feature (Requests Received = Open/Received; Approved Tickets = InProgress/Closed/etc.; RMS EQID = EQID match + In Process)
     const modeFilteredTickets = useMemo(() => {
-        if (isApprovedTickets) {
-            return rawTickets.filter((ticket) => {
-                const s = (ticket.status ?? '').trim().toLowerCase();
-                return s === 'inprogress' || s === 'in progress' || s === 'released' || s === 'approved' || s === 'accepted';
+        if (isRmsEqid) {
+            const eqidDocs = rmsContext?.eqid ?? [];
+            const eqidTicketIds = new Set<string>();
+            for (const item of eqidDocs) {
+                const tid = String(
+                    item.ticketid ||
+                    (item as any).TicketId ||
+                    (item as any).TicketID ||
+                    (item as any).ticketId ||
+                    ''
+                ).trim().toLowerCase();
+                if (tid) eqidTicketIds.add(tid);
+            }
+            return rawTickets.filter((t) => {
+                const tid = String(t.ticketid || (t as any).TicketId || (t as any).id || '').trim().toLowerCase();
+                if (!tid || !eqidTicketIds.has(tid)) return false;
+                return isTicketInProcess(t.status || (t as any).Status);
             });
         }
-        if (isRequestsReceived) {
-            return rawTickets.filter((ticket) => {
-                const s = (ticket.status ?? '').trim().toLowerCase();
-                return s === 'open' || s === 'received';
-            });
+        if (featureId) {
+            return filterTicketsByFeature(rawTickets, featureId);
         }
         return filterTicketsByLibraryMode(rawTickets, effectiveMode);
-    }, [rawTickets, effectiveMode, isApprovedTickets, isRequestsReceived]);
+    }, [isRmsEqid, rmsContext?.eqid, rawTickets, featureId, effectiveMode]);
 
     // Scope tickets by selected node:
     // Root -> all businesses
@@ -298,14 +326,26 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     // Contact -> selected contact of selected business
     const scopedTickets = useMemo(() => {
         if (scope.nodeType === 'Contact') {
+            const cleanBid = (scope.bid || '').trim().toLowerCase();
+            const normBid = normalizeBidKey(cleanBid);
+            const cleanCid = (scope.cid || '').trim().toLowerCase();
             return modeFilteredTickets.filter((t) => {
-                const bOk = scope.bid ? t.bid === scope.bid : true;
-                const cOk = scope.cid ? t.cid === scope.cid : true;
+                const tBid = (t.bid || '').trim().toLowerCase();
+                const tNormBid = normalizeBidKey(tBid);
+                const tCid = (t.cid || '').trim().toLowerCase();
+                const bOk = cleanBid ? tBid === cleanBid || tNormBid === normBid : true;
+                const cOk = cleanCid ? tCid === cleanCid : true;
                 return bOk && cOk;
             });
         }
         if (scope.nodeType === 'Business' && scope.bid) {
-            return modeFilteredTickets.filter((t) => t.bid === scope.bid);
+            const cleanBid = (scope.bid || '').trim().toLowerCase();
+            const normBid = normalizeBidKey(cleanBid);
+            return modeFilteredTickets.filter((t) => {
+                const tBid = (t.bid || '').trim().toLowerCase();
+                const tNormBid = normalizeBidKey(tBid);
+                return tBid === cleanBid || tNormBid === normBid;
+            });
         }
         // Root: all tickets across all businesses
         return modeFilteredTickets;
@@ -316,7 +356,15 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     }, [scopedTickets]);
 
     // Selected ticket state
-    const [selectedTicket, setSelectedTicket] = useState<ITicketDoc | null>(null);
+    const [selectedTicket, setSelectedTicket] = useState<ITicketDoc | null>(() => {
+        const fromCtx =
+            (selectedNodeContext?.selectedTicketCard as any) ||
+            (rmsContext?.selectedTicketCard as any);
+        if (fromCtx?.ticketid) {
+            return fromCtx as ITicketDoc;
+        }
+        return null;
+    });
 
     const prevNodeKeyRef = useRef<string>('');
     const currentNodeKey = String(
@@ -332,18 +380,37 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
 
         setSelectedTicket((prev) => {
             if (sortedScopedTickets.length === 0) return null;
-            // Always select first ticket when the selected tree node changes
+
+            const existingSelection =
+                prev ??
+                (selectedNodeContextRef.current?.selectedTicketCard as any) ??
+                (rmsContextRef.current?.selectedTicketCard as any);
+
+            // Keep current selection if still present in sortedScopedTickets and matches current scope
+            if (existingSelection && sortedScopedTickets.some((t) => t.ticketid === existingSelection.ticketid)) {
+                if (!nodeChanged) {
+                    return existingSelection;
+                }
+                const matchesScope =
+                    (!scope.bid || existingSelection.bid === scope.bid) &&
+                    (!scope.cid || existingSelection.cid === scope.cid);
+                if (matchesScope) {
+                    return existingSelection;
+                }
+            }
+
+            // Always select first ticket when the selected tree node changes to a different scope
             if (nodeChanged) {
                 return sortedScopedTickets[0];
             }
             // Keep current selection if still present in the list
-            if (prev && sortedScopedTickets.some((t) => t.ticketid === prev.ticketid)) {
-                return prev;
+            if (existingSelection && sortedScopedTickets.some((t) => t.ticketid === existingSelection.ticketid)) {
+                return existingSelection;
             }
             // By default, select 1st ticket
             return sortedScopedTickets[0];
         });
-    }, [sortedScopedTickets, currentNodeKey]);
+    }, [sortedScopedTickets, currentNodeKey, scope.bid, scope.cid]);
 
     // Synchronize selected ticket with selectedNodeContext and rmsContext so sidebar tabs display the selected EQID
     const prevSyncedTicketIdRef = useRef<string | null>(null);
@@ -435,8 +502,14 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         );
     }, [selectedTicketBid, selectedTicketId, apiNotes]);
 
+    const prevSyncedNotesTicketIdRef = useRef<string>('');
     useEffect(() => {
         if (selectedTicketBid && selectedTicketId && mappedApiNotes !== null) {
+            const cacheKey = `${selectedTicketId}-${mappedApiNotes.length}`;
+            if (prevSyncedNotesTicketIdRef.current === cacheKey) {
+                return;
+            }
+            prevSyncedNotesTicketIdRef.current = cacheKey;
             smDataContext.setDatasets((prev) => {
                 const otherNotes = (prev.ticketnotes ?? []).filter(
                     (n) => n.ticketid !== selectedTicketId
@@ -476,7 +549,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         scope.nodeType,
     ]);
 
-    const handleSelectTicket = (ticket: ITicketDoc) => {
+    const handleSelectTicket = useCallback((ticket: ITicketDoc) => {
         setSelectedTicket(ticket);
         if (isRmsEqid) {
             const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
@@ -499,14 +572,15 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
             rmsContext?.setSelectedTicketCard?.(ticketNode);
         }
-    };
+    }, [isRmsEqid, rmsContext?.eqid, selectedNodeContext, rmsContext]);
 
-    const handleStatusChange = (ticket: ITicketDoc, newStatus: string) => {
+    const handleStatusChange = async (ticket: ITicketDoc, newStatus: string) => {
+        const nowIso = new Date().toISOString();
         ticket.status = newStatus;
-        ticket.lastupdated = new Date().toISOString();
+        ticket.lastupdated = nowIso;
 
         if (selectedTicket?.ticketid === ticket.ticketid) {
-            const updated = { ...ticket, status: newStatus, lastupdated: ticket.lastupdated };
+            const updated = { ...ticket, status: newStatus, lastupdated: nowIso };
             setSelectedTicket(updated);
             if (isRmsEqid) {
                 const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
@@ -530,15 +604,50 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             }
         }
 
+        // 1. Update ticket in global tickets store
+        updateTicketStatusInStore(ticket.ticketid, newStatus, nowIso);
+        setTicketStoreVersion((v) => v + 1);
+
+        // 2. Keep smDataContext.datasets.tickets in sync
         if (smDataContext.datasets?.tickets) {
             const updated = smDataContext.datasets.tickets.map((t) =>
                 t.ticketid === ticket.ticketid
-                    ? { ...t, status: newStatus, lastupdated: ticket.lastupdated }
+                    ? { ...t, status: newStatus, lastupdated: nowIso }
                     : t
             );
             smDataContext.updateDataset?.('tickets', updated);
         }
-        void getTickets(ticketQueryFilters, ticketFetchByFilter);
+
+        const ticketId = String(ticket.ticketid || ((ticket as unknown as Record<string, unknown>).id as string) || '').trim();
+        let bid = String(ticket.bid || '').trim();
+        if (!bid && ticketId) {
+            const m = ticketId.match(/bid[_-]?\d+/i);
+            if (m) bid = m[0];
+        }
+        if (bid && /^\d+$/.test(bid)) {
+            bid = `bid_${bid}`;
+        }
+
+        // 3. Single API call: update ticket document in Firestore
+        if (bid && ticketId && firestore) {
+            try {
+                await firestore.updateDocument({
+                    pathSegments: ['businesses', bid, 'tickets', ticketId],
+                    data: { status: newStatus, lastupdated: nowIso },
+                    allowedKeys: ['status', 'lastupdated'],
+                });
+            } catch (fsErr) {
+                console.warn('Failed to update ticket document via firestore.updateDocument:', fsErr);
+            }
+        }
+
+        // 4. Trigger BS tree reload (BS tree strictly depends on tickets)
+        const targetFeatureId = String(featureId || TicketsEnums.RequestsReceived);
+        commonVariableContext.setReloadTreeFor({
+            featureId: targetFeatureId,
+            entId: bid,
+            timestamp: Date.now(),
+        });
     };
 
     const handleAddNote = useCallback(

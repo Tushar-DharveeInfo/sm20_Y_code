@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IEqid, IEqidShapes, IShapeStyle, IShape, IEqidRelation, IEQIDEditFormProfile } from './IEqid';
+import { IEQIDEditFormProfile } from './IEqid';
+import type { IEqidDoc } from '@n20a/libfsdb';
 import {
   EditTextControl,
   TextControl,
@@ -13,11 +14,11 @@ import type { IOptionItem } from '@n20a/libform';
 import '@n20a/libform/style.css';
 import styles from './EQIDEditForm.module.css';
 
-import {EQTypeVsSections} from './EQTypeVsSections';
+import { EQTypeVsSections } from './EQTypeVsSections';
 import EQTypeSectionVsFields from './EQTypeSectionVsFields.json';
 import EqidComboOptions from './EqidComboOptions';
 
-// IEqid / IEQIDEditFormProfile are declared globally in IEqid.ts (no imports/exports in that file).
+// IEqidDoc / IEQIDEditFormProfile are declared globally in IEqidDoc.ts (no imports/exports in that file).
 
 const INPUTMASK_KEY = 'inputmask {start;end;step}';
 
@@ -85,13 +86,13 @@ function dateToInputValue(value: unknown): string {
    getEqType?: ()=>string[];
    getMfgProdLine?: (mfgkey: string)=>string[];
    getMfgEqType?: (eqtype: string)=>string[];
-   SaveEQID?:(updatedEQIDRecord: IEqid)=>void;
+   SaveEQID?:(updatedEQIDRecord: IEqidDoc)=>void;
 */
 
-export function EQIDEditForm({ EQIDRecord,getAcronym, getMfg, getEQIDAllocated, getEqType, getMfgProdLine, getMfgEqType, SaveEQID }: IEQIDEditFormProfile) {
+export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated, getEqType, getMfgProdLine, getMfgEqType, SaveEQID }: IEQIDEditFormProfile) {
   const [renderSections, setRenderSections] = useState<string[]>(['All']);
-  const [localRecord, setLocalRecord] = useState<IEqid>({ ...EQIDRecord });
-  const prevEQIDRecordRef = useRef<IEqid>(EQIDRecord);
+  const [localRecord, setLocalRecord] = useState<IEqidDoc>({ ...EQIDRecord });
+  const prevEQIDRecordRef = useRef<IEqidDoc>(EQIDRecord);
 
   useEffect(() => {
     setRenderSections(eqTypeSections[EQIDRecord.Eqtype] ?? ['All']);
@@ -114,7 +115,7 @@ export function EQIDEditForm({ EQIDRecord,getAcronym, getMfg, getEQIDAllocated, 
 
     prevEQIDRecordRef.current = EQIDRecord;
     if (Object.keys(changedFields).length > 0) {
-      setLocalRecord((prev) => ({ ...prev, ...changedFields }) as IEqid);
+      setLocalRecord((prev) => ({ ...prev, ...changedFields }) as IEqidDoc);
     }
   }, [EQIDRecord]);
 
@@ -135,7 +136,7 @@ export function EQIDEditForm({ EQIDRecord,getAcronym, getMfg, getEQIDAllocated, 
     : sectionsInOrder.filter((s) => renderSections.includes(s));
 
   const updateField = (field: string, value: unknown) => {
-    setLocalRecord((prev) => ({ ...prev, [field]: value }) as IEqid);
+    setLocalRecord((prev) => ({ ...prev, [field]: value }) as IEqidDoc);
   };
 
   const handleSave = () => {
@@ -184,7 +185,7 @@ export function EQIDEditForm({ EQIDRecord,getAcronym, getMfg, getEQIDAllocated, 
           case 'Acronym':
             options = toOptions(getAcronym?.() ?? []);
             break;
-            
+
           case 'Manufacturer':
             options = toOptions(getMfg?.() ?? []);
             break;

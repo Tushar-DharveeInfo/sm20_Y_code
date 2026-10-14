@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { EQIDEditForm, getEqtypes } from '../rmscollection/EQIDEditForm';
-import { IEqid } from '../rmscollection/IEqid';
+import { EQIDEditForm, getEqtypes } from '@n20a/libform';
+import { IEqidDoc } from '@n20a/libfsdb';
 import { useRmsContext } from '../../../context/hooks/RmsHooks';
 import { useSelectedNodeContext } from '../../../context/hooks/SelectedNodeHooks';
 import { useFirestore } from '@n20a/libfsdb';
@@ -38,7 +38,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket 
   }, [rmsContext?.loadEqid, rmsContext?.eqid?.length]);
 
   // 2. Locate existing EQID record (conforming to IEqidDoc) or initialize from the ticket
-  const initialEQIDRecord = useMemo<IEqid>(() => {
+  const initialEQIDRecord = useMemo<IEqidDoc>(() => {
     const existing = (rmsContext?.eqid ?? []).find(
       (e: any) =>
         e.ticketid && e.ticketid === ticketId
@@ -59,7 +59,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket 
         // EQID: existingEqid,
         // eqid: existingEqid,
         // shapeid: (existing as any).shapeid ?? [],
-      } as unknown as IEqid;
+      } as unknown as IEqidDoc;
     }
 
     const resolvedMfgKey = mfgCollections.resolveMfgKey(mfg);
@@ -79,7 +79,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket 
       // MfgProdNo: activeTicket?.MfgProdNo ?? activeTicket?.prodno ?? '',
       // MfgDesc: activeTicket?.MfgDesc ?? activeTicket?.moreinfo ?? '',
       shapeid: activeTicket?.shapeid ?? [],
-    } as unknown as IEqid;
+    } as unknown as IEqidDoc;
   }, [
     rmsContext?.eqid,
     ticketId,
@@ -93,7 +93,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket 
     mfgCollections.mfgMap,
   ]);
 
-  const [currentRecord, setCurrentRecord] = useState<IEqid>(initialEQIDRecord);
+  const [currentRecord, setCurrentRecord] = useState<IEqidDoc>(initialEQIDRecord);
   const prevRecordTicketIdRef = useRef<string>('');
 
   useEffect(() => {
@@ -158,8 +158,8 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket 
     return mfgCollections.getMfgEqType(key);
   }, [currentRecord?.Eqtype, currentRecord?.MfgEqtype, mfgCollections]);
 
-  // 5. SaveEQID(updatedEQIDRecord: IEqid): void - save to cloud
-  const handleSaveEQID = async (updatedEQIDRecord: IEqid) => {
+  // 5. SaveEQID(updatedEQIDRecord: IEqidDoc): void - save to cloud
+  const handleSaveEQID = async (updatedEQIDRecord: IEqidDoc) => {
     console.log('SaveEQID called with:', updatedEQIDRecord);
     try {
       const rawEqidKey = String(
@@ -210,7 +210,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket 
         });
       }
 
-      setCurrentRecord({ ...updatedEQIDRecord, EQID: eqidKey, eqid: eqidKey } as unknown as IEqid);
+      setCurrentRecord({ ...updatedEQIDRecord, EQID: eqidKey, eqid: eqidKey } as unknown as IEqidDoc);
       setSaveMessage('EQID record saved to cloud successfully.');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (err) {
@@ -230,7 +230,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket 
   const activeMfgName = mfgCollections.getMfgTooltip(currentRecord?.Manufacturer || mfg);
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
       <div className='nz-sub-header'>
         EQID Properties
       </div>
@@ -258,31 +258,18 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket 
         </div>
       )}
 
-      {saveMessage && (
-        <div
-          style={{
-            padding: '6px 10px',
-            marginBottom: '8px',
-            fontSize: '12px',
-            borderRadius: '4px',
-            backgroundColor: saveMessage.startsWith('Error') || saveMessage.startsWith('Failed') ? '#fed7d7' : '#c6f6d5',
-            color: saveMessage.startsWith('Error') || saveMessage.startsWith('Failed') ? '#9b2c2c' : '#22543d',
-            border: `1px solid ${saveMessage.startsWith('Error') || saveMessage.startsWith('Failed') ? '#feb2b2' : '#9ae6b4'}`,
-          }}
-        >
-          {saveMessage}
-        </div>
-      )}
-      <div style={{ overflowY: 'auto', height: '100%' }}>
+      <div className="spa-demo-section" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         <EQIDEditForm
-          EQIDRecord={currentRecord}
+          EQIDRecord={currentRecord as unknown as IEqidDoc}
           getAcronym={getAcronym}
           getMfg={getMfg}
           getEQIDAllocated={getEQIDAllocated}
-          // getEqType={getEqType}
           getMfgProdLine={getMfgProdLine}
+          getEqType={getEqType}
           getMfgEqType={getMfgEqType}
-          SaveEQID={handleSaveEQID}
+          SaveEQID={(updatedEQIDRecord) => {
+            void handleSaveEQID(updatedEQIDRecord as unknown as IEqidDoc);
+          }}
         />
       </div>
     </div>

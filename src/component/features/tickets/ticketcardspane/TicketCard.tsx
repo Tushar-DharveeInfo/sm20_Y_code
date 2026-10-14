@@ -2,8 +2,7 @@ import React from 'react';
 import { CardLayout, ICardLayoutField } from '../../../shared/cardlayout/CardLayout';
 import { FnFormatTicketDate } from '../../../shared/allcommon/tree/FnFormatTicketDate';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
-import { LibraryColor128x128, NetZoom24x24, Visio } from '@n20a/libicon';
-import { useBusinessTickets } from '@n20a/libfsdb';
+import { LibraryColor128x128, NetZoom24x24, Visio, Close24x24 } from '@n20a/libicon';
 import type { ITicketDoc, IContactDoc } from '../../../db/IDatasets';
 import './TicketCard.css';
 
@@ -15,7 +14,7 @@ interface ITicketCardProps {
     isSelected: boolean;
     onSelect: (ticket: ITicketDoc) => void;
     onSkuClick?: (sku: string, ticket: ITicketDoc) => void;
-    onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void;
+    onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void | Promise<void>;
 }
 
 /**
@@ -66,7 +65,6 @@ const TicketCard: React.FC<ITicketCardProps> = ({
     onSkuClick,
     onStatusChange,
 }) => {
-    const { updateTicket } = useBusinessTickets(ticket.bid || '');
     const [localStatus, setLocalStatus] = React.useState<string>(ticket.status ?? '');
 
     React.useEffect(() => {
@@ -92,19 +90,9 @@ const TicketCard: React.FC<ITicketCardProps> = ({
             console.log('Sending email on ticket close for ticket:', ticket.ticketid, ticket);
         }
 
-        const ticketId = ticket.ticketid || ((ticket as unknown as Record<string, unknown>).id as string) || '';
-        if (ticket.bid && ticketId) {
-            try {
-                await updateTicket(ticketId, {
-                    status: newStatus,
-                    lastupdated: nowIso,
-                });
-            } catch (err) {
-                console.error('Failed to update ticket status via hook:', err);
-            }
+        if (onStatusChange) {
+            await onStatusChange(ticket, newStatus);
         }
-
-        onStatusChange?.(ticket, newStatus);
     };
 
     const rawStatus = (localStatus ?? '').trim();
@@ -143,85 +131,78 @@ const TicketCard: React.FC<ITicketCardProps> = ({
             Value: ticket.ticketid || '—',
             Header: 1,
         },
-        {
-            Name: '',
-            Value: displayedStatus || '—',
-            Header: 2,
-            ValueContent: (
-                <div className="nz-ticket-header-actions">
-                    {showDiscardButton && (
-                        <button
-                            type="button"
-                            className="nz-ticket-action-btn nz-ticket-action-btn-discard"
-                            title="Discard ticket"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleStatusUpdate('Not Accepted');
-                            }}
-                        >
-                            Discard
-                        </button>
-                    )}
-                    {actionButton && (
-                        <button
-                            type="button"
-                            className={`nz-ticket-action-btn nz-ticket-action-btn-${actionButton.toLowerCase()}`}
-                            title={`${actionButton} ticket`}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (actionButton === 'Accept') {
-                                    handleStatusUpdate('InProgress');
-                                } else if (actionButton === 'Reopen') {
-                                    handleStatusUpdate('Open');
-                                } else if (actionButton === 'Close') {
-                                    handleStatusUpdate('Close');
-                                }
-                            }}
-                        >
-                            {actionButton}
-                        </button>
-                    )}
-                    {/* <span
-                        className="nz-ticket-status-label"
-                        style={{
-                            color: statusColor,
-                            fontWeight: 600,
-                            fontSize: '12px',
-                        }}
-                    >
-                        {displayedStatus}
-                    </span> */}
-                </div>
-            ),
-        },
     ];
 
-    if (purchasedSkus.length > 0) {
+    if (purchasedSkus.length > 0 || actionButton || showDiscardButton) {
         fields.push({
             Name: '',
             Value: '',
             ValueContent: (
-                <div className="nz-ticket-card-skus">
-                    {purchasedSkus.map((sku) => {
-                        const icon = getSkuIcon(sku);
-                        return (
+                <div className="nz-ticket-card-apps-row">
+                    <div className="nz-ticket-card-skus">
+                        {purchasedSkus.map((sku) => {
+                            const icon = getSkuIcon(sku);
+                            return (
+                                <button
+                                    key={sku}
+                                    type="button"
+                                    disabled={true}
+                                    className={`nz-ticket-sku-chip nz-ticket-sku-chip-disabled ${icon ? 'nz-ticket-sku-chip-icon' : ''}`}
+                                    title={sku}
+                                    aria-label={sku}
+                                >
+                                    {icon ? (
+                                        <span className="nz-ticket-sku-icon-wrapper" aria-label={sku}>
+                                            {icon}
+                                        </span>
+                                    ) : (
+                                        sku
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="nz-ticket-card-actions">
+                        {actionButton && (
                             <button
-                                key={sku}
                                 type="button"
-                                className={`nz-ticket-sku-chip ${icon ? 'nz-ticket-sku-chip-icon' : ''}`}
-                                title={sku}
-                                onClick={(e) => handleSkuClick(e, sku)}
+                                className={`nz-ticket-action-btn nz-ticket-action-btn-${actionButton.toLowerCase()}`}
+                                title={`${actionButton} ticket`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (actionButton === 'Accept') {
+                                        handleStatusUpdate('InProgress');
+                                    } else if (actionButton === 'Reopen') {
+                                        handleStatusUpdate('Open');
+                                    } else if (actionButton === 'Close') {
+                                        handleStatusUpdate('Close');
+                                    }
+                                }}
                             >
-                                {icon ? (
-                                    <span className="nz-ticket-sku-icon-wrapper" aria-label={sku}>
-                                        {icon}
-                                    </span>
-                                ) : (
-                                    sku
-                                )}
+                                {actionButton}
                             </button>
-                        );
-                    })}
+                        )}
+                        {showDiscardButton && (
+                            <button
+                                type="button"
+                                className="nz-ticket-action-btn nz-ticket-action-btn-discard nz-ticket-action-btn-icon"
+                                title="Discard"
+                                aria-label="Discard"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStatusUpdate('Not Accepted');
+                                }}
+                            >
+                                <Close24x24
+                                    size="12px"
+                                    strokeWidth="2.5"
+                                    stroke="currentColor"
+                                    strokeLinecap="round"
+                                    fill="none"
+                                />
+                            </button>
+                        )}
+                    </div>
                 </div>
             ),
         });
@@ -280,7 +261,6 @@ const TicketCard: React.FC<ITicketCardProps> = ({
             Value: contact.phone,
         });
     }
-
     return (
         <CardLayout
             uniqueName={uniqueName}
@@ -301,6 +281,7 @@ const TicketCard: React.FC<ITicketCardProps> = ({
                 h: 'var(--image-size-2)',
                 type: 'svg',
                 tooltip: ticket.ticketid || 'Ticket',
+
             }}
         />
     );

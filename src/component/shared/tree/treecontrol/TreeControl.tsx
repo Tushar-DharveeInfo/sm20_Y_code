@@ -21,7 +21,10 @@ import { BaseTree } from './BaseTree'
 
 const TreeControl = (treeControlProps: ITreeControl) => {
   const treeRef = useRef<Tree<ITreeNode>>(null as unknown as Tree<ITreeNode>);
-  const [treeData, setTreeData] = useState<ITreeNode[]>([]);
+  const propsRef = useRef(treeControlProps);
+  propsRef.current = treeControlProps;
+
+  const treeData = treeControlProps.treeData ?? [];
   const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const [checkedKeys, setCheckedKeys] = useState<Key[]>([]);
@@ -35,24 +38,13 @@ const TreeControl = (treeControlProps: ITreeControl) => {
   const isDraggingRef = useRef<boolean>(false);
   const treeDivRef = useRef<HTMLDivElement>(null);
 
-  // Split large useEffect into focused effects for better performance and clarity
-
-  // Effect 1: Handle tree data updates
-  useEffect(() => {
-    if (treeControlProps.treeData && treeControlProps.treeData.length > 0) {
-      setTreeData(treeControlProps.treeData);
-    } else {
-      setTreeData([]);
-    }
-  }, [treeControlProps.treeData]);
-
   // Reset expanded keys when featureId changes
   useEffect(() => {
     setExpandedKeys(treeControlProps.defaultExpandedKeys ?? []);
     setIsManualExpanded(false);
   }, [treeControlProps.featureId]);
 
-  // Effect 2: Handle expanded keys updates
+  // Effect: Handle expanded keys updates
   useEffect(() => {
     if (treeControlProps.defaultExpandedKeys) {
       if (treeControlProps.defaultExpandedKeys.length === 0) {
@@ -60,11 +52,10 @@ const TreeControl = (treeControlProps: ITreeControl) => {
         setIsManualExpanded(false);
       } else if (
         treeControlProps.allowDefaultExpandAll &&
-        treeControlProps.treeData &&
-        treeControlProps.treeData.length > 0 &&
+        treeData.length > 0 &&
         !isManualExpanded
       ) {
-        setExpandedKeys(FnGetAllKeysOfTree(treeControlProps.treeData));
+        setExpandedKeys(FnGetAllKeysOfTree(treeData));
       } else {
         setExpandedKeys(treeControlProps.defaultExpandedKeys);
       }
@@ -72,7 +63,6 @@ const TreeControl = (treeControlProps: ITreeControl) => {
   }, [
     treeControlProps.defaultExpandedKeys,
     treeControlProps.allowDefaultExpandAll,
-    treeControlProps.treeData,
     isManualExpanded
   ]);
 
@@ -189,14 +179,14 @@ const TreeControl = (treeControlProps: ITreeControl) => {
           nativeEvent: info.nativeEvent
         };
         setselectedNodeInfo(selectedNode);
-        treeControlProps.handleNodeSelect?.(
+        propsRef.current.handleNodeSelect?.(
           [autoSelectedNode.key],
           selectedNode,
           mergedArray
         );
       }
     }
-  }, [treeControlProps]);
+  }, []);
 
   // Helper to handle multiple children expansion
   const handleMultipleChildrenExpand = useCallback((
@@ -213,12 +203,12 @@ const TreeControl = (treeControlProps: ITreeControl) => {
       nativeEvent: info.nativeEvent
     };
     setselectedNodeInfo(selectedNode);
-    treeControlProps.handleNodeSelect?.(
+    propsRef.current.handleNodeSelect?.(
       [info.node.children![0].key],
       selectedNode,
       expandedNodeKeys
     );
-  }, [treeControlProps]);
+  }, []);
 
   // Helper to handle node collapse
   const handleNodeCollapse = useCallback((
@@ -240,19 +230,19 @@ const TreeControl = (treeControlProps: ITreeControl) => {
       nativeEvent: info.nativeEvent
     };
     setselectedNodeInfo(selectedNode);
-    treeControlProps.handleNodeSelect?.(
+    propsRef.current.handleNodeSelect?.(
       [info.node.key],
       selectedNode,
       updatedExpandedKeys,
       true
     );
-  }, [removeKeysRecursively, treeControlProps]);
+  }, [removeKeysRecursively]);
 
   // Placeholder handlers
   const handleNodeClick = useCallback((event: React.MouseEvent, node: ITreeNode) => {
     treeNodeKeyBordfocus();
-    treeControlProps.handleNodeClick && treeControlProps.handleNodeClick(event, node);
-  }, [treeControlProps, treeNodeKeyBordfocus]);
+    propsRef.current.handleNodeClick && propsRef.current.handleNodeClick(event, node);
+  }, [treeNodeKeyBordfocus]);
 
   // Main node expand handler with extracted logic
   const handleNodeExpand = useCallback(async (
@@ -265,7 +255,7 @@ const TreeControl = (treeControlProps: ITreeControl) => {
     if (info.expanded) {
       // Handle node expansion
       const hasChildren = info.node?.children && info.node.children.length > 0;
-      const shouldAutoExpand = !treeControlProps.allowAPICallOnExpand && hasChildren;
+      const shouldAutoExpand = !propsRef.current.allowAPICallOnExpand && hasChildren;
 
       if (shouldAutoExpand) {
         if (info.node.children!.length === 1) {
@@ -275,14 +265,13 @@ const TreeControl = (treeControlProps: ITreeControl) => {
         }
       } else {
         setExpandedKeys(expandedNodeKeys);
-        treeControlProps.handleNodeExpand?.(expandedNodeKeys, info);
+        propsRef.current.handleNodeExpand?.(expandedNodeKeys, info);
       }
     } else {
       // Handle node collapse
       handleNodeCollapse(info, expandedNodeKeys);
     }
   }, [
-    treeControlProps,
     handleSingleChildExpand,
     handleMultipleChildrenExpand,
     handleNodeCollapse
@@ -296,13 +285,13 @@ const TreeControl = (treeControlProps: ITreeControl) => {
   }) => {
     setIsDragging(false);
     isDraggingRef.current = false;
-    treeControlProps.onDrop && treeControlProps.onDrop(info);
-  }, [treeControlProps]);
+    propsRef.current.onDrop && propsRef.current.onDrop(info);
+  }, []);
 
   const handleNodeSelect = useCallback((selectedKeys: Key[], info: ISelectedNodeInfo) => {
     if (isDraggingRef.current) return;
     if (!info.selected) return;
-    if (treeControlProps.disableSelection)
+    if (propsRef.current.disableSelection)
       return;
 
     if (info.selected) {
@@ -314,8 +303,8 @@ const TreeControl = (treeControlProps: ITreeControl) => {
     }
     setActiveKey(info.node.key);
 
-    treeControlProps.handleNodeSelect && treeControlProps.handleNodeSelect(selectedKeys, info);
-  }, [treeControlProps, treeNodeKeyBordfocus]);
+    propsRef.current.handleNodeSelect && propsRef.current.handleNodeSelect(selectedKeys, info);
+  }, [treeNodeKeyBordfocus]);
 
   const handleNodeCheck = useCallback((checked: {
     checked: Key[];
@@ -323,12 +312,12 @@ const TreeControl = (treeControlProps: ITreeControl) => {
   } | Key[], info: CheckInfo<ITreeNode>) => {
 
     let newChecked = checked;
-    if (!treeControlProps.allowCheckStrictly) {
+    if (!propsRef.current.allowCheckStrictly) {
       setCheckedKeys(checked as Key[]);
       newChecked = checked as Key[];
     }
-    treeControlProps.handleNodeCheck && treeControlProps.handleNodeCheck(newChecked, info);
-  }, [treeControlProps]);
+    propsRef.current.handleNodeCheck && propsRef.current.handleNodeCheck(newChecked, info);
+  }, []);
 
   //why empty handler for right click? because rc-tree requires it to prevent default context menu and allow custom right click handling. If we don't provide this handler, rc-tree won't trigger onRightClick event and the custom context menu won't work.
   const handleRightClick = (info: {
@@ -384,12 +373,12 @@ const TreeControl = (treeControlProps: ITreeControl) => {
             node: data.nodeData?.node,
             selectedNodes: [data.nodeData?.node],
           }
-          treeControlProps.handleNodeSelect && treeControlProps.handleNodeSelect([activeKey], info);
+          propsRef.current.handleNodeSelect && propsRef.current.handleNodeSelect([activeKey], info);
         }
 
       }
     }
-  }, [activeKey, selectedKeys, treeData, treeControlProps]);
+  }, [activeKey, selectedKeys, treeData]);
 
   const onActiveChange = useCallback((key: Key) => {
     if (key) {
@@ -410,10 +399,10 @@ const TreeControl = (treeControlProps: ITreeControl) => {
   const handleDragStart = useCallback((info: NodeDragEventParams<ITreeNode>) => {
     setIsDragging(true);
     isDraggingRef.current = true;
-    if (treeControlProps.handleDragStart) {
-      treeControlProps.handleDragStart(info);
+    if (propsRef.current.handleDragStart) {
+      propsRef.current.handleDragStart(info);
     }
-  }, [treeControlProps]);
+  }, []);
 
 
   // Memoized action image objects to prevent recreation on every render
@@ -512,38 +501,38 @@ const TreeControl = (treeControlProps: ITreeControl) => {
     node: EventDataNode<ITreeNode>
   ) => {
     e.stopPropagation();
-    if (treeControlProps.handleNodeDoubleClick) {
-      treeControlProps.handleNodeDoubleClick(e, node);
+    if (propsRef.current.handleNodeDoubleClick) {
+      propsRef.current.handleNodeDoubleClick(e, node);
     }
-  }, [treeControlProps]);
+  }, []);
 
   const handleExternalDrop = useCallback((event: React.DragEvent<HTMLSpanElement>, targetNode: ITreeNode): void => {
-    treeControlProps.handleExternalDrop?.(event, targetNode);
-  }, [treeControlProps]);
+    propsRef.current.handleExternalDrop?.(event, targetNode);
+  }, []);
 
   const canAcceptExternalDrop = useCallback((targetNode: ITreeNode): boolean => {
-    if (treeControlProps.canAcceptExternalDrop) {
-      return treeControlProps.canAcceptExternalDrop(targetNode);
+    if (propsRef.current.canAcceptExternalDrop) {
+      return propsRef.current.canAcceptExternalDrop(targetNode);
     }
     else {
       return false;
     }
-  }, [treeControlProps]);
+  }, []);
 
   const handleDragEnd = useCallback((info: NodeDragEventParams<ITreeNode>): void => {
     setIsDragging(false);
     isDraggingRef.current = false;
-    treeControlProps.handleDragEnd?.(info);
-  }, [treeControlProps]);
+    propsRef.current.handleDragEnd?.(info);
+  }, []);
 
   const canAllowDragDrop = useCallback((sourceNode: ITreeNode): boolean => {
-    if (treeControlProps.canAllowDragDrop) {
-      return treeControlProps.canAllowDragDrop(sourceNode);
+    if (propsRef.current.canAllowDragDrop) {
+      return propsRef.current.canAllowDragDrop(sourceNode);
     }
     else {
-      return treeControlProps.allowInternalDrag ? true : false;
+      return propsRef.current.allowInternalDrag ? true : false;
     }
-  }, [treeControlProps]);
+  }, []);
 
   return (
     <div
@@ -668,6 +657,9 @@ const TreeControl = (treeControlProps: ITreeControl) => {
         </div>
       }
     </div>
-  )
-}
-export { TreeControl }
+  );
+};
+const MemoizedTreeControl = React.memo(TreeControl);
+export { MemoizedTreeControl as TreeControl };
+
+

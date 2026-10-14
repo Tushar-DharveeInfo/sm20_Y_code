@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { TicketCard } from './TicketCard';
 import { Label } from '../../../shared/basic/label/Label';
 import { EditTextXControl } from '@n20a/libform';
@@ -13,7 +13,7 @@ interface ITicketCardListProps {
     selectedTicketId: string | null;
     onSelectTicket: (ticket: ITicketDoc) => void;
     onSkuClick?: (sku: string, ticket: ITicketDoc) => void;
-    onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void;
+    onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void | Promise<void>;
 }
 
 /** Sort tickets newest → oldest by daterequested (Z-A). */
@@ -61,6 +61,9 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
         );
     }, [sorted, filterText]);
 
+    const onSelectTicketRef = useRef(onSelectTicket);
+    onSelectTicketRef.current = onSelectTicket;
+
     // Ensure the 1st ticket in the displayed list is selected by default
     useEffect(() => {
         if (filtered.length > 0) {
@@ -68,10 +71,10 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
                 (t) => t.ticketid === selectedTicketId
             );
             if (!isCurrentSelectedInFiltered) {
-                onSelectTicket(filtered[0]);
+                onSelectTicketRef.current(filtered[0]);
             }
         }
-    }, [filtered, selectedTicketId, onSelectTicket]);
+    }, [filtered, selectedTicketId]);
 
     return (
         <div className="nz-ticket-card-list-root">
@@ -94,7 +97,7 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
 
             <div className="nz-sidebar-contact-list-content">
                 {filtered.length === 0 ? (
-                    <div className="nz-sidebar-contact-list-empty">
+                    <div className="nz-wh-100 nz-d-flex-hv-left">
                         {tickets.length === 0
                             ? 'No tickets to display.'
                             : 'No tickets matching filter'}

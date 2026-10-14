@@ -1,5 +1,5 @@
 // Builds libform filter controls from cached businesses/contacts; combos start with ANY.
-import type { IBusinessDoc, IContactDoc } from "../../../db/IDatasets";
+import type { IBusinessDoc, IContactDoc } from "@n20a/libfsdb";
 import type { IControl } from "../../allinterface/settingsform/ISettingsLibForm";
 import { DisplayControlEnums } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
 import type { IDCFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";

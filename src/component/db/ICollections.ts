@@ -1,3 +1,4 @@
+
 /*
 Make sure the contents of this file are identical to copies of this file in fsdb and cloudrun
 */
@@ -5,9 +6,192 @@ Make sure the contents of this file are identical to copies of this file in fsdb
 // Field lists reflect the union of each collection's "write"/"select" arrays in that policy file.
 
 /** Top-level collection: businesses */
+export interface IApDoc {
+  app: string;
+  apname: string;
+  value: string;
+}
+/** Top-level collection: todo */
+export interface ITodoDoc {
+  bid: string;
+  cid: string;
+  btype: string;
+  status: string;
+  eqid: string;
+  whattodo: string;
+  duedate: string;
+  addedby: string;
+  filename?: string;
+}
+
+/** Top-level collection: prospect */
+export interface IProspectDoc {
+  bid: string;
+  cid: string;
+  status: string;
+  whattodo: string;
+}
+/** Top-level collection: tenantidmap */
+export interface ITenantIdMapDoc {
+  tenantid: string;
+  displayname: string;
+  lastupdated: string;
+}
+
+
+export interface INetworkPort {
+  ShapeID: string;
+  Name: string;
+  PortIndex: number;  //0-based index
+  Gender: string;     //M|F|B for both
+  PortType: string;   //Copper | Fiber | Other
+  IsPortFiber: boolean;
+}
+
+export interface IPowerPort {
+  ShapeID: string;
+  Name: string;
+  PortIndex: number;  //0-based index
+  Gender: string;     //M|F|B for both
+}
+
+export interface IInOutPort {
+  ShapeID: string;
+  Name: string;
+  PortIndex: number;
+  Gender: string;     //In|Out|B for both
+}
+
+export interface ISlot {
+  ShapeID: string;
+  Name: string;
+  SlotIndex: number;  //0-based index
+  SlotUse: string | null; //
+  SlotMountType: string;
+}
+
+/** Top-level collection: eqid */
+export interface IEqidDoc {
+  bid: string;  ///each eqid is develop for a bid, cid, and ticketid
+  cid: string;
+  ticketid: string;
+
+  Acronym: string;
+  EQID: string;
+  Manufacturer: string;
+  MfgProdLine: string;
+  Eqtype: string;
+  MfgEqtype: string;
+  MfgProdNo: string;
+  MfgDesc: string;
+  DimUnits: string;
+  Ht: number;
+  Wd: number;
+  Dp: number;
+  isEstimatedDimension: boolean;
+  RUNeeded: number;  //was RU
+  Scale: number;
+  WtUnits: string;
+  Wt: number;
+  isEstimatedWt: boolean;
+  VoltUnits: string;
+  VoltMin: number;
+  VoltMax: number;
+  AmpUnits: string;
+  Amp: number;
+  PowerUnits: string;
+  PowerMin: number;
+  PowerMax: number;
+  PowerAvg: number;
+  isEstimatedPower: boolean;
+  PowerLoadCapacity: number;
+  isEstimatedPowerLoad: boolean;
+  HeatUnits: string;
+  HeatMin: number;
+  HeatMax: number;
+  HeatAvg: number;
+  isEstimatedHeat: boolean;
+  RackType: string;
+  TotalRU: number;
+  InsideWidth: number;
+  Color: string;
+  DimA: number;
+  DimB: number;
+  DimC: number;
+  DimD: number;
+  DimE: number;
+  DimF: number;
+  DimFService: number;
+  DimG: number;
+  DimH: number;
+  DimI: number;
+  DimJ: number;
+  DimR: number;
+  DimRService: number;
+  RackLoadUnits: string;
+  LoadCapacity: number;
+  isEstimatedRack: boolean;
+  FirstRU: number;
+  RUSpacing: number;
+  RU: number;
+  CableCapacity: number;
+  ApprovedStatus: string;
+  ApprovedBy: string;
+  ApprovedDate: Date;  //make sure this props is set when ticket is accepted; it should be the date of approval/accepted ticket
+  DataReady: boolean;
+  DataApprovedBy: string;
+  DataApprovedDate: Date;
+  ShapeReady: boolean;
+  ShapeApprovedBy: string;
+  ShapeApprovedDate: Date;
+  isReleased: boolean;  //indicates if the EQID has been released
+  ReleasedDate: Date;  //the date when the EQID was released
+  Archived: boolean;
+  Source: string;
+  DeviceAttribute: string;
+  isIntel: boolean;
+  isFacility: boolean;
+  isIT: boolean;
+  PrivateDevice: boolean;
+  LoginOwner: string;
+
+  NetworkPorts?: INetworkPort[];
+  PowerPorts?: IPowerPort[];
+  InOutPlugs?: IInOutPort[];
+  Slots?: ISlot[];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////
+/** Top-level collection: mfg */
+export interface IMfgDoc {
+  [mfgkey: string]: string;
+}
+
+/** mfg sub-collection: eqidallocated */
+export interface IEqidAllocatedDoc {
+  [mfgkey: string]: string[];
+}
+
+/** mfg sub-collection: mfgvsprodline */
+export interface IMfgVsProdlineDoc {
+  [mfgkey: string]: string[];
+}
+
+/** mfg sub-collection: mfgvsmfgeqtype */
+export interface IMfgVsMfgEqtypeDoc {
+  [mfgkey: string]: string[];
+}
+
+/** mfg sub-collection: mfgvsmfgrelation */
+export interface IMfgVsMfgRelationDoc {
+  [mfgkey: string]: string[];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////
+/** Top-level collection: businesses */
 export interface IBusinessDoc {
   bid: string;
-  btype: string;  //mcs, reseller, consultant, enduser
+  btype: string;  //mcs, reseller, netzoom, visiostencils, ssi
   status: string;
   tag?: string;
   verified: boolean;
@@ -38,7 +222,7 @@ export interface IBusinessDoc {
   onpremexpirydate?: string;
   estimatedusers?: number;
   estimatedracks?: number;
-  estimateddcsites?: number; 
+  estimateddcsites?: number;
 }
 
 /** Subcollection: businesses/{bid}/contacts */
@@ -77,6 +261,7 @@ export interface INoteDoc {
   monitor: boolean;
   noteby: string;//who added notes
   noteid: string;
+  important: boolean;
   message: string;
   filename: string;
   datecreated: string;
@@ -91,6 +276,7 @@ export interface ITicketDoc {
   ticketid: string;
   tickettype: string;   //vss or support
   subscription: string;
+  eqid: string;
   mfg: string;
   eqtype: string;
   prodno: string;
@@ -99,7 +285,6 @@ export interface ITicketDoc {
   daterequested: string;
   datereleased: string;
   lastupdated: string;
-  eqid?: string;
 }
 
 /** Subcollection: businesses/{bid}/tickets/{ticketid}/ticketnotes */
@@ -109,10 +294,10 @@ export interface ITicketNoteDoc {
   ticketid: string;
   monitorupdated: string;
   monitor: boolean;
+  eqid: string;
   notes: string;
   filename?: string;  //optional, to save file name of uploaded file
   datecreated: string;
-  eqid?: string;
 }
 
 /** Subcollection: businesses/{bid}/activities */
@@ -144,33 +329,33 @@ export interface IOrderDoc {
 }
 
 export interface ICartDoc {
-    bid: string;
-    cid: string;
-    orderid: string;
-    sortorder?: number;
-    productsku: string;
-    name: string;
-    description: string;
-    price: number;
-    discountpercent?: number;
-    taxable?: boolean;
+  bid: string;
+  cid: string;
+  orderid: string;
+  sortorder?: number;
+  productsku: string;
+  name: string;
+  description: string;
+  price: number;
+  discountpercent?: number;
+  taxable?: boolean;
 
-    qty: number;
-    years: number;
-    hours?: number;
-    nodes?: number;
-    StartDate?: Date;
+  qty: number;
+  years: number;
+  hours?: number;
+  nodes?: number;
+  StartDate?: Date;
 }
 
 /** Subcollection: businesses/{bid}/orders/{orderid}/supporthoursused */
 export interface ISupportHoursUsedDoc {
-    bid: string;
-    cid: string;
-    orderid: string;
-    ticketid?: string; //optional, to link the support hours used to a specific ticket
-    hoursused: number;
-    purpose: string;
-    datecreated: string;
+  bid: string;
+  cid: string;
+  orderid: string;
+  ticketid?: string; //optional, to link the support hours used to a specific ticket
+  hoursused: number;
+  purpose: string;
+  datecreated: string;
 }
 
 /** Subcollection: businesses/{bid}/subs */
@@ -183,13 +368,17 @@ export interface ISubDoc {
   purchaser: string;
   subsid: string;
   product: string;
+  productkey: string;  //it is set to 'netzoom' or 'vss' or '', set '' if prouct is a service hours or else for other products
   status: string;     //blocked, active, expired, cancelled
   statusupdatedby: string;
   statusreason: string;
+  UserCount: number;
+  RackCount: number;
   startdate: string;
   enddate: string;
   datecreated: string;
 }
+
 
 /** Subcollection: businesses/{bid}/subs/{subsid}/downloads */
 export interface IVssDownloadDoc {
@@ -198,64 +387,27 @@ export interface IVssDownloadDoc {
   subsid: string;
   monitorupdated: string;
   monitor: boolean;
+  eqid: string;
   filename: string;
   dateused: string;
 }
 
-/** Top-level collection: todo */
-export interface ITodoDoc {
-  bid: string;
-  cid: string;
-  btype: string;
-  status: string;
-  whattodo: string;
-  duedate: string;
-  addedby: string;
-  filename?: string;
-  eqid?: string;
-}
-
-/** Top-level collection: prospect */
-export interface IProspectDoc {
-  bid: string;
-  cid: string;
-  status: string;
-  whattodo: string;
-}
-
-export interface ITenantIdMapDoc {
-  tenantid: string;
-  displayname: string;
-  lastupdated: string;
-}
-
-/** Top-level collection: mfg */
-export interface IMfg {
-  [mfgkey: string]: string;
-}
-export type IMfgDoc = IMfg;
-
-/** mfg sub-collection: eqidallocated */
-export interface IEQIDAllocated {
-  [mfgkey: string]: string[];
-}
-export type IEqidAllocatedDoc = IEQIDAllocated;
-
-/** mfg sub-collection: mfgvsprodline */
-export interface IMfgVsProdline {
-  [mfgkey: string]: string[];
-}
-export type IMfgVsProdlineDoc = IMfgVsProdline;
-
-/** mfg sub-collection: mfgvsmfgeqtype */
-export interface IMfgVsMfgEqtype {
-  [mfgkey: string]: string[];
-}
-export type IMfgVsMfgEqtypeDoc = IMfgVsMfgEqtype;
-
 /** Maps each collection name from CollectionsAndFieldsPolicy.json to its document interface. */
 export interface ICollectionDocMap {
+  ap: IApDoc;
   businesses: IBusinessDoc;
+  todo: ITodoDoc;
+  prospect: IProspectDoc;
+  tenantidmap: ITenantIdMapDoc;
+  eqid: IEqidDoc;
+  mfg: IMfgDoc;
+
+  //following are sub collecions
+  eqidallocated: IEqidAllocatedDoc;
+  mfgvsprodline: IMfgVsProdlineDoc;
+  mfgvsmfgeqtype: IMfgVsMfgEqtypeDoc;
+  mfgvsmfgrelation: IMfgVsMfgRelationDoc;
+
   contacts: IContactDoc;
   notes: INoteDoc;
   tickets: ITicketDoc;
@@ -266,13 +418,6 @@ export interface ICollectionDocMap {
   supporthoursused: ISupportHoursUsedDoc;
   subs: ISubDoc;
   downloads: IVssDownloadDoc;
-  todo: ITodoDoc;
-  prospect: IProspectDoc;
-  tenantidmap: ITenantIdMapDoc;
-  mfg: IMfg;
-  eqidallocated: IEQIDAllocated;
-  mfgvsprodline: IMfgVsProdline;
-  mfgvsmfgeqtype: IMfgVsMfgEqtype;
 }
 
 export type CollectionName = keyof ICollectionDocMap;

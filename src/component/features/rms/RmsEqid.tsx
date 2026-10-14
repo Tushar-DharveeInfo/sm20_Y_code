@@ -5,6 +5,7 @@ import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu';
 import { ITreeNode } from '../../shared/allinterface/tree/ITreeControl';
 import { ILibraryTicketMode } from '../appqa/allcommon/FnBuildTicketTree';
 import { useSelectedNodeContext } from '../../shared/context/hooks/SelectedNodeHooks';
+import { useSmDataContext } from '../../shared/context/hooks/SmDataHooks';
 import { RmsEnums } from '../../constants/Feature';
 
 interface IRmsEqidProps {
@@ -28,11 +29,14 @@ const RmsEqid: React.FC<IRmsEqidProps> = (props) => {
         treeData = [],
     } = props;
 
+    const smDataContext = useSmDataContext();
     const selectedNodeContext = useSelectedNodeContext();
     const activeNode =
         selectedNode ??
+        smDataContext?.selectedNode ??
         selectedNodeContext?.selectedNode ??
-        selectedNodeContext?.selectedNodeExplorer?.node ??
+        selectedNodeContext?.selectedNodeExplorer ??
+        (selectedNodeContext?.selectedNodeExplorer as any)?.node ??
         ({ NodeType: 'Root', key: 'root' } as ITreeNode);
 
     return (

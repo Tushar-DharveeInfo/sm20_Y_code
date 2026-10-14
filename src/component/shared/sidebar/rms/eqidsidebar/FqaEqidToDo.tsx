@@ -962,6 +962,7 @@ const FqaEqidToDo = (props: IFqaEqidToDo) => {
 								sendTooltip={selectedItem ? 'Update To Do' : 'Send To Do'}
 								sendNote={sendTodo}
 								handleDelete={handleDeleteAttachment}
+								placeholderMessage="Enter a to do here..."
 							/>
 						)}
 					</div>

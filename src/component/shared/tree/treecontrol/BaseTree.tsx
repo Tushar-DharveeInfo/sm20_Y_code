@@ -1,5 +1,5 @@
 
-import { useRef, useCallback, useEffect } from "react";
+import React, { useRef, useCallback, useEffect } from "react";
 import Tree, { TreeNodeProps } from "rc-tree";
 import { CaretRight24x24 } from "@n20a/libicon";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
@@ -10,7 +10,11 @@ import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 const BaseTree = (baseTreeProps: IBaseTree) => {
     const isDraggingRef = useRef(false);
     const isDragDropMatchRef = useRef(false);
-    const dragHoverKeyRef = useRef<string | null>(null)
+    const dragHoverKeyRef = useRef<string | null>(null);
+    const propsRef = useRef(baseTreeProps);
+    propsRef.current = baseTreeProps;
+
+    const { treeId } = baseTreeProps;
 
     // Cleanup drag state on unmount to prevent race conditions
     useEffect(() => {
@@ -59,7 +63,7 @@ const BaseTree = (baseTreeProps: IBaseTree) => {
     // Handle external drag over
     const handleExternalDragOver = useCallback((event: React.DragEvent, canDropHere: boolean) => {
         const sourceTree = event.dataTransfer?.getData("sourceTree");
-        const isExternalDrag = sourceTree !== baseTreeProps.treeId;
+        const isExternalDrag = sourceTree !== treeId;
 
         if (!isExternalDrag) return; // Internal drag handled by rc-tree
 
@@ -71,7 +75,7 @@ const BaseTree = (baseTreeProps: IBaseTree) => {
             event.preventDefault();
             event.stopPropagation();
         }
-    }, [baseTreeProps.treeId]);
+    }, [treeId]);
 
     // Handle internal drag over
     const handleInternalDragOver = useCallback(({ event, node }: { event: React.DragEvent, node: any }) => {
@@ -94,10 +98,11 @@ const BaseTree = (baseTreeProps: IBaseTree) => {
         }
     }, [resetDragState, setDragState]);
 
-    // Render title with external drag/drop support
+    // Render title with external drag/drop support - reference equality maintained
     const renderTitle = useCallback((node: any) => {
         const treeNode = node as ITreeNode;
-        const canDropHere = baseTreeProps.canAcceptExternalDrop(treeNode);
+        const currentProps = propsRef.current;
+        const canDropHere = currentProps.canAcceptExternalDrop ? currentProps.canAcceptExternalDrop(treeNode) : false;
 
         return (
             <span
@@ -111,13 +116,13 @@ const BaseTree = (baseTreeProps: IBaseTree) => {
                     const sourceTree = event.dataTransfer?.getData("sourceTree");
 
                     // ONLY external
-                    if (sourceTree !== baseTreeProps.treeId) {
+                    if (sourceTree !== propsRef.current.treeId) {
                         if (!canDropHere) return;
 
                         event.preventDefault();
                         event.stopPropagation();
 
-                        baseTreeProps.handleExternalDrop?.(event, treeNode);
+                        propsRef.current.handleExternalDrop?.(event, treeNode);
                     }
 
                     // internal handled by rc-tree
@@ -126,7 +131,7 @@ const BaseTree = (baseTreeProps: IBaseTree) => {
                 {treeNode.title}
             </span>
         );
-    }, [baseTreeProps, handleExternalDragOver]);
+    }, [handleExternalDragOver]);
 
     return (
         <div
@@ -213,4 +218,6 @@ const BaseTree = (baseTreeProps: IBaseTree) => {
         </div>
     )
 }
-export { BaseTree }
+const MemoizedBaseTree = React.memo(BaseTree);
+export { MemoizedBaseTree as BaseTree }
+

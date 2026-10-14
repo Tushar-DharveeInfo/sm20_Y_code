@@ -101,6 +101,31 @@ const isBusinessNode = (node?: ITreeNode): boolean => {
     return true;
 };
 
+/**
+ * Determines whether a selected tree node represents a Contact item.
+ */
+const isContactNode = (node?: ITreeNode): boolean => {
+    if (!node) return false;
+    const nodeType = String(node.NodeType ?? node.treetype ?? node.NodeEntityname ?? node.Type ?? '').toLowerCase();
+    if (nodeType === 'contact') return true;
+    if (node.cid && node.bid && String(node.cid).toLowerCase() !== String(node.bid).toLowerCase()) {
+        return true;
+    }
+    return false;
+};
+
+/**
+ * Determines whether a contact tree node is verified.
+ */
+const isContactVerified = (node?: ITreeNode): boolean => {
+    if (!node) return false;
+    const anyNode = node as any;
+    if (node.verified === true || anyNode.verified === 'true') return true;
+    if (node.IsAuthorized === true) return true;
+    if (anyNode.monitor === true || anyNode.monitor === 'true') return true;
+    return false;
+};
+
 /* Renders feature modules dynamically based on featureId.
    Returns null if no matching feature module exists. */
 function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderContainer) {
@@ -185,13 +210,36 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                                 selectedNode={selectedNode!}
                             />
                         ) : (
-                            <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-center" style={{ padding: '20px', textAlign: 'center' }}>
+                            <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-left" >
                                 <Label uniqueName="no-business-selected" label="Select a Business to view notes" />
                             </div>
                         )}
                     </Suspense>
                 </ErrorBoundary>
             );
+
+        case SettingEnums.SAASInstance:
+        case "912": {
+            const isContact = isContactNode(selectedNode);
+            const isVerified = isContactVerified(selectedNode);
+
+            if (isContact && !isVerified) {
+                return (
+                    <div
+                        className="nz-no-data-found nz-wh-100 nz-d-flex-hv-left"
+                        style={{ padding: '20px', textAlign: 'center', height: '100%', width: '100%' }}
+                    >
+                        <Label
+                            uniqueName="unverified-contact-saas-instance-error"
+                            label="A verified contact is required to create a SAAS instance"
+                            fontWeight="500"
+                        />
+                    </div>
+                );
+            }
+
+            return null;
+        }
 
         case ClientEnums.Mcs:
             return (
@@ -409,7 +457,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                                         selectedNode={selectedNode!}
                                     />
                                 ) : (
-                                    <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-center" style={{ padding: '20px', textAlign: 'center' }}>
+                                    <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-left">
                                         <Label uniqueName="no-business-selected" label="Select a Business to view notes" />
                                     </div>
                                 )}

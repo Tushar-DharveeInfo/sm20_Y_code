@@ -27,6 +27,8 @@ export interface IManufacturerData {
 
 export interface IUseManufacturerResult {
     loading: boolean;
+    startLoading: () => void;
+    stopLoading: () => void;
     error: string | null;
     statusMessage: string;
     setStatusMessage: (msg: string) => void;
@@ -68,27 +70,44 @@ export function useManufacturer(): IUseManufacturerResult {
 
     const { mfg, loadMfg: rmsLoadMfg } = rmsContext;
 
-    // Load initial manufacturers list if empty
-    useEffect(() => {
-        if (mfg.length === 0) {
-            setLoading(true);
-            void rmsLoadMfg().finally(() => {
-                setLoading(false);
-            });
-        }
-    }, [mfg.length, rmsLoadMfg]);
+    const activeRequestsRef = useRef<number>(0);
 
-    // Sync status bar loading
-    useEffect(() => {
-        const isBusy = loading && mfg.length === 0;
-        if (isBusy) {
-            statusBarContext?.setIsLoading?.(true);
-            statusBarContext?.setLoadingLabel?.('Loading...');
-        } else {
+    const startLoading = useCallback(() => {
+        activeRequestsRef.current += 1;
+        setLoading(true);
+        statusBarContext?.setIsLoading?.(true);
+        statusBarContext?.setLoadingLabel?.('Loading...');
+    }, [statusBarContext]);
+
+    const stopLoading = useCallback(() => {
+        activeRequestsRef.current = Math.max(0, activeRequestsRef.current - 1);
+        if (activeRequestsRef.current === 0) {
+            setLoading(false);
             statusBarContext?.setIsLoading?.(false);
             statusBarContext?.setLoadingLabel?.(undefined);
         }
-    }, [loading, mfg.length, statusBarContext]);
+    }, [statusBarContext]);
+
+    // Clean up status bar loading on unmount
+    useEffect(() => {
+        return () => {
+            if (activeRequestsRef.current > 0) {
+                activeRequestsRef.current = 0;
+                statusBarContext?.setIsLoading?.(false);
+                statusBarContext?.setLoadingLabel?.(undefined);
+            }
+        };
+    }, [statusBarContext]);
+
+    // Load initial manufacturers list if empty
+    useEffect(() => {
+        if (mfg.length === 0) {
+            startLoading();
+            void rmsLoadMfg().finally(() => {
+                stopLoading();
+            });
+        }
+    }, [mfg.length, rmsLoadMfg, startLoading, stopLoading]);
 
     const findMfg = useCallback((acronym: string): IMfgRecord | undefined => {
         const target = normalizeMfgKey(acronym);
@@ -96,13 +115,16 @@ export function useManufacturer(): IUseManufacturerResult {
     }, [mfg]);
 
     const loadAllMfg = useCallback(async (refresh?: boolean): Promise<IMfgRecord[] | null> => {
-        setLoading(true);
+        startLoading();
         try {
             return await rmsLoadMfg(refresh);
         } finally {
-            setLoading(false);
+            stopLoading();
         }
-    }, [rmsLoadMfg]);
+    }, [rmsLoadMfg, startLoading, stopLoading]);
+
+    const inFlightProdlineRef = useRef<Record<string, Promise<string[]> | undefined>>({});
+    const inFlightEqtypeRef = useRef<Record<string, Promise<string[]> | undefined>>({});
 
     const loadProdlines = useCallback(async (acronym: string): Promise<string[]> => {
         const key = normalizeMfgKey(acronym);
@@ -110,14 +132,29 @@ export function useManufacturer(): IUseManufacturerResult {
         if (Object.prototype.hasOwnProperty.call(prodlineCacheRef.current, key)) {
             return prodlineCacheRef.current[key] ?? [];
         }
-        if (!firestore) return [];
-        const list = await fetchMfgVsProdline(acronym, firestore);
-        const sorted = [...list].sort((a, b) => a.localeCompare(b));
-        rmsContext.setMfgVsProdline((prev) => (
-            Object.prototype.hasOwnProperty.call(prev, key) ? prev : { ...prev, [key]: sorted }
-        ));
-        return sorted;
-    }, [firestore, rmsContext]);
+        const inFlight = inFlightProdlineRef.current[key];
+        if (inFlight) {
+            return inFlight;
+        }
+        startLoading();
+        const promise = (async () => {
+            try {
+                const list = await fetchMfgVsProdline(acronym, firestore);
+                const sorted = [...list].sort((a, b) => a.localeCompare(b));
+                prodlineCacheRef.current = { ...prodlineCacheRef.current, [key]: sorted };
+                rmsContext.setMfgVsProdline((prev) => ({ ...prev, [key]: sorted }));
+                return sorted;
+            } catch (err) {
+                console.error('Error loading prodlines for', acronym, err);
+                return [];
+            } finally {
+                delete inFlightProdlineRef.current[key];
+                stopLoading();
+            }
+        })();
+        inFlightProdlineRef.current[key] = promise;
+        return promise;
+    }, [firestore, rmsContext, startLoading, stopLoading]);
 
     const loadEqtypes = useCallback(async (acronym: string): Promise<string[]> => {
         const key = normalizeMfgKey(acronym);
@@ -125,14 +162,29 @@ export function useManufacturer(): IUseManufacturerResult {
         if (Object.prototype.hasOwnProperty.call(eqtypeCacheRef.current, key)) {
             return eqtypeCacheRef.current[key] ?? [];
         }
-        if (!firestore) return [];
-        const list = await fetchMfgVsMfgEqtype(acronym, firestore);
-        const sorted = [...list].sort((a, b) => a.localeCompare(b));
-        rmsContext.setMfgVsMfgEqtype((prev) => (
-            Object.prototype.hasOwnProperty.call(prev, key) ? prev : { ...prev, [key]: sorted }
-        ));
-        return sorted;
-    }, [firestore, rmsContext]);
+        const inFlight = inFlightEqtypeRef.current[key];
+        if (inFlight) {
+            return inFlight;
+        }
+        startLoading();
+        const promise = (async () => {
+            try {
+                const list = await fetchMfgVsMfgEqtype(acronym, firestore);
+                const sorted = [...list].sort((a, b) => a.localeCompare(b));
+                eqtypeCacheRef.current = { ...eqtypeCacheRef.current, [key]: sorted };
+                rmsContext.setMfgVsMfgEqtype((prev) => ({ ...prev, [key]: sorted }));
+                return sorted;
+            } catch (err) {
+                console.error('Error loading eqtypes for', acronym, err);
+                return [];
+            } finally {
+                delete inFlightEqtypeRef.current[key];
+                stopLoading();
+            }
+        })();
+        inFlightEqtypeRef.current[key] = promise;
+        return promise;
+    }, [firestore, rmsContext, startLoading, stopLoading]);
 
     const isManufacturerInUse = useCallback(async (acronym: string): Promise<boolean> => {
         const key = normalizeMfgKey(acronym);
@@ -419,9 +471,14 @@ export function useManufacturer(): IUseManufacturerResult {
                 }
             }
 
-            rmsContext.setMfg((prev) => prev.map((item) => (
-                item.mfgkey === row.mfgkey ? { ...item, relatedmfgs: updated } : item
-            )));
+            rmsContext.setMfg((prev) => {
+                const next: IMfgRecord[] = [];
+                for (let i = 0; i < prev.length; i++) {
+                    const item = prev[i];
+                    next.push(item.mfgkey === row.mfgkey ? { ...item, relatedmfgs: updated } : item);
+                }
+                return next;
+            });
             rmsContext.setMfgRelation((prev) => ({
                 ...prev,
                 [normKey]: updated,
@@ -500,6 +557,8 @@ export function useManufacturer(): IUseManufacturerResult {
 
     return {
         loading,
+        startLoading,
+        stopLoading,
         error: rmsContext.error,
         statusMessage,
         setStatusMessage,

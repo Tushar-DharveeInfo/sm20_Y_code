@@ -1,4 +1,4 @@
-import type { IBusinessDoc, IContactDoc } from "../../../db/IDatasets";
+import type { IBusinessDoc, IContactDoc, ITicketDoc } from "@n20a/libfsdb";
 import type { IEqidDoc } from "../../../shared/context/allinterface/IRms";
 import type { IDCFilterControlValues } from "../../../shared/allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
@@ -7,23 +7,30 @@ import { FnFilterEqidRecords } from "./FnFilterEqidRecords";
 import { FnMapBusinessesToTreeNodes } from "../../../shared/allcommon/tree/FnMapBusinessesToTreeNodes";
 import { FnMapContactsToTreeNodes } from "../../../shared/allcommon/tree/FnMapContactsToTreeNodes";
 import { RmsEnums } from "../../../constants/Feature";
+import { getFullTicketsCached } from "../../tickets/allcommon/TicketsDataStore";
+import { FnGetSourceDataset } from "../../../shared/allcommon/FnLoadSampleDatasets";
+import { normalizeBidKey } from "../../tickets/allcommon/FnFilterTicketTree";
 
 export interface IFnFilterRmsEqidTreeResult {
     /** The matching EQID records after applying the filter */
     matchingEqids: IEqidDoc[];
-    /** Set of lowercase BIDs present in matching EQID records */
+    /** The final filtered tickets whose Ticket ID matches an EQID record and has status In Process */
+    matchingTickets: ITicketDoc[];
+    /** Set of lowercase BIDs present in filtered tickets */
     matchingBids: Set<string>;
-    /** Set of lowercase `${bid}__${cid}` pairs present in matching EQID records */
+    /** Set of lowercase normalized BIDs (e.g. without 'bid_' prefix) */
+    matchingNormBids: Set<string>;
+    /** Set of lowercase `${bid}__${cid}` pairs present in filtered tickets */
     matchingBidCidPairs: Set<string>;
-    /** Map of lowercase BID -> Set of lowercase CIDs present in matching EQID records */
+    /** Map of lowercase BID -> Set of lowercase CIDs present in filtered tickets */
     matchingCidsByBid: Map<string, Set<string>>;
-    /** Filtered business records matching the EQID criteria */
+    /** Filtered business records matching the criteria */
     filteredBusinesses: IBusinessDoc[];
-    /** Filtered contact records matching the EQID criteria */
+    /** Filtered contact records matching the criteria */
     filteredContacts: IContactDoc[];
-    /** Helper to test if a given BID is in matching EQIDs */
+    /** Helper to test if a given BID is in matching tickets */
     isBidMatching: (bid?: string) => boolean;
-    /** Helper to test if a given (BID, CID) pair is in matching EQIDs */
+    /** Helper to test if a given (BID, CID) pair is in matching tickets */
     isContactMatching: (bid?: string, cid?: string) => boolean;
     /** Helper to filter an array of contacts for a specific BID */
     filterContactsForBid: (contacts: IContactDoc[], bid?: string) => IContactDoc[];
@@ -34,86 +41,174 @@ export interface IFnFilterRmsEqidTreeResult {
 /**
  * Normalizes an identifier string for case-insensitive and trimmed comparison.
  */
-function cleanId(value: unknown): string {
+export function cleanId(value: unknown): string {
     return String(value ?? "").trim().toLowerCase();
+}
+
+/**
+ * Checks whether a ticket status represents "In Process" / "InProgress".
+ */
+export function isTicketInProcess(status?: string): boolean {
+    if (!status) return false;
+    const clean = cleanId(status).replace(/[\s_-]+/g, "");
+    return clean === "inprocess" || clean === "inprogress";
 }
 
 /**
  * Dedicated function to filter Business Tree (BS Tree) records for [RMS] EQID.
  * 
- * Only Business and Contact records whose BID and CID match the EQID table
- * (after applying active RMS filter criteria: DataReady, ShapeReady, isReleased,
- * ApprovedDate, ReleasedDate) are displayed in the tree.
+ * Flow:
+ * Step 1: Load and cache EQID table data (handled by caller / React Context).
+ * Step 2: Match EQID Records with Tickets (each EQID contains a TicketId; extract all valid Ticket IDs).
+ * Step 3: Filter Tickets by Status ("In Process" / "InProgress").
+ * Step 4: Extract BID and CID from final filtered Tickets records to generate the BS Tree.
  * 
  * @param businesses Source businesses to filter
  * @param eqidRecords Cached records from the 'eqid' table
  * @param filters Current RMS filter form values
  * @param contacts Optional source contacts to filter
+ * @param tickets Optional source tickets to filter (defaults to getFullTicketsCached())
  * @returns Filtered businesses, contacts, and tree-filtering helpers
  */
 export function FnFilterRmsEqidTree(
     businesses: IBusinessDoc[] = [],
     eqidRecords: IEqidDoc[] = [],
     filters: IDCFilterControlValues = {},
-    contacts: IContactDoc[] = []
+    contacts: IContactDoc[] = [],
+    tickets: ITicketDoc[] = []
 ): IFnFilterRmsEqidTreeResult {
-    // 1. Filter EQID records according to active filter criteria
+    // 1. Filter EQID records according to active filter criteria if any
     const matchingEqids = FnFilterEqidRecords(eqidRecords, filters);
 
-    // 2. Extract matching BIDs, CIDs, and BID+CID pairs
+    // 2. Step 2: Extract all valid Ticket IDs from EQID records using a Set for O(1) lookups
+    const eqidTicketIds = new Set<string>();
+    const eqidByTicketId = new Map<string, IEqidDoc>();
+
+    for (const item of matchingEqids) {
+        const tid = cleanId(
+            item.ticketid ||
+            (item as any).TicketId ||
+            (item as any).TicketID ||
+            (item as any).ticketId
+        );
+        if (tid) {
+            eqidTicketIds.add(tid);
+            if (!eqidByTicketId.has(tid)) {
+                eqidByTicketId.set(tid, item);
+            }
+        }
+    }
+
+    // 3. Step 3: Match Tickets with EQID records & filter tickets where status is "In Process"
+    const allTickets = (tickets && tickets.length > 0)
+        ? tickets
+        : getFullTicketsCached();
+
+    const matchingTickets: ITicketDoc[] = [];
+    const seenTicketIds = new Set<string>();
+
+    for (const t of allTickets) {
+        const tid = cleanId(t.ticketid || (t as any).TicketId || (t as any).id);
+        if (!tid || !eqidTicketIds.has(tid)) {
+            continue;
+        }
+        if (!isTicketInProcess(t.status || (t as any).Status)) {
+            continue;
+        }
+        if (!seenTicketIds.has(tid)) {
+            seenTicketIds.add(tid);
+            matchingTickets.push(t);
+        }
+    }
+
+    // 4. Step 4: Extract BID and CID from final filtered Tickets records
     const matchingBids = new Set<string>();
+    const matchingNormBids = new Set<string>();
     const matchingBidCidPairs = new Set<string>();
     const matchingCidsByBid = new Map<string, Set<string>>();
 
-    for (const item of matchingEqids) {
-        const bid = cleanId(
-            item.bid ||
-            (item as any).BID ||
-            (item as any).businessid ||
-            (item as any).BusinessID ||
-            (item as any).businessId
-        );
-        const cid = cleanId(
-            item.cid ||
-            (item as any).CID ||
-            (item as any).contactid ||
-            (item as any).ContactID ||
-            (item as any).contactId
-        );
+    for (const item of matchingTickets) {
+        const tid = cleanId(item.ticketid || (item as any).TicketId || (item as any).id);
+        let bid = cleanId(item.bid);
+        let cid = cleanId(item.cid);
+
+        // Fallback to pattern matching on ticketid if not directly present on the ticket
+        if (!bid && item.ticketid) {
+            const m = String(item.ticketid).match(/bid[_-]?\d+/i);
+            if (m) bid = cleanId(m[0]);
+        }
+        if (!cid && item.ticketid) {
+            const m = String(item.ticketid).match(/cid[_-]?bid[_-]?\d+[_-]?\d+/i);
+            if (m) cid = cleanId(m[0]);
+        }
+
+        // Fallback to matching EQID record for this ticket if still missing
+        if (tid && eqidByTicketId.has(tid)) {
+            const eqDoc = eqidByTicketId.get(tid)!;
+            if (!bid) bid = cleanId(eqDoc.bid || (eqDoc as any).BID);
+            if (!cid) cid = cleanId(eqDoc.cid || (eqDoc as any).CID);
+        }
+
+        if (bid && /^\d+$/.test(bid)) {
+            bid = `bid_${bid}`;
+        }
 
         if (bid) {
+            const norm = normalizeBidKey(bid);
             matchingBids.add(bid);
+            matchingNormBids.add(norm);
+
             if (!matchingCidsByBid.has(bid)) {
                 matchingCidsByBid.set(bid, new Set<string>());
             }
+            if (!matchingCidsByBid.has(norm)) {
+                matchingCidsByBid.set(norm, new Set<string>());
+            }
+
             if (cid) {
                 matchingCidsByBid.get(bid)!.add(cid);
+                matchingCidsByBid.get(norm)!.add(cid);
                 matchingBidCidPairs.add(`${bid}__${cid}`);
+                matchingBidCidPairs.add(`${norm}__${cid}`);
             }
         }
     }
 
     const isBidMatching = (bid?: string): boolean => {
         if (!bid) return false;
-        return matchingBids.has(cleanId(bid));
+        const b = cleanId(bid);
+        const norm = normalizeBidKey(bid);
+        return matchingBids.has(b) || matchingNormBids.has(norm);
     };
 
     const isContactMatching = (bid?: string, cid?: string): boolean => {
         const b = cleanId(bid);
+        const bn = normalizeBidKey(bid);
         const c = cleanId(cid);
         if (!b || !c) return false;
-        return matchingBidCidPairs.has(`${b}__${c}`) || (matchingCidsByBid.get(b)?.has(c) ?? false);
+        return (
+            matchingBidCidPairs.has(`${b}__${c}`) ||
+            matchingBidCidPairs.has(`${bn}__${c}`) ||
+            (matchingCidsByBid.get(b)?.has(c) ?? false) ||
+            (matchingCidsByBid.get(bn)?.has(c) ?? false)
+        );
     };
 
-    // 3. Filter businesses: only keep businesses whose BID matches the filtered EQID table
+    // 5. Filter businesses: only keep businesses whose BID matches the filtered tickets
     const filteredBusinesses: IBusinessDoc[] = [];
     const seenBids = new Set<string>();
 
-    for (const b of businesses) {
+    const sourceBusinesses = (businesses && businesses.length > 0)
+        ? businesses
+        : (FnGetSourceDataset("businesses") || []);
+
+    for (const b of sourceBusinesses) {
         const bid = cleanId(b.bid || (b as any).EntID || (b as any).id);
-        if (bid && matchingBids.has(bid)) {
-            if (!seenBids.has(bid)) {
+        const norm = normalizeBidKey(bid);
+        if (bid && (matchingBids.has(bid) || matchingNormBids.has(norm))) {
+            if (!seenBids.has(bid) && !seenBids.has(norm)) {
                 seenBids.add(bid);
+                seenBids.add(norm);
                 filteredBusinesses.push(b);
             }
         }
@@ -121,8 +216,10 @@ export function FnFilterRmsEqidTree(
 
     // Ensure all matching BIDs have a business entry even if missing from sourceBusinesses
     for (const bid of matchingBids) {
-        if (!seenBids.has(bid)) {
+        const norm = normalizeBidKey(bid);
+        if (!seenBids.has(bid) && !seenBids.has(norm)) {
             seenBids.add(bid);
+            seenBids.add(norm);
             filteredBusinesses.push({
                 bid,
                 bname: bid,
@@ -130,9 +227,10 @@ export function FnFilterRmsEqidTree(
         }
     }
 
-    // 4. Helper to filter contacts for a specific business
+    // 6. Helper to filter contacts for a specific business
     const filterContactsForBid = (contactsToFilter: IContactDoc[], targetBid?: string): IContactDoc[] => {
         const fallbackBid = cleanId(targetBid);
+        const fallbackNormBid = normalizeBidKey(targetBid);
         const result: IContactDoc[] = [];
         const seenCids = new Set<string>();
 
@@ -147,9 +245,9 @@ export function FnFilterRmsEqidTree(
             }
         }
 
-        // If specific business was requested, ensure any CIDs in EQID table but not in contactsToFilter are represented
-        if (fallbackBid && matchingCidsByBid.has(fallbackBid)) {
-            const expectedCids = matchingCidsByBid.get(fallbackBid)!;
+        // If specific business was requested, ensure any CIDs in filtered tickets but not in contactsToFilter are represented
+        const expectedCids = matchingCidsByBid.get(fallbackBid) || (fallbackNormBid ? matchingCidsByBid.get(fallbackNormBid) : undefined);
+        if (expectedCids) {
             for (const cid of expectedCids) {
                 if (!seenCids.has(cid)) {
                     seenCids.add(cid);
@@ -169,14 +267,14 @@ export function FnFilterRmsEqidTree(
         return result;
     };
 
-    // 5. Filter global contacts
+    // 7. Filter global contacts
     const filteredContacts = contacts.filter((c) => {
         const b = cleanId(c.bid);
         const cid = cleanId(c.cid || (c as any).EntID || (c as any).id);
         return isContactMatching(b, cid);
     });
 
-    // 6. Helper to filter an existing tree of ITreeNode
+    // 8. Helper to filter an existing tree of ITreeNode
     const filterTreeNodes = (nodes: ITreeNode[]): ITreeNode[] => {
         return nodes
             .map((node) => {
@@ -203,10 +301,12 @@ export function FnFilterRmsEqidTree(
                         return null;
                     }
                     const children = node.children ? filterTreeNodes(node.children) : [];
+                    const normKey = normalizeBidKey(nodeKey);
+                    const hasCids = (matchingCidsByBid.get(nodeKey)?.size ?? 0) > 0 || (normKey ? (matchingCidsByBid.get(normKey)?.size ?? 0) > 0 : false);
                     return {
                         ...node,
                         children,
-                        HasChildren: children.length > 0 ? 1 : (matchingCidsByBid.get(nodeKey)?.size ?? 0) > 0 ? 1 : 0,
+                        HasChildren: children.length > 0 ? 1 : hasCids ? 1 : 0,
                     };
                 }
 
@@ -225,7 +325,9 @@ export function FnFilterRmsEqidTree(
 
     return {
         matchingEqids,
+        matchingTickets,
         matchingBids,
+        matchingNormBids,
         matchingBidCidPairs,
         matchingCidsByBid,
         filteredBusinesses,
@@ -240,8 +342,8 @@ export function FnFilterRmsEqidTree(
 /**
  * Builds the complete ITreeNode hierarchy for [RMS] EQID:
  * Root Node ("Businesses (N)")
- *   |-- Business Nodes (only those whose BID matches the filtered EQID table)
- *         |-- Contact Nodes (only those whose CID matches the filtered EQID table for that BID)
+ *   |-- Business Nodes (only those whose BID matches the filtered tickets from matching EQID records with status In Process)
+ *         |-- Contact Nodes (only those whose CID matches the filtered tickets for that BID)
  */
 export function FnBuildRmsEqidTree(
     businesses: IBusinessDoc[] = [],
@@ -251,9 +353,10 @@ export function FnBuildRmsEqidTree(
     featureProps?: IFeatureTree,
     featureId: string = RmsEnums.EQID,
     wrapWithRootLabel: string = "Businesses",
-    handleKebabMenuSelect?: (selectedItem: any) => void
+    handleKebabMenuSelect?: (selectedItem: any) => void,
+    tickets: ITicketDoc[] = []
 ): ITreeNode[] {
-    const filterResult = FnFilterRmsEqidTree(businesses, eqidRecords, filters, contacts);
+    const filterResult = FnFilterRmsEqidTree(businesses, eqidRecords, filters, contacts, tickets);
     const { filteredBusinesses, filterContactsForBid, matchingCidsByBid } = filterResult;
 
     const baseLabel = wrapWithRootLabel.replace(/\s*\(\d+\)$/, "").trim() || "Businesses";
@@ -267,9 +370,10 @@ export function FnBuildRmsEqidTree(
     ).map((bNode) => {
         const rawBid = bNode.NodeEntID || bNode.key || (bNode as any).bid;
         const businessBid = cleanId(rawBid);
+        const normBid = normalizeBidKey(businessBid);
         const contactsForThisBid = contacts.filter((c) => {
             const cBid = cleanId(c.bid);
-            return cBid ? cBid === businessBid : false;
+            return cBid ? cBid === businessBid || normalizeBidKey(cBid) === normBid : false;
         });
         const matchedContacts = filterContactsForBid(contactsForThisBid, String(rawBid || businessBid));
         const contactNodes = FnMapContactsToTreeNodes(
@@ -280,7 +384,7 @@ export function FnBuildRmsEqidTree(
             handleKebabMenuSelect
         );
 
-        const hasMatchingCids = (matchingCidsByBid.get(businessBid)?.size ?? 0) > 0;
+        const hasMatchingCids = (matchingCidsByBid.get(businessBid)?.size ?? 0) > 0 || (normBid ? (matchingCidsByBid.get(normBid)?.size ?? 0) > 0 : false);
         const hasChildren = contactNodes.length > 0 || hasMatchingCids;
 
         return {

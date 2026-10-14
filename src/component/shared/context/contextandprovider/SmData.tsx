@@ -3,7 +3,7 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import { useBusinesses } from "@n20a/libfsdb";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { IExplorerSelection, ISmData, ISmDatasetCache } from "../allinterface/ISmData";
-import type { CollectionName, ICollectionDocMap, IContactDoc } from "../../../db/IDatasets";
+import type { CollectionName, ICollectionDocMap, IContactDoc } from "@n20a/libfsdb";
 import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import {

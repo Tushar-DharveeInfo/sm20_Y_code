@@ -306,7 +306,7 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
                             className="nz-sub-header nz-d-flex-row nz-align-center nz-justify-between"
                             style={{ height: '28px', padding: '0 8px' }}
                         >
-                            <Label uniqueName="editing-note-header" label="Editing Note" />
+                            <Label uniqueName="editing-note-header" label="Editing Ticket Note" />
                             <button
                                 type="button"
                                 style={{
@@ -324,7 +324,7 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
                         </div>
                     ) : (
                         <div className="nz-sub-header">
-                            <Label uniqueName={`${uniqueName}-notes-header`} label="Notes" />
+                            <Label uniqueName={`${uniqueName}-notes-header`} label="Ticket Notes" />
                         </div>
                     )}
 
@@ -443,6 +443,7 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
                                     sendNote={handleSendNotes}
                                     sendTooltip={editingItem ? 'Update Note' : 'Send Note'}
                                     handleDelete={handleDeleteAttachment}
+                                    placeholderMessage="Enter a ticket note here..."
                                 />
                             )}
                         </div>

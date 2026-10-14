@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect } from "react";
-import { User24x24, Send24x24, Close24x24, Cross } from "@n20a/libicon";
+import { User24x24, Send24x24, Cross } from "@n20a/libicon";
 import { EditTextXControl } from "@n20a/libform";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
 import { handleNestedZoneContainerKeyDown } from "../../allcommon/basic/FnHandleContainerKeyDown";
 import { Label } from "../../basic/label/Label";
 import { CardLayout } from "../../cardlayout/CardLayout";
 import { ICardLayoutField } from "../../cardlayout/CardLayout";
-import type { IContactDoc } from "../../../db/IDatasets";
+import type { IContactDoc } from "@n20a/libfsdb";
 import { useSmDataContext } from "../../context/hooks/SmDataHooks";
 import { useCommonVariableContext } from "../../context/hooks/CommonVariableHooks";
 import { YesNoFormContainer } from "../../basic/yesnoformcontainer/YesNoFormContainer";

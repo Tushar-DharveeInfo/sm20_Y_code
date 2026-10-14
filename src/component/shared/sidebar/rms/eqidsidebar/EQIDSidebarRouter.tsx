@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { EQIDPropertiesPane } from './EQIDPropertiesPane';
 import { EQIDNotesPane } from './EQIDNotesPane';
-import { EQIDShapesPane } from './EQIDShapesPane';
 import { FqaEqidToDo } from './FqaEqidToDo';
 import { EQIDExploreAIPane } from './EQIDExploreAIPane';
 import { useSelectedNodeContext } from '../../../context/hooks/SelectedNodeHooks';
@@ -9,7 +8,23 @@ import { useSmDataContext } from '../../../context/hooks/SmDataHooks';
 import { useRmsContext } from '../../../context/hooks/RmsHooks';
 import { ITreeNode } from '../../../allinterface/tree/ITreeControl';
 import { IMenuItem } from '../../../allinterface/menu/IMainMenu';
-import { Label as NzLabel } from '../../../basic/label/Label';
+import { EQIDOneToManyContainer } from './EQIDOneToManyContainer';
+import { EQIDStylesContainer } from './EQIDStylesContainer';
+
+export enum SubMenuKey {
+  Property = 'property',
+  ShapeStyles = 'shapestyles',
+  HardwareShapes = 'hardwareshapes',
+  PowerPorts = 'powerports',
+  NetworkPorts = 'networkports',
+  Slot = 'slot',
+  Slots = 'slots',
+  InOutPort = 'inoutport',
+  InOutPorts = 'inoutports',
+}
+
+export type EQIDSubMenuKey = SubMenuKey;
+export const EQIDSubMenuKey = SubMenuKey;
 
 interface IEQIDSidebarRouterProps {
   Label: string;
@@ -18,7 +33,7 @@ interface IEQIDSidebarRouterProps {
   selectedNodeMenu?: IMenuItem;
 }
 
-export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, selectedNode, selectedNodeMenu }) => {
+export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, selectedNode, selectedNodeMenu, featureId }) => {
   const selectedNodeContext = useSelectedNodeContext();
   const smDataContext = useSmDataContext();
   let rmsContext: any = null;
@@ -80,74 +95,51 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
 
   const cleanLabel = (Label || '').trim().toLowerCase();
 
-  const subMenuKey = (selectedNodeMenu?.Name || selectedNodeMenu?.Label || 'property').toLowerCase().replace(/\s+/g, '');
+  const subMenuKey = (selectedNodeMenu?.Name || selectedNodeMenu?.Label || SubMenuKey.Property).toLowerCase().replace(/[\s()]+/g, '');
 
   switch (true) {
     case cleanLabel === 'eqid' || cleanLabel.includes('property') || cleanLabel.includes('properties'): {
-      if (subMenuKey === 'menu1') {
+      if (subMenuKey === SubMenuKey.ShapeStyles || subMenuKey === SubMenuKey.HardwareShapes) {
+        return <EQIDStylesContainer uniqueName="fqa-eqid-styles" label={selectedNodeMenu?.Label || 'Shape Styles'} />;
+      }
+      if (subMenuKey === SubMenuKey.PowerPorts) {
         return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="nz-sub-header">
-              <NzLabel uniqueName="eqid-menu1-header" label="Menu 1" />
-            </div>
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '24px',
-                color: 'var(--textsecondary, #6b7280)',
-                fontSize: '14px',
-              }}
-            >
-              Menu 1
-            </div>
-          </div>
+          <EQIDOneToManyContainer
+            ticket={activeTicket}
+            menuKey={SubMenuKey.PowerPorts}
+            selectedNode={selectedNode}
+            featureId={featureId}
+          />
         );
       }
-      if (subMenuKey === 'menu2') {
+      if (subMenuKey === SubMenuKey.NetworkPorts) {
         return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="nz-sub-header">
-              <NzLabel uniqueName="eqid-menu2-header" label="Menu 2" />
-            </div>
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '24px',
-                color: 'var(--textsecondary, #6b7280)',
-                fontSize: '14px',
-              }}
-            >
-              Menu 2
-            </div>
-          </div>
+          <EQIDOneToManyContainer
+            ticket={activeTicket}
+            menuKey={SubMenuKey.NetworkPorts}
+            selectedNode={selectedNode}
+            featureId={featureId}
+          />
         );
       }
-      if (subMenuKey === 'menu3') {
+      if (subMenuKey === SubMenuKey.Slot || subMenuKey === SubMenuKey.Slots) {
         return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="nz-sub-header">
-              <NzLabel uniqueName="eqid-menu3-header" label="Menu 3" />
-            </div>
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '24px',
-                color: 'var(--textsecondary, #6b7280)',
-                fontSize: '14px',
-              }}
-            >
-              Menu 3
-            </div>
-          </div>
+          <EQIDOneToManyContainer
+            ticket={activeTicket}
+            menuKey={SubMenuKey.Slot}
+            selectedNode={selectedNode}
+            featureId={featureId}
+          />
+        );
+      }
+      if (subMenuKey === SubMenuKey.InOutPort || subMenuKey === SubMenuKey.InOutPorts || subMenuKey.includes('inout')) {
+        return (
+          <EQIDOneToManyContainer
+            ticket={activeTicket}
+            menuKey={SubMenuKey.InOutPort}
+            selectedNode={selectedNode}
+            featureId={featureId}
+          />
         );
       }
 

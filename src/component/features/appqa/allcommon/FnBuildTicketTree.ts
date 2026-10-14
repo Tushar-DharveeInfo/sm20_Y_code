@@ -2,7 +2,7 @@ import { IFeatureTree } from "../../../shared/allinterface/tree/ITreeForHierarch
 import { TreeNodeIcon } from "../../../shared/tree/treenodeicon/TreeNodeIcon";
 import { TreeNodeTitle } from "../../../shared/tree/treenodetitle/TreeNodeTitle";
 import { FnFormatTicketDateOnly } from "../../../shared/allcommon/tree/FnFormatTicketDate";
-import type { ITicketDoc } from "../../../db/IDatasets";
+import type { ITicketDoc } from "@n20a/libfsdb";
 import { ITicketFilterValues } from "../../tickets/tickets/ticketexplorercontainer/TicketFilterForm";
 import { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
 

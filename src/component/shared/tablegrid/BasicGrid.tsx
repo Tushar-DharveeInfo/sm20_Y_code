@@ -239,6 +239,11 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                 Array.isArray(gridProps.rowData) ? (gridProps.rowData as TGridRow[]) : []
             );
             setRowData([...rows]);
+            if (rows.length === 0) {
+                setIsLoading(false);
+                const api = gridProps.gridRef?.current?.api ?? gridRef?.current?.api;
+                api?.showNoRowsOverlay();
+            }
         }
 
     }, [gridProps.rowData]);
@@ -396,9 +401,12 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                     colId: "index-cell",
                     cellClass: "nz-index-cell",
                     resizable: false,
-                    cellRenderer: (params: ICellRendererParams) => (
-                        <Label label={params.value} uniqueName='rowNumber' />
-                    ),
+                    cellRenderer: (params: ICellRendererParams) => {
+                        if (params.data?.isNoData) {
+                            return <></>;
+                        }
+                        return <Label label={params.value} uniqueName='rowNumber' />;
+                    },
                 });
             } else if (!gridProps?.rowNumber) {
                 columns.push({
@@ -413,6 +421,9 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                     cellClass: "nz-index-cell",
                     resizable: false,
                     cellRenderer: (params: ICellRendererParams) => {
+                        if (params.data?.isNoData) {
+                            return <></>;
+                        }
                         return (
                             <>
                                 <div className='nz-grid-copy-icon-div'>
@@ -1073,7 +1084,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                 key={gridProps.uniqueName + gridProps.id}
                 data-key={gridProps.uniqueName + gridProps.id}
             >
-                {columnDefs && columnDefs.length > 0 && rowData && rowData?.length > 0 && (
+                {columnDefs && columnDefs.length > 0 && Array.isArray(gridProps.rowData) && (
                     <>
                         {gridProps.tableLabel && gridProps.showPropertyHeader && <div className="nz-sub-header">
                             <div className="nz-form-title-header">
@@ -1084,7 +1095,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                                 </div>
                             </div>
                         </div>}
-                        {!gridProps.hideCopyIcon && rowData && rowData?.length > 0 && (
+                        {!gridProps.hideCopyIcon && rowData && rowData?.length > 0 && !rowData[0]?.isNoData && (
                             <div className={`nz-copy-to-clipboard-div ${gridProps.showPropertyHeader ? 'nz-showPropertyHeader-with-download' : ''}`}>
                                 <div className={`nz-copy-download-icon-container ${gridProps.allowColumnFilter && columnToggleList.length > 4 ? "nz-show-column-filter" : ""}`}>
                                     <IconButton
@@ -1155,6 +1166,10 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                                     }
                                     onGridReady(params, gridProps)
                                     syncPaginationDisplay(gridProps, params.api);
+                                    if (!gridProps.rowData || gridProps.rowData.length === 0) {
+                                        setIsLoading(false);
+                                        params.api.showNoRowsOverlay();
+                                    }
                                     if (gridProps.handleGridReady) {
                                         gridProps.handleGridReady(params);
                                     }
@@ -1237,6 +1252,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                                 }
                                 rowSelection={gridProps.rowSelection || 'single'}
                                 onCellClicked={(event: CellClickedEvent) => {
+                                    if (event.data?.isNoData) return;
                                     if (event.column.getColId() !== "checkbox-column") {
                                         event.node.setSelected(event.node.isSelected() as boolean);
                                     }
@@ -1253,6 +1269,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                                     }
                                 }}
                                 onRowClicked={(event: RowClickedEvent) => {
+                                    if (event.data?.isNoData) return;
                                     event.node.setSelected(event.node.isSelected() as boolean, false);
                                     handleMouseEvent(event, gridRef, gridProps)
                                 }}
@@ -1275,6 +1292,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                                 }}
                                 rowBuffer={GridDefaults.rowBuffer}
                                 onCellMouseDown={(event: CellMouseDownEvent) => {
+                                    if (event.data?.isNoData) return;
                                     if (event.column.getColId() !== "checkbox-column") {
                                         event.node.setSelected(event.node.isSelected() as boolean);
                                     }

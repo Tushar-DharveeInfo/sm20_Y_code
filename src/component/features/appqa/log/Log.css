@@ -49,10 +49,11 @@
 .nz-appqa-log-status {
     height: 100%;
     align-items: center;
-    justify-content: center;
+    justify-content: left;
     display: flex;
     color: var(--textsecondary);
     font-size: var(--default_font_size);
+    margin: var(--spacing-1);
 }
 
 .nz-filter-log {
@@ -66,4 +67,3 @@
 .nz-appqa-log-container .nz-grid-container-div .nz-copy-to-clipboard-only {
     left: 5px !important;
 }
-

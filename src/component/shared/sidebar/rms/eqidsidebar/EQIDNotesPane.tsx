@@ -981,11 +981,13 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
                 const tooltipText = cleanName
                   ? `Click to download ${cleanName}`
                   : 'Click to download attachment';
+                const isImportantNote = Boolean(item.important);
 
                 return (
                   <div
-                    className={`nz-node-list-box ${isSelected ? 'nz-node-list-box-selected' : ''}`}
+                    className={`nz-node-list-box ${isImportantNote ? 'nz-note-important' : ''} ${isSelected ? 'nz-node-list-box-selected' : ''}`}
                     key={item.ticketid ? `${item.ticketid}-${index}` : (item.noteid ? `${item.noteid}-${index}` : index)}
+                    title={isImportantNote ? 'Important.' : undefined}
                     onClick={() => handleSelectCardToEdit(item)}
                     style={{ cursor: 'pointer' }}
                   >
@@ -1047,6 +1049,7 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
                   sendNote={sendNotes}
                   sendTooltip={editingItem ? 'Update Note' : 'Send Note'}
                   handleDelete={handleDeleteAttachment}
+                  placeholderMessage="Enter a notes here..."
                 />
               )}
             </div>

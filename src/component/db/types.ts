@@ -36,15 +36,11 @@ export type {
 } from '@n20a/libfsdb';
 
 export type {
-  IMfg,
   IMfgDoc,
-  IEQIDAllocated,
   IEqidAllocatedDoc,
-  IMfgVsProdline,
   IMfgVsProdlineDoc,
-  IMfgVsMfgEqtype,
   IMfgVsMfgEqtypeDoc,
-} from './ICollections';
+} from '@n20a/libfsdb';
 
 export {
   // Root collection hooks

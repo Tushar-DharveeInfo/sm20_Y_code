@@ -976,7 +976,7 @@ const FqaNotes = (props: IFqaNotes) => {
 
 	if (isRootNode || !businessId) {
 		return (
-			<div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-center" style={{ padding: '20px', textAlign: 'center' }}>
+			<div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-left" >
 				<Label uniqueName="no-business-selected" label="Select a Business to view notes" />
 			</div>
 		);
@@ -1060,6 +1060,7 @@ const FqaNotes = (props: IFqaNotes) => {
 								<div
 									className={`nz-node-list-box ${isImportantNote ? 'nz-note-important' : ''} ${isSelected ? 'nz-node-list-box-selected' : ''}`}
 									key={item.noteid || index}
+									title={isImportantNote ? 'Important.' : undefined}
 									onClick={() => handleSelectCardToEdit(item)}
 									style={{ cursor: 'pointer' }}
 								>
@@ -1097,6 +1098,7 @@ const FqaNotes = (props: IFqaNotes) => {
 								sendNote={sendNotes}
 								sendTooltip={editingItem ? 'Update Note' : 'Send Note'}
 								handleDelete={handleDeleteAttachment}
+								placeholderMessage="Enter a note here..."
 							/>
 						)}
 					</div>

@@ -18,7 +18,7 @@ import { useMainAppContext } from "../../../shared/context/hooks/MainAppHooks";
 import { useStatusBarContext } from "../../../shared/context/hooks/StatusBarHooks";
 import { useSmDataContext } from "../../../shared/context/hooks/SmDataHooks";
 import { FnGetSourceDataset } from "../../../shared/allcommon/FnLoadSampleDatasets";
-import type { IBusinessDoc } from "../../../db/IDatasets";
+import type { IBusinessDoc } from "@n20a/libfsdb";
 import { FnResolvedHtmlVariable } from "../allcommon/FnResolvedHtmlVariable";
 import { FnResolveEmailTemplate } from "../../../shared/allcommon/FnGetEmailVars";
 import { useFileDownload } from "@n20a/libfsdb";

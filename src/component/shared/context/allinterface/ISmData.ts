@@ -13,7 +13,7 @@ import type {
     ITicketDoc,
     ITicketNoteDoc,
     ITodoDoc,
-} from "../../../db/IDatasets";
+} from "@n20a/libfsdb";
 import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 

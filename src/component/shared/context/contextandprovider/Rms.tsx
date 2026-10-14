@@ -21,7 +21,15 @@ function withMfgDetails(row: Record<string, unknown>, record: IMfgRecord): IMfgR
 }
 
 function toMfgRecord(row: Record<string, unknown>): IMfgRecord | null {
-    const related = Array.isArray(row.relatedmfgs) ? row.relatedmfgs.map((item) => String(item)) : [];
+    let related: string[] = [];
+    if (Array.isArray(row.relatedmfgs)) {
+        const arr = row.relatedmfgs;
+        const len = arr.length;
+        related = [];
+        for (let i = 0; i < len; i++) {
+            related.push(String(arr[i]));
+        }
+    }
     if (row.mfgkey) {
         const mfgkey = String(row.mfgkey).trim();
         const named = row.mfgname ?? row[mfgkey];
@@ -118,10 +126,16 @@ function RmsProvider({ children }: IAppContextWrapper) {
             setError(null);
             const result = await firestore.queryDocuments({ pathSegments: ["eqid"] });
             if (result && Array.isArray(result.data)) {
-                const docs = (result.data as unknown as IEqidDoc[]).map((d: any) => ({
-                    ...d,
-                    eqid: String(d.eqid || d.id || d.key || '').trim(),
-                }));
+                const rawDocs = result.data as unknown as Record<string, unknown>[];
+                const docs: IEqidDoc[] = [];
+                const len = rawDocs.length;
+                for (let i = 0; i < len; i++) {
+                    const d = rawDocs[i];
+                    docs.push({
+                        ...(d as unknown as IEqidDoc),
+                        eqid: String(d.eqid || d.id || d.key || '').trim(),
+                    });
+                }
                 setEqid(docs);
                 eqidRef.current = docs;
                 return docs;
@@ -165,10 +179,16 @@ function RmsProvider({ children }: IAppContextWrapper) {
             setError(null);
             const result = await firestore.queryDocuments({ pathSegments: ["eqidallocated"] });
             if (result && Array.isArray(result.data)) {
-                const docs = (result.data as unknown as IEqidAllocatedDoc[]).map((d: any) => ({
-                    ...d,
-                    eqid: String(d.eqid || d.id || d.key || '').trim(),
-                }));
+                const rawDocs = result.data as unknown as Record<string, unknown>[];
+                const docs: IEqidAllocatedDoc[] = [];
+                const len = rawDocs.length;
+                for (let i = 0; i < len; i++) {
+                    const d = rawDocs[i];
+                    docs.push({
+                        ...(d as unknown as IEqidAllocatedDoc),
+                        eqid: String(d.eqid || d.id || d.key || '').trim(),
+                    });
+                }
                 setEqidAllocated(docs);
                 eqidAllocatedRef.current = docs;
                 return docs;
@@ -202,15 +222,22 @@ function RmsProvider({ children }: IAppContextWrapper) {
             setError(null);
             const result = await firestore.queryDocuments({ pathSegments: ["mfg"] });
             if (result && Array.isArray(result.data)) {
-                const docs = result.data
-                    .map((row) => toMfgRecord(row as Record<string, unknown>))
-                    .filter((row): row is IMfgRecord => Boolean(row?.mfgkey));
+                const rawData = result.data;
+                const docs: IMfgRecord[] = [];
+                const len = rawData.length;
+                for (let i = 0; i < len; i++) {
+                    const record = toMfgRecord(rawData[i] as Record<string, unknown>);
+                    if (record && record.mfgkey) {
+                        docs.push(record);
+                    }
+                }
                 setMfg(docs);
                 mfgRef.current = docs;
                 const relations: Record<string, string[]> = {};
-                docs.forEach((row) => {
+                for (let i = 0; i < docs.length; i++) {
+                    const row = docs[i];
                     relations[row.mfgkey.trim().toUpperCase()] = row.relatedmfgs ?? [];
-                });
+                }
                 setMfgRelation(relations);
                 return docs;
             }

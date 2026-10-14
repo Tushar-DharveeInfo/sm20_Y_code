@@ -1,4 +1,4 @@
-import type { IBusinessDoc } from "../../../db/IDatasets";
+import type { IBusinessDoc } from "@n20a/libfsdb";
 
 function asString(value: unknown): string {
     if (value === undefined || value === null) {
