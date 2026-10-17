@@ -304,8 +304,12 @@ const FnBuildFormElementsFromControls = (
                         }
                     }
 
-                    let value = selectedProfile && Object.keys(selectedProfile).length ? selectedProfile[col.Name] : undefined;
-                    if (groupNames.length && !value) {
+                    let value = selectedProfile && Object.keys(selectedProfile).length
+                        ? (selectedProfile[col.Name] !== undefined
+                            ? selectedProfile[col.Name]
+                            : selectedProfile[col.Name.toLowerCase()])
+                        : undefined;
+                    if (groupNames.length && value === undefined) {
                         value = FnGetPrefixedPropertyValue(selectedProfile, col.Name, groupName)
                     }
                     const isEditMode = selectedProfile && Object.keys(selectedProfile).length ? true : false;
@@ -367,7 +371,10 @@ const FnBuildFormElementsFromControls = (
                             || col.DisplayControl === DisplayControlEnums.TrueFalseControl
                             || col.DisplayControl === DisplayControlEnums.EnableDisableControl) {
 
-                            value = col.Value?.toString() === "0" || col.Value?.toString() === "false" ? false : true;
+                            const rawDefault = col.Value !== undefined && col.Value !== null && col.Value !== ""
+                                ? col.Value
+                                : (!isEditMode && col.DefaultAPValue ? col.DefaultAPValue : "");
+                            value = rawDefault?.toString() === "1" || rawDefault?.toString() === "true";
                         }
                         else {
                             value = col.Value?.length ? col.Value : !isEditMode ? col.DefaultAPValue : undefined
@@ -377,7 +384,7 @@ const FnBuildFormElementsFromControls = (
                         if (col.DisplayControl === DisplayControlEnums.YesNoControl
                             || col.DisplayControl === DisplayControlEnums.TrueFalseControl
                             || col.DisplayControl === DisplayControlEnums.EnableDisableControl) {
-                            value = value?.toString() === "0" || value?.toString() === "false" ? false : true;
+                            value = value?.toString() === "0" || value?.toString() === "false" ? false : Boolean(value);
                         }
                     }
 

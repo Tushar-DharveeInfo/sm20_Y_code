@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Label } from '../../../../shared/basic/label/Label'
 import { IControl } from '../../../../shared/allinterface/settingsform/ISettingsLibForm'
 import { SettingsLibForm } from '../../../../shared/settingsform/settingslibform/SettingsLibForm'
-import type { ITicketDoc } from '../../../../db/IDatasets'
+import type { ITicketDoc } from '@n20a/libfsdb'
 import { FnFormatTicketDate } from '../../../../shared/allcommon/tree/FnFormatTicketDate'
 import { useSmDataContext } from '../../../../shared/context/hooks/SmDataHooks'
 

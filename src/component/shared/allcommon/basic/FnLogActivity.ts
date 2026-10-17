@@ -1,4 +1,4 @@
-import type { IActivityDoc, CollectionName, ICollectionDocMap } from '../../../db/IDatasets';
+import type { IActivityDoc, CollectionName, ICollectionDocMap } from '@n20a/libfsdb';
 
 interface IFnLogActivityParams {
     bid: string;

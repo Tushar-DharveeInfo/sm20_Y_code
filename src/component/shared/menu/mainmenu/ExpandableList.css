@@ -1,3 +1,10 @@
+.nz-nav-i-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .nz-nav-i-arrow.closed {
   transform: rotate(180deg);
   /* Arrow pointing down */
@@ -206,5 +213,24 @@
 }
 
 .nz-nav-li-button-selected {
-  background-color: var(--bgexplorer) !important;
+  background-color: rgba(209, 213, 219, 0.5) !important;
+  background-color: color-mix(in srgb, var(--selection) 50%, transparent) !important;
+}
+
+/* When a main menu item is selected/opened, apply a 50% lighter selection color so it is distinct from the active submenu */
+.nz-nav-link .nz-nav-li-menu.Mui-selected,
+.nz-nav-link .nz-nav-li-menu.nz-nav-li-button-selected,
+.nz-nav-li-button.nz-nav-li-menu.Mui-selected,
+.nz-nav-li-button.nz-nav-li-menu.nz-nav-li-button-selected {
+  background-color: rgba(209, 213, 219, 0.5) !important;
+  background-color: color-mix(in srgb, var(--selection) 50%, transparent) !important;
+  color: var(--selection-text);
+}
+
+.nz-nav-link .nz-nav-li-menu.Mui-selected:hover,
+.nz-nav-link .nz-nav-li-menu.nz-nav-li-button-selected:hover,
+.nz-nav-li-button.nz-nav-li-menu.Mui-selected:hover,
+.nz-nav-li-button.nz-nav-li-menu.nz-nav-li-button-selected:hover {
+  background-color: rgba(209, 213, 219, 0.65) !important;
+  background-color: color-mix(in srgb, var(--selection) 65%, transparent) !important;
 }

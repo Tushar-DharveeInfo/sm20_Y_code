@@ -5,7 +5,7 @@ import TicketExplorerContainer, {
     type ILibraryTicketMode,
 } from './ticketexplorercontainer/TicketExplorerContainer'
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
-import type { ITicketDoc } from '../../../db/IDatasets'
+import type { ITicketDoc } from '@n20a/libfsdb'
 import { TicketDetailPane } from './ticketexplorercontainer/TicketDetailPane'
 import './LibraryTickets.css'
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp'

@@ -27,6 +27,8 @@ const ApprovedTickets = lazy(() => import('../../features/tickets/approvedticket
 const McsDevelopment = lazy(() => import('../../features/rms/McsDevelopment.tsx'))
 const RmsEqid = lazy(() => import('../../features/rms/RmsEqid.tsx'))
 const Manufacturer = lazy(() => import('../../features/rms/manufacturer/Manufacturer.tsx'))
+const MfgEqType = lazy(() => import('../../features/rms/mfgeqtype/MfgEqType.tsx'))
+const EqidByMfg = lazy(() => import('../../features/rms/eqidbymfg/EqidByMfg.tsx'))
 
 const ImpersonateService = lazy(() => import('../../features/faq/impersonateservice/ImpersonateService.tsx'))
 
@@ -74,6 +76,8 @@ const FeaturesWithOwnLayout: string[] = [
     AboutEnums.About,
     AboutEnums.AboutNetZoom,
     RmsEnums.Manufacturer,
+    RmsEnums.MfgEqType,
+    RmsEnums.EQIDByMfg,
 ];
 
 const getAuthToken = async (): Promise<string> => {
@@ -318,7 +322,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case RmsEnums.EQID:
+        case RmsEnums.EQIDByTicket:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
@@ -335,18 +339,27 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case RmsEnums.McsDevelopment:
+        case RmsEnums.MfgEqType:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
-                        <McsDevelopment
-                            uniqueName={'feature-mcs-development'}
+                        <MfgEqType
+                            uniqueName={'feature-rms-mfgeqtype'}
                             featureId={featureContainerProps.featureId}
-                            headerText={featureContainerProps.headerText}
-                            featureData={undefined}
-                            selectedFeatureData={featureContainerProps.selectedFeatureData}
-                            selectedNode={selectedNode}
-                            treeData={treeData}
+                            headerText={featureContainerProps.headerText ?? 'MfgEqType'}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+        case RmsEnums.EQIDByMfg:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <EqidByMfg
+                            uniqueName={'feature-rms-eqid-by-mfg'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText ?? '[RMS] EQID by Mfg'}
                         />
                     </Suspense>
                 </ErrorBoundary>

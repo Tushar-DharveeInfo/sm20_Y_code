@@ -146,7 +146,7 @@ function FnBuildBusinessExplorerFilterControls(
     );
 
     // RMS Menu: EQID Feature (404) filters
-    if (featureId === RmsEnums.EQID || featureId === "404") {
+    if (featureId === RmsEnums.EQIDByTicket || featureId === "404") {
         const rmsGroup = "Filter EQID";
 
         return [

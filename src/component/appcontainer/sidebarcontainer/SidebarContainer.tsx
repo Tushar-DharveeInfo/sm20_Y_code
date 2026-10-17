@@ -3,6 +3,42 @@ import { Sidebar } from "../../shared/sidebar/Sidebar";
 import { handleContainerKeyDown } from '../../shared/allcommon/basic/FnHandleContainerKeyDown';
 import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu';
 import { ITreeNode } from '../../shared/allinterface/tree/ITreeControl';
+import { FnIsRootBusinessNode } from '../../shared/allcommon/tree/FnIsRootBusinessNode';
+
+const getFormattedHeaderText = (node?: ITreeNode, fallbackText?: string): string => {
+  if (!node || FnIsRootBusinessNode(node)) {
+    return node?.Name ?? node?.Label ?? fallbackText ?? '';
+  }
+
+  const nodeType = String(
+    node.NodeType ??
+    node.treetype ??
+    node.NodeEntityname ??
+    ''
+  ).toLowerCase();
+
+  const isContact =
+    nodeType === 'contact' ||
+    Boolean(node.cid && node.cid !== node.bid) ||
+    String(node.key || '').startsWith('cid_');
+
+  const isBusiness =
+    !isContact &&
+    (nodeType === 'business' || String(node.key || '').startsWith('bid_'));
+
+  const rawName = String(node.Name ?? node.bname ?? node.cname ?? node.Label ?? fallbackText ?? '').trim();
+  const cleanName = rawName.replace(/^(Business|Contact):\s*/i, '');
+
+  if (isContact && cleanName) {
+    return cleanName.startsWith('Selected Contact ') ? cleanName : `Selected Contact ${cleanName}`;
+  }
+
+  if (isBusiness && cleanName) {
+    return cleanName.startsWith('Selected Business ') ? cleanName : `Selected Business ${cleanName}`;
+  }
+
+  return cleanName || rawName;
+};
 
 interface ISidebarContainer {
   uniqueName: string; // unique identifier for the control
@@ -34,7 +70,7 @@ const SidebarContainer = (sidebarContainerProps: ISidebarContainer) => {
       <Sidebar
         uniqueName={`${sidebarContainerProps.uniqueName}-sidebar`}
         featureQAList={sidebarContainerProps.featureQaList}
-        headerText={sidebarContainerProps.selectedNode?.Name ?? sidebarContainerProps.selectedNode?.Label ?? sidebarContainerProps.headerText}
+        headerText={getFormattedHeaderText(sidebarContainerProps.selectedNode, sidebarContainerProps.headerText)}
         isShowNotification={false}
         selectedNodeEntID={sidebarContainerProps.selectedNode?.NodeEntID || sidebarContainerProps.selectedNode?._Feature}
         selectedNode={sidebarContainerProps.selectedNode}

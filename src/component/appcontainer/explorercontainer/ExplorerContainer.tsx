@@ -30,6 +30,7 @@ import { SidebarContainer } from '../sidebarcontainer/SidebarContainer'
 import { FeatureRenderContainer } from '../featurecontainer/FeatureRenderContainer'
 import { YesNoFormContainer } from '../../shared/basic/yesnoformcontainer/YesNoFormContainer'
 import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks'
+import RequestDeviceModelsContainer, { RequestDeviceModels } from '../../features/tickets/requestdevicemodels/RequestDeviceModels'
 
 
 interface IExplorerContainer {
@@ -80,6 +81,12 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     const [treeData, setTreeData] = useState<ITreeNode[]>();
     const [selectedKebabMenuExplorer, setSelectedKebabMenuExplorer] = useState<IMenuItem | IFeatureItem>();
     const [profileAddMode, setProfileAddMode] = useState<"business" | "contact" | null>(null);
+    const [addTicketRequest, setAddTicketRequest] = useState<{
+        menuId: any;
+        bid: string;
+        cid: string;
+        version: number;
+    } | null>(null);
 
     const [isShowSidebarIcon] = useState<boolean>(true);
 
@@ -91,7 +98,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     const statusBarContext = useStatusBarContext();
     const firestore = useFirestore();
 
-    const isRmsEqid = explorerContainerProps.featureId === RmsEnums.EQID || explorerContainerProps.featureId === '404';
+    const isRmsEqid = explorerContainerProps.featureId === RmsEnums.EQIDByTicket || explorerContainerProps.featureId === '404';
 
     const saasCompanyItems: IActionLabelItem[] = useMemo(() => {
         const businesses = smDataContext.datasets?.businesses ?? [];
@@ -125,6 +132,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     // Keeps latest feature id in ref for deferred callbacks.
     useEffect(() => {
         featureIdRef.current = explorerContainerProps.featureId;
+        setAddTicketRequest(null);
         setDefaultCheckedKeys([])
         setIsShowSidebar(false);
         setIsSidebar('sidebarClose');
@@ -220,6 +228,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
 
     // Handles tree selection, session updates, and contextual layout/sidebar state.
     const handleNodeSelect = useCallback(async (_selectedKeys: Key[], info: ISelectedNodeInfo, _expandedKeys: Key[], newTreeData?: ITreeNode[], isShowSidebar?: boolean) => {
+        setAddTicketRequest(null);
 
         if (!explorerContainerProps.subTreeFeatureId) {
             selectedNodeContext.setSelectedNodeExplorer(info.node);
@@ -943,6 +952,19 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             selectedNodeContext.selectedNode;
         const label = String(payload?.Label ?? '').trim().toLowerCase();
         const alias = String(payload?.Alias ?? '').trim().toLowerCase();
+        const menuId = String(payload?._Feature ?? payload?.Feature ?? payload?.MenuID ?? '');
+        if (menuId === '12310' || menuId === '12314') {
+            const isRoot = !targetNode || FnIsRootBusinessNode(targetNode);
+            const isContact = targetNode?.NodeType?.toLowerCase() === 'contact';
+            const bid = String(isRoot ? mainAppContext.authSession?.bid ?? ''
+                : targetNode?.bid || (isContact ? targetNode?.parentEntID : targetNode?.NodeEntID) || '').trim();
+            const cid = String(isRoot ? mainAppContext.authSession?.cid ?? ''
+                : isContact ? targetNode?.cid || targetNode?.NodeEntID || targetNode?.key || '' : '').trim();
+            setAddTicketRequest(prev => ({ menuId, bid, cid, version: (prev?.version ?? 0) + 1 }));
+            setIsShowSidebar(false);
+            setIsSidebar('sidebarClose');
+            return;
+        }
 
         const isUnapproved = label === kebabMenuEnums.Unapprove || label === kebabMenuEnums.Unapproved;
         const isBlock = label === kebabMenuEnums.Block || label === kebabMenuEnums.Blocked;
@@ -1155,6 +1177,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             <div className="nz-feature-explorer-container">
                 {explorerToRender !== "NONE" && <Splitter className='nz-w-100 nz-h-100' onResizeEnd={handleExplorerResizeEnd} tabIndex={-1}>
                     <SplitterPanel tabIndex={-1} size={25} minSize={10} className={`nz-d-flex-column nz-justify-center nz-explorer-pane${!explorerContainerProps.subTreeFeatureId ? " nz-dc-explorer-pane nz-exp-pane" : " nz-pane-1"}`}>
+
                         {explorerContainerProps.allowShowHeader &&
                             <div className='nz-sub-header  nz-d-flex-row nz-align-center nz-justify-between nz-explorer-header'>
                                 <Label uniqueName={explorerContainerProps.uniqueName + "header"} label={explorerContainerProps.headerText ?? ""} fontWeight="bold" />
@@ -1245,7 +1268,13 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                         )}
                         {/* right Pane render container*/}
                         <div className='nz-wh-100 nz-d-flex-hv-left nz-feature-explorer-right-pane' style={{ overflow: 'hidden' }}>
-                            <FeatureRenderContainer
+                            {addTicketRequest ? <RequestDeviceModelsContainer
+                                headerText={`Add New Ticket for ${addTicketRequest.bid}${addTicketRequest.cid ? ` / ${addTicketRequest.cid}` : ""}`}
+                                onBack={() => setAddTicketRequest(null)}
+                                formData={{ searchText: "", AndOr: "AND", Mfg: "", EqType: "", ProdNo: "", MoreInfo: "" }}
+                                onSearchClick={function (searchText?: string, AndOr?: 'AND' | 'OR', mfg?: string, eqtype?: string, pno?: string): void {
+                                    throw new Error('Function not implemented.')
+                                }} /> : <FeatureRenderContainer
                                 key={explorerContainerProps.featureId}
                                 doNotRenderExplorerTree={true}
                                 asRightPane={true}
@@ -1262,7 +1291,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                                     updateStatusBarData: explorerContainerProps.updateStatusBarData,
                                 }}
                                 handleShowUserMessage={explorerContainerProps.handleShowUserMessage ?? (() => undefined)}
-                            />
+                            />}
                         </div>
                     </SplitterPanel>
                 </Splitter>}

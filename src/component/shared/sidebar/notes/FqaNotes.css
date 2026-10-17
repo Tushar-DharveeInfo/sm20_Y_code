@@ -1,5 +1,37 @@
 .nz-node-list-delete {
     display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.nz-note-remove-important {
+    margin-left: auto;
+    margin-right: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius: 4px;
+    color: var(--textprimary, #333);
+    opacity: 0.75;
+    transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+
+.nz-note-remove-important:hover {
+    opacity: 1;
+    color: #d9534f;
+    background-color: color-mix(in srgb, #f59e0b 35%, transparent);
+    transform: scale(1.1);
+}
+
+.nz-note-remove-important:active {
+    transform: scale(0.95);
 }
 
 .nz-note-date,
@@ -191,8 +223,9 @@
     display: flex;
     justify-content: left;
     align-items: center;
-    margin: var(--spacing-1);
+    /* margin: var(--spacing-1); */
     height: 100%;
     width: 100%;
     opacity: 1 !important;
+    overflow: hidden;
 }

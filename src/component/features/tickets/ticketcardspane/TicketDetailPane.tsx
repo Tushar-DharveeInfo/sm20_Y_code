@@ -1,0 +1,200 @@
+import React, { useMemo } from 'react';
+import { Label } from '../../../shared/basic/label/Label';
+import { IControl } from '../../../shared/allinterface/settingsform/ISettingsLibForm';
+import { SettingsLibForm } from '../../../shared/settingsform/settingslibform/SettingsLibForm';
+import type { ITicketDoc } from '@n20a/libfsdb';
+import { FnFormatTicketDate } from '../../../shared/allcommon/tree/FnFormatTicketDate';
+
+interface ITicketDetailPane {
+    uniqueName: string;
+    ticket: ITicketDoc | null;
+    onSaveTicket?: (ticketId: string, updatedFields: Partial<ITicketDoc>) => Promise<void> | void;
+}
+
+/**
+ * Form field names must avoid SettingsLibForm heuristics:
+ * - names starting/ending with "date" → forced YYYY-MM-DD
+ * - names containing "lastupdated" → app datetime with time
+ */
+
+const TICKET_FIELD_DEFS: {
+    ticketKey: keyof ITicketDoc;
+    formName: string;
+    label: string;
+    displayControl: string;
+    sortOrder: number;
+    formatAsDate?: boolean;
+    editableIfUnlocked?: boolean;
+}[] = [
+        { ticketKey: 'ticketid', formName: 'Ticket', label: 'Ticket', displayControl: 'TextControl', sortOrder: 1 },
+        { ticketKey: 'status', formName: 'Status', label: 'Status', displayControl: 'TextControl', sortOrder: 2 },
+        { ticketKey: 'bid', formName: 'Business', label: 'Business', displayControl: 'TextControl', sortOrder: 3 },
+        { ticketKey: 'cid', formName: 'Contact', label: 'Contact', displayControl: 'TextControl', sortOrder: 4 },
+        { ticketKey: 'subscription', formName: 'Subscription', label: 'Subscription', displayControl: 'TextControl', sortOrder: 5 },
+        { ticketKey: 'mfg', formName: 'Mfg', label: 'Mfg', displayControl: 'EditTextControl', sortOrder: 6, editableIfUnlocked: true },
+        { ticketKey: 'eqtype', formName: 'EqType', label: 'Eq Type', displayControl: 'EditTextControl', sortOrder: 7, editableIfUnlocked: true },
+        { ticketKey: 'prodno', formName: 'ProdNo', label: 'Prod No', displayControl: 'EditTextControl', sortOrder: 8, editableIfUnlocked: true },
+        { ticketKey: 'moreinfo', formName: 'MoreInfo', label: 'More Info', displayControl: 'TextareaControl', sortOrder: 9, editableIfUnlocked: true },
+        { ticketKey: 'daterequested', formName: 'RequestedOn', label: 'Date Requested', displayControl: 'TextControl', sortOrder: 10, formatAsDate: true },
+        { ticketKey: 'datereleased', formName: 'ReleasedOn', label: 'Date Released', displayControl: 'TextControl', sortOrder: 11, formatAsDate: true },
+        { ticketKey: 'lastupdated', formName: 'UpdatedOn', label: 'Last Updated', displayControl: 'TextControl', sortOrder: 12, formatAsDate: true },
+    ];
+
+const isStatusLocked = (status?: string | null): boolean => {
+    if (!status) return false;
+    const normalized = status.trim().toLowerCase();
+    return normalized === 'accepted' || normalized === 'closed';
+};
+
+function toProfileValue(field: (typeof TICKET_FIELD_DEFS)[number], value: unknown): string {
+    if (field.formatAsDate) {
+        return FnFormatTicketDate(value as Date | string);
+    }
+    return value == null ? '' : String(value);
+}
+
+function buildTicketControls(status?: string | null): IControl[] {
+    const isLocked = isStatusLocked(status);
+    return TICKET_FIELD_DEFS.map((field) => {
+        const isEditable = !isLocked && Boolean(field.editableIfUnlocked);
+        return {
+            CanChange: isEditable ? 1 : 0,
+            IsRequired: 0,
+            GroupName: 'TicketDetails',
+            GroupNameDesc: '',
+            SubGroupEntID: '',
+            SubGroupName: 'FormControl',
+            SubGroupNameDesc: '',
+            _AP: field.formName,
+            PropertyLabel: field.label,
+            NameDesc: field.label,
+            DefaultAPValue: '',
+            Value: '',
+            ValueDesc: '',
+            SortOrder: field.sortOrder,
+            MaxInstances: 0,
+            InputMask: '',
+            RegEx: '',
+            DisplayGroupControl: 'Ticket Details',
+            DisplayControl: isEditable
+                ? field.displayControl
+                : field.displayControl === 'TextareaControl'
+                    ? 'TextareaControl'
+                    : 'TextControl',
+            ChangeEvent: '',
+            Secured: false,
+            IsNZ: false,
+            EntID: field.formName,
+            RecID: field.formName,
+            LastUpdated: '',
+            EntityName: 'Ticket',
+            Name: field.formName,
+            disabled: !isEditable,
+            IsReadOnly: !isEditable,
+        };
+    });
+}
+
+const TicketDetailPane: React.FC<ITicketDetailPane> = ({ ticket, uniqueName, onSaveTicket }) => {
+    const isLocked = isStatusLocked(ticket?.status);
+    const controls = useMemo(() => buildTicketControls(ticket?.status), [ticket?.status]);
+
+    const profileString = useMemo(() => {
+        if (!ticket) return '';
+        const profile: Record<string, string> = {};
+        TICKET_FIELD_DEFS.forEach((field) => {
+            profile[field.formName] = toProfileValue(field, ticket[field.ticketKey]);
+        });
+        return JSON.stringify([profile]);
+    }, [ticket]);
+
+    const handleSaveForm = async (profileDataJson: string, formId?: string) => {
+        let parsed: Record<string, unknown> = {};
+        try {
+            const raw = JSON.parse(profileDataJson);
+            parsed = Array.isArray(raw) && raw.length > 0 ? raw[0] : raw;
+        } catch (e) {
+            console.error('Failed to parse profile data', e);
+        }
+
+        const source =
+            parsed.TableSections && typeof parsed.TableSections === 'object'
+                ? ((Object.values(parsed.TableSections)[0] as Record<string, unknown>) ?? parsed)
+                : parsed;
+
+        const ticketId =
+            ticket?.ticketid ||
+            (source.Ticket as string) ||
+            (source.ticketid as string) ||
+            (parsed.Ticket as string) ||
+            (parsed.ticketid as string) ||
+            formId;
+        if (!ticketId) return;
+
+        const updates: Partial<ITicketDoc> = {};
+        if (source.Mfg !== undefined) updates.mfg = String(source.Mfg ?? '').trim();
+        else if (source.mfg !== undefined) updates.mfg = String(source.mfg ?? '').trim();
+
+        if (source.EqType !== undefined) updates.eqtype = String(source.EqType ?? '').trim();
+        else if (source.eqtype !== undefined) updates.eqtype = String(source.eqtype ?? '').trim();
+
+        if (source.ProdNo !== undefined) updates.prodno = String(source.ProdNo ?? '').trim();
+        else if (source.prodno !== undefined) updates.prodno = String(source.prodno ?? '').trim();
+
+        if (source.MoreInfo !== undefined) updates.moreinfo = String(source.MoreInfo ?? '').trim();
+        else if (source.moreinfo !== undefined) updates.moreinfo = String(source.moreinfo ?? '').trim();
+
+        // Status is read-only and must always remain the exact same when updating ticket details
+        if (ticket?.status) {
+            updates.status = ticket.status;
+        }
+
+        if (source.Subscription !== undefined) updates.subscription = String(source.Subscription ?? '').trim();
+        else if (source.subscription !== undefined) updates.subscription = String(source.subscription ?? '').trim();
+
+        await onSaveTicket?.(ticketId, updates);
+    };
+
+    if (!ticket) {
+        return (
+            <div className="nz-wh-100 nz-d-flex-hv-left" style={{ padding: 'var(--spacing-2)' }}>
+                <Label
+                    uniqueName={`${uniqueName}-empty`}
+                    label="Select a ticket to view details."
+                />
+            </div>
+        );
+    }
+
+    const formId = ticket.ticketid || ticket.prodno || 'ticket';
+
+    const ticketId = ticket.ticketid || 'Ticket';
+    const prodNo = ticket.prodno && ticket.prodno.trim() ? ticket.prodno.trim() : '';
+    const mfg = ticket.mfg && ticket.mfg.trim() ? ticket.mfg.trim() : '';
+
+    const headerTitle = prodNo
+        ? `${ticketId} -> ${prodNo}${mfg ? ` of ${mfg}` : ''}`
+        : ticketId;
+
+    return (
+        <div className="nz-wh-100" style={{ overflow: 'auto' }}>
+            <SettingsLibForm
+                key={`${uniqueName}-${ticket.ticketid || 'ticket'}-${ticket.lastupdated || ticket.prodno || 'initial'}-${isLocked ? 'locked' : 'unlocked'}`}
+                uniqueName={`${uniqueName}-form`}
+                controls={controls}
+                profileString={profileString}
+                allowShowHeader={true}
+                allowShowSectionHeader={true}
+                headerText={headerTitle}
+                isDisableForm={isLocked}
+                isAutoSave={false}
+                id={formId}
+                handleSaveForm={handleSaveForm}
+            />
+        </div>
+    );
+};
+
+export { TicketDetailPane };
+export type { ITicketDetailPane };
+export default TicketDetailPane;

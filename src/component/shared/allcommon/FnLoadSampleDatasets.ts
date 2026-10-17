@@ -14,7 +14,7 @@ import type {
     ITicketDoc,
     ITicketNoteDoc,
     ITodoDoc,
-} from "../../db/IDatasets";
+} from '@n20a/libfsdb';
 import type { ISmDatasetCache } from "../context/allinterface/ISmData";
 
 import activitiesJson from "../../../smsampledata/datasets/activities.json";

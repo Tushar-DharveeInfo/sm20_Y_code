@@ -27,6 +27,7 @@ enum AppQA {
     Report = "50",
     Impersonate = "52",
     ToDo = "54",
+    Reminder = "54",
 }
 
 // Home feature ids — match public/smFeatures.json MenuID 100
@@ -70,8 +71,10 @@ enum TicketsEnums {
 // RMS menu feature ids — match public/smFeatures.json MenuID 400
 enum RmsEnums {
     RMS = "400",
-    EQID = "404",
+    EQIDByTicket = "402",
+    EQIDByMfg = "404",
     Manufacturer = "408",
+    MfgEqType = "412",
     RMSLibrary = "412",
     McsDevelopment = "412",
     ReviewDeviceLibrary = "416",
@@ -124,6 +127,7 @@ enum EqidQaEnums {
     Notes = "4042",
     Shapes = "4044",
     ToDo = "4046",
+    Reminder = "4046",
     AI = "4048",
 }
 
@@ -148,8 +152,8 @@ enum kebabMenuEnums {
     EditMfgEqType = 'edit mfgeqtype',
 }
 
-// Feature QA ToDo IDs across menus — match public/smFeatures.json
-enum FeatureToDoEnums {
+// Feature QA ToDo / Reminder IDs across menus — match public/smFeatures.json
+enum FeatureReminderEnums {
     NetZoom = "2094",
     VisioStencils = "2134",
     SSIAndOtherServices = "2174",
@@ -262,6 +266,7 @@ enum SidebarEnum {
     List = "List",
     ListContacts = "List Contacts",
     ToDo = "ToDo",
+    Reminder = "Reminder",
     Orders = "Order",
     Email = "Email"
 }
@@ -281,7 +286,7 @@ export {
     AboutEnums,
     KebabServicesEnums,
     EqidQaEnums,
-    FeatureToDoEnums,
+    FeatureReminderEnums,
     FeatureProfileEnums,
     FeatureListEnums,
     FeatureEmailEnums,

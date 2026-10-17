@@ -60,10 +60,40 @@ const TreeNodeIcon = (treeNode: ITreeNode, instanceName: string) => {
                 );
             }
         }
-        if (normalizedNodeType?.toLowerCase() === 'mfg') {
+        if (normalizedNodeType?.toLowerCase() === 'root' || lowerTreeType === 'root') {
             return createIconData(
                 `Manufacturer24x24`,
-                normalizedNodeType
+                'Manufacturers'
+            );
+        }
+        if (normalizedNodeType?.toLowerCase() === 'mfg' || lowerTreeType === 'mfg') {
+            return createIconData(
+                `Manufacturer24x24`,
+                'Manufacturer'
+            );
+        }
+        if (normalizedNodeType?.toLowerCase() === 'prodline' || lowerTreeType === 'prodline') {
+            return createIconData(
+                `Other24x24`,
+                'Product Line'
+            );
+        }
+        if (normalizedNodeType?.toLowerCase() === 'eqtype' || lowerTreeType === 'eqtype') {
+            return createIconData(
+                `Device24x24`,
+                'Equipment Type'
+            );
+        }
+        if (normalizedNodeType?.toLowerCase() === 'eqid' || lowerTreeType === 'eqid') {
+            return createIconData(
+                `EntityvsTable24x24`,
+                'EQID'
+            );
+        }
+        if (normalizedNodeType?.toLowerCase() === 'shapestyle' || lowerTreeType === 'shapestyle') {
+            return createIconData(
+                `ThreeD24x24`,
+                'Shape Style'
             );
         }
 

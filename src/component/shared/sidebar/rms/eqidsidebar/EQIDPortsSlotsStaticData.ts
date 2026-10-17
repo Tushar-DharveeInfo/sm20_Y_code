@@ -172,10 +172,34 @@ export const inOutPortsColumns: IPropertyColumn[] = [
   },
 ];
 
+export const urlColumns: IPropertyColumn[] = [
+  {
+    PName: "URL",
+    PropertyLabel: "URL",
+    DisplayControl: "EditTextControl",
+    RequiredToAddRecord: true,
+    RequiredToUpdateRecord: true,
+    NullNotAllowed: true,
+    SortOrder: 1,
+  },
+];
+
+export const eqidRelationColumns: IPropertyColumn[] = [
+  {
+    PName: "EQIDRelation",
+    PropertyLabel: "EQIDRelation",
+    DisplayControl: "EditTextControl",
+    RequiredToAddRecord: true,
+    RequiredToUpdateRecord: true,
+    NullNotAllowed: true,
+    SortOrder: 1,
+  },
+];
+
 export interface IEQIDMenuTableConfig {
   tableName: string;
   tableLabel: string;
-  fieldKey: "PowerPorts" | "NetworkPorts" | "Slots" | "InOutPlugs";
+  fieldKey: "PowerPorts" | "NetworkPorts" | "Slots" | "InOutPlugs" | "Urls" | "EQIDRelation";
   properties: IPropertyColumn[];
   headerTitle: string;
 }
@@ -185,6 +209,24 @@ export function getEQIDMenuConfig(menuKey: string): IEQIDMenuTableConfig {
   const normalizedKey = (menuKey || "").toLowerCase().replace(/[\s()_-]+/g, "");
 
   switch (true) {
+    case normalizedKey === "url" || normalizedKey === "urls":
+      return {
+        tableName: "Urls",
+        tableLabel: "URL",
+        fieldKey: "Urls",
+        properties: urlColumns,
+        headerTitle: "Hardware URLs",
+      };
+
+    case normalizedKey === "eqidrelation" || normalizedKey === "eqidrelations" || normalizedKey.includes("relation"):
+      return {
+        tableName: "EQIDRelation",
+        tableLabel: "EQIDRelation",
+        fieldKey: "EQIDRelation",
+        properties: eqidRelationColumns,
+        headerTitle: "EQID Relations",
+      };
+
     case normalizedKey.includes("power") || normalizedKey === "powerports":
       return {
         tableName: "PowerPorts",

@@ -4,13 +4,13 @@ import type { INote } from '@n20a/libavnotes';
 import '@n20a/libavnotes/style.css';
 import '../../../shared/sidebar/notes/FqaNotes.css';
 import './TicketNotesList.css';
-import { Attach24x24, Info24x24 } from '@n20a/libicon';
+import { Attach24x24, Info24x24, Close24x24 } from '@n20a/libicon';
 import { Image } from '../../../shared/basic/image/Image';
 import { Label } from '../../../shared/basic/label/Label';
 import { FilterKeywordControl } from '../../../shared/searchfilter/filterkeywordcontrol/FilterKeywordControl';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { FnFormatDateWithAppFormat } from '../../../appcontainer/allcommon/FnFormatDateWithAppFormat';
-import type { ITicketNoteDoc, ITicketDoc } from '../../../db/IDatasets';
+import type { ITicketNoteDoc, ITicketDoc } from '@n20a/libfsdb';
 import { useFileDownload } from '@n20a/libfsdb';
 import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks';
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
@@ -297,6 +297,15 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
         );
     }, []);
 
+    const handleRemoveImportant = useCallback((item: ITicketNoteDoc) => {
+        setLocalNotes((prev) =>
+            prev.map((n) => (n === item ? { ...n, important: false } : n))
+        );
+        if (editingItem === item) {
+            setEditingItem((prev) => (prev ? { ...prev, important: false } : null));
+        }
+    }, [editingItem]);
+
     return (
         <div className="nz-node-list-Container" key={uniqueName}>
             <div className="nz-notes-list-main-div">
@@ -354,6 +363,7 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
                         ) : (
                             filtered.map((item, index) => {
                                 const isSelected = editingItem === item;
+                                const isImportantNote = Boolean((item as any).important || (item as any).Important);
                                 const formattedDate = FnFormatDateWithAppFormat(item.datecreated, true);
                                 const cleanName = getCleanFileName(item.filename || '');
                                 const hasFile = Boolean(cleanName || (item.filename && item.filename.trim().length > 0));
@@ -363,8 +373,9 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
 
                                 return (
                                     <div
-                                        className={`nz-node-list-box ${isSelected ? 'nz-node-list-box-selected' : ''}`}
+                                        className={`nz-node-list-box ${isImportantNote ? 'nz-note-important' : ''} ${isSelected ? 'nz-node-list-box-selected' : ''}`}
                                         key={item.ticketid ? `${item.ticketid}-${index}` : index}
+                                        title={isImportantNote ? 'Important.' : undefined}
                                         onClick={() => handleSelectCardToEdit(item)}
                                         style={{ cursor: 'pointer' }}
                                     >
@@ -381,6 +392,29 @@ const TicketNotesList: React.FC<ITicketNotesListProps> = ({
                                                     label={currentUserName}
                                                 />
                                             </div>
+                                            {isImportantNote && (
+                                                <button
+                                                    type="button"
+                                                    className="nz-note-remove-important"
+                                                    title="Click to remove Important"
+                                                    aria-label="Click to remove Important"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        void handleRemoveImportant(item);
+                                                    }}
+                                                    onMouseDown={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
+                                                >
+                                                    <Close24x24
+                                                        size="14px"
+                                                        strokeWidth={2}
+                                                        stroke="currentColor"
+                                                        strokeLinecap="round"
+                                                        fill="none"
+                                                    />
+                                                </button>
+                                            )}
                                         </div>
                                         <div className="nz-info-div">
                                             {hasFile ? (

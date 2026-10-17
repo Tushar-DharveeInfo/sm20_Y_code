@@ -1,4 +1,4 @@
-import type { ITicketDoc } from '../../../db/IDatasets';
+import type { ITicketDoc } from '@n20a/libfsdb';
 import { FnGetSourceDataset, SOURCE_DATASETS } from '../../../shared/allcommon/FnLoadSampleDatasets';
 import type { IFirestoreContextValue } from '@n20a/libfsdb';
 
@@ -72,6 +72,81 @@ export function updateTicketStatusInStore(
 }
 
 /**
+ * Updates a single ticket's fields in the full tickets cache.
+ * Returns the updated tickets array.
+ */
+export function updateTicketInStore(
+    ticketId: string,
+    updates: Partial<ITicketDoc>
+): ITicketDoc[] {
+    const list = getFullTicketsCached();
+    const updatedTime = updates.lastupdated || new Date().toISOString();
+    const cleanTid = String(ticketId).trim().toLowerCase();
+
+    cachedFullTickets = list.map((t) => {
+        const tId = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
+        if (tId === cleanTid) {
+            return {
+                ...t,
+                ...updates,
+                status: updates.status || t.status,
+                lastupdated: updatedTime,
+            };
+        }
+        return t;
+    });
+
+    SOURCE_DATASETS.tickets = cachedFullTickets;
+    return cachedFullTickets;
+}
+
+/**
+ * Adds a cloned or newly created ticket to the full tickets cache.
+ * Returns the updated tickets array.
+ */
+export function addTicketToStore(newTicket: ITicketDoc): ITicketDoc[] {
+    const list = getFullTicketsCached();
+    cachedFullTickets = [newTicket, ...list];
+    SOURCE_DATASETS.tickets = cachedFullTickets;
+    return cachedFullTickets;
+}
+
+/**
+ * Generates a unique cloned ticket ID based on the original ticket ID and existing tickets.
+ */
+export function generateClonedTicketId(originalId: string, existingTickets: ITicketDoc[]): string {
+    const existingIds = new Set(
+        existingTickets.map((t) => String(t.ticketid || (t as any).id || '').trim().toLowerCase())
+    );
+
+    const match = originalId.match(/^(.*?)_(\d+)$/);
+    if (match) {
+        const prefix = match[1];
+        let maxNum = parseInt(match[2], 10);
+        for (const t of existingTickets) {
+            const tid = String(t.ticketid || (t as any).id || '').trim();
+            const m = tid.match(new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_(\\d+)$`, 'i'));
+            if (m) {
+                const n = parseInt(m[1], 10);
+                if (n > maxNum) maxNum = n;
+            }
+        }
+        const nextSeqId = `${prefix}_${maxNum + 1}`;
+        if (!existingIds.has(nextSeqId.toLowerCase())) {
+            return nextSeqId;
+        }
+    }
+
+    let counter = 1;
+    let candidate = `${originalId}_${counter}`;
+    while (existingIds.has(candidate.toLowerCase())) {
+        counter++;
+        candidate = `${originalId}_${counter}`;
+    }
+    return candidate;
+}
+
+/**
  * Step 1: Loads full tickets data across all businesses.
  * 1. Checks if cached in memory from Firestore (unless forceRefresh is true).
  * 2. If firestore is available, queries collectionGroup('tickets').
@@ -91,8 +166,8 @@ export async function loadFullTickets(
             const rawList: Record<string, unknown>[] = Array.isArray(res?.data)
                 ? (res.data as Record<string, unknown>[])
                 : Array.isArray((res?.data as any)?.data)
-                ? ((res.data as any).data as Record<string, unknown>[])
-                : [];
+                    ? ((res.data as any).data as Record<string, unknown>[])
+                    : [];
 
             if (rawList.length > 0) {
                 const mapped: ITicketDoc[] = rawList.map((d: any) => {

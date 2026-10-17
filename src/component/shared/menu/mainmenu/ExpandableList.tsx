@@ -83,6 +83,33 @@ const ExpandableList = (props: IExpandableList) => {
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hasAutoSelectedDefaultQaRef = useRef(false);
 
+    const lastFeatureIdRef = useRef<string | null>(null);
+
+    const isSubActive = useCallback((sub: IMenuItem): boolean => {
+        const subFeatureId = sub._Feature != null ? String(sub._Feature) : "";
+        const subEntId = sub.EntID ? String(sub.EntID) : "";
+
+        if (props.uniqueName === "Menu") {
+            const selFeatureId = props.selectedFeature?._Feature != null ? String(props.selectedFeature._Feature) : "";
+            const selEntId = props.selectedFeature?.EntID ? String(props.selectedFeature.EntID) : "";
+
+            if (selFeatureId && subFeatureId && selFeatureId === subFeatureId) return true;
+            if (selEntId && subEntId && selEntId === subEntId) return true;
+            if (selectedEntId && subEntId && String(selectedEntId) === subEntId) return true;
+            if (lastFeatureIdRef.current && (
+                (subFeatureId && subFeatureId === lastFeatureIdRef.current) ||
+                (subEntId && subEntId === lastFeatureIdRef.current)
+            )) return true;
+            return !!sub.isSelected;
+        }
+
+        return !!(sub.isSelected || (selectedEntId && subEntId && String(selectedEntId) === subEntId));
+    }, [props.uniqueName, props.selectedFeature, selectedEntId]);
+
+    const isGroupActive = useCallback((element: IMenuItem): boolean => {
+        return !!element.subMenu?.some(isSubActive);
+    }, [isSubActive]);
+
     useEffect(() => {
         if (props.menuData && props.menuData.length > 0) {
             if (!isEqual(props.menuData, originalMenuMenu)) {
@@ -116,6 +143,46 @@ const ExpandableList = (props: IExpandableList) => {
                     }
                 }
 
+                const currentFeatureId = props.selectedFeature
+                    ? String(props.selectedFeature._Feature ?? props.selectedFeature.EntID ?? "")
+                    : null;
+                const isNewFeatureSelected = currentFeatureId !== null && currentFeatureId !== lastFeatureIdRef.current;
+                if (currentFeatureId !== null) {
+                    lastFeatureIdRef.current = currentFeatureId;
+                }
+
+                if (isNewFeatureSelected && props.selectedFeature) {
+                    const selFeatureId = props.selectedFeature._Feature != null ? String(props.selectedFeature._Feature) : "";
+                    const selEntId = props.selectedFeature.EntID ? String(props.selectedFeature.EntID) : "";
+                    menu.forEach((element: IMenuItem) => {
+                        const hasSelectedSub = element.subMenu?.some((sub) => {
+                            const subEntId = sub.EntID ? String(sub.EntID) : "";
+                            const subFeatureId = sub._Feature != null ? String(sub._Feature) : "";
+                            return (selEntId && subEntId && selEntId === subEntId) ||
+                                (selFeatureId && subFeatureId && selFeatureId === subFeatureId);
+                        });
+                        if (hasSelectedSub) {
+                            element.isOpen = true;
+                        } else if (element.subMenu?.length) {
+                            element.isOpen = false;
+                        }
+                    });
+                } else if (mainMenu && mainMenu.length > 0) {
+                    menu.forEach((element: IMenuItem) => {
+                        const existing = mainMenu.find((m) =>
+                            (m.EntID && element.EntID && String(m.EntID) === String(element.EntID)) ||
+                            (m._Feature != null && element._Feature != null && String(m._Feature) === String(element._Feature)) ||
+                            (m.Label && element.Label && m.Label === element.Label)
+                        );
+                        if (existing && existing.isOpen !== undefined) {
+                            element.isOpen = existing.isOpen;
+                        }
+                        if (isGroupActive(element)) {
+                            element.isOpen = true;
+                        }
+                    });
+                }
+
                 setOriginalMenuMenu([...menu]);
 
                 // This condition depends on searchValue
@@ -143,18 +210,29 @@ const ExpandableList = (props: IExpandableList) => {
         try {
 
             setSelectedEntId(item.EntID as string | undefined);
+            const currentFeatureId = String(item._Feature ?? item.EntID ?? "");
+            lastFeatureIdRef.current = currentFeatureId;
             mainMenu.map((ele: IMenuItem) => {
                 ele.isSelected = false;
+                let hasTargetSub = false;
                 ele.subMenu?.forEach((sub: IMenuItem) => {
-                    if (sub.EntID === item.EntID) {
+                    const isTargetSub =
+                        (sub.EntID && item.EntID && String(sub.EntID) === String(item.EntID)) ||
+                        (sub._Feature != null && item._Feature != null && String(sub._Feature) === String(item._Feature));
+                    if (isTargetSub) {
                         sub.isSelected = true;
-                        ele.isSelected = true;
-                        ele.isOpen = true;
+                        hasTargetSub = true;
                     }
                     else {
                         sub.isSelected = false;
                     }
-                })
+                });
+                if (hasTargetSub) {
+                    ele.isSelected = true;
+                    ele.isOpen = true;
+                } else if (ele.subMenu?.length) {
+                    ele.isOpen = false;
+                }
                 return ele;
             });
             setMainMenu([...mainMenu]);
@@ -163,7 +241,10 @@ const ExpandableList = (props: IExpandableList) => {
             setSelectedMenuIndex(-1)
 
             for (let mainIndex = 0; mainIndex < mainMenu.length; mainIndex++) {
-                const subIndex = mainMenu[mainIndex].subMenu?.findIndex((sub) => sub.EntID === item.EntID) ?? -1;
+                const subIndex = mainMenu[mainIndex].subMenu?.findIndex((sub) =>
+                    (sub.EntID && item.EntID && String(sub.EntID) === String(item.EntID)) ||
+                    (sub._Feature != null && item._Feature != null && String(sub._Feature) === String(item._Feature))
+                ) ?? -1;
                 if (subIndex >= 0) {
                     setActiveMainIndex(mainIndex);
                     setActiveSubIndex(subIndex);
@@ -184,13 +265,6 @@ const ExpandableList = (props: IExpandableList) => {
             return;
         }
         try {
-
-            timeoutRef.current = setTimeout(() => {
-                let div = document.getElementById(`nz-nav-open`)
-                if (div) {
-                    div?.scrollIntoView({ block: "start", behavior: 'smooth' });
-                }
-            }, 300);
             const subMenuLength = item.subMenu?.length ?? 0;
             const isOpeningGroup = !item.isOpen;
 
@@ -211,16 +285,20 @@ const ExpandableList = (props: IExpandableList) => {
                 if (isClickedItem) {
                     ele.isSelected = true;
                     if (elementHasSubMenu) {
-                        ele.isOpen = ele.isOpen === undefined ? true : !ele.isOpen;
+                        if (isGroupActive(ele)) {
+                            // Active submenu's parent menu cannot be closed by the user
+                            ele.isOpen = true;
+                        } else {
+                            ele.isOpen = ele.isOpen === undefined ? true : !ele.isOpen;
+                        }
                     }
                 } else {
-                    ele.isSelected = false;
-                    if (elementHasSubMenu) {
-                        ele.isOpen = false;
+                    if (!isGroupActive(ele)) {
+                        ele.isSelected = false;
                     }
                 }
 
-                if (ele.subMenu?.length) {
+                if (ele.subMenu?.length && !hasSubMenu) {
                     ele.subMenu.forEach((sub: IMenuItem) => {
                         if (!isClickedItem) {
                             sub.isSelected = false;
@@ -260,11 +338,20 @@ const ExpandableList = (props: IExpandableList) => {
 
                 const isAnySubSelected = subMenu.some((s: IMenuItem) => s.isSelected);
                 const isSelected = ele.EntID === selectedEntId || isAnySubSelected;
+                const existing = mainMenu?.find((m) =>
+                    (m.EntID && ele.EntID && String(m.EntID) === String(ele.EntID)) ||
+                    (m._Feature != null && ele._Feature != null && String(m._Feature) === String(ele._Feature)) ||
+                    (m.Label && ele.Label && m.Label === ele.Label)
+                );
+                const hasAnyGroupSelectedSub = originalMenuMenu.some((m: IMenuItem) =>
+                    m.subMenu?.some((s: IMenuItem) => s.EntID === selectedEntId)
+                );
+                const isOpen = hasAnyGroupSelectedSub ? isAnySubSelected : (existing?.isOpen ?? false);
 
                 return {
                     ...ele,
                     isSelected: isSelected,
-                    isOpen: isAnySubSelected,
+                    isOpen: isOpen,
                     subMenu: subMenu,
                 };
             });
@@ -367,10 +454,8 @@ const ExpandableList = (props: IExpandableList) => {
             if (menuIndex === index) {
                 ele.isOpen = true;
                 ele.isSelected = true;
-                return;
-            }
-            if (ele.subMenu?.length) {
-                ele.isOpen = false;
+            } else {
+                ele.isSelected = false;
             }
         });
         setMainMenu([...mainMenu]);
@@ -381,6 +466,9 @@ const ExpandableList = (props: IExpandableList) => {
             return;
         }
         const item = mainMenu[index];
+        if (item && isGroupActive(item)) {
+            return;
+        }
         if (item?.subMenu?.length && item.isOpen) {
             item.isOpen = false;
             setMainMenu([...mainMenu]);
@@ -400,14 +488,7 @@ const ExpandableList = (props: IExpandableList) => {
             }
             for (let subIndex = 0; subIndex < subMenu.length; subIndex++) {
                 const sub = subMenu[subIndex];
-                const isSubSelected = props.uniqueName === 'Menu'
-                    ? !!(
-                        props.selectedFeature?._Feature
-                        && sub._Feature
-                        && props.selectedFeature._Feature.toString() === sub._Feature.toString()
-                    )
-                    : !!(sub.isSelected || (selectedEntId && sub.EntID === selectedEntId));
-                if (isSubSelected) {
+                if (isSubActive(sub)) {
                     return { mainIndex, subIndex };
                 }
             }
@@ -425,20 +506,13 @@ const ExpandableList = (props: IExpandableList) => {
         }
 
         return { mainIndex: 0, subIndex: null };
-    }, [mainMenu, props.uniqueName, props.selectedFeature, selectedEntId, selectedMenuIndex]);
+    }, [mainMenu, isSubActive, selectedEntId, selectedMenuIndex]);
 
     const syncKeyboardToSelection = useCallback(() => {
         if (!mainMenu?.length) {
             return;
         }
         const { mainIndex, subIndex } = resolveSelectionIndices();
-        if (
-            subIndex !== null
-            && mainMenu[mainIndex]?.subMenu?.length
-            && !mainMenu[mainIndex]?.isOpen
-        ) {
-            openMainMenuGroup(mainIndex);
-        }
         setActiveMainIndex(mainIndex);
         setActiveSubIndex(subIndex);
     }, [mainMenu, resolveSelectionIndices]);
@@ -472,12 +546,6 @@ const ExpandableList = (props: IExpandableList) => {
             navSubIndex = selection.subIndex;
             setActiveMainIndex(navMainIndex);
             setActiveSubIndex(navSubIndex);
-            if (
-                navSubIndex !== null
-                && !mainMenu[navMainIndex]?.isOpen
-            ) {
-                openMainMenuGroup(navMainIndex);
-            }
         }
 
         handleExpandableMenuKeyDown(event, {
@@ -524,9 +592,14 @@ const ExpandableList = (props: IExpandableList) => {
         });
     }, [activeMainIndex, activeSubIndex, mainMenu, resolveSelectionIndices]);
 
+    const iconCacheRef = useRef<Map<string, React.ReactNode>>(new Map());
+
     const handleIconForMenu = (
         label: string,
     ) => {
+        if (iconCacheRef.current.has(label)) {
+            return iconCacheRef.current.get(label)!;
+        }
         // Remove anything inside (...) and trim spaces
         const name = label.replace(/\s*\([^)]*\)/g, "").trim();
         const sanitizedName = name.replace(/[^0-9A-Za-z_-]/g, "");
@@ -538,13 +611,15 @@ const ExpandableList = (props: IExpandableList) => {
 
         const Icon = FnGetIconForExpandableMenu(iconName);
 
-        return (
+        const iconEl = (
             <Icon
                 size={FnGetCssVariable('--image-size-2')}
                 fill="none"
                 strokeWidth={1}
             />
         );
+        iconCacheRef.current.set(label, iconEl);
+        return iconEl;
     };
     useEffect(() => {
         const id = setTimeout(() => {
@@ -553,18 +628,17 @@ const ExpandableList = (props: IExpandableList) => {
             }
 
             const focusSubItem = () => {
-                subRefs.current[activeMainIndex]?.[activeSubIndex as number]?.focus();
+                subRefs.current[activeMainIndex]?.[activeSubIndex as number]?.focus({ preventScroll: true });
             };
 
             if (activeSubIndex == null) {
-                mainRefs.current[activeMainIndex]?.focus();
+                mainRefs.current[activeMainIndex]?.focus({ preventScroll: true });
                 return;
             }
 
             const mainItem = mainMenu?.[activeMainIndex];
             if (mainItem?.subMenu?.length && !mainItem.isOpen) {
-                openMainMenuGroup(activeMainIndex);
-                setTimeout(focusSubItem, 100);
+                mainRefs.current[activeMainIndex]?.focus({ preventScroll: true });
                 return;
             }
 
@@ -656,7 +730,7 @@ const ExpandableList = (props: IExpandableList) => {
                                             </>)}
                                         </ListItemButton>
                                     </li>
-                                    <Collapse key={"Clps_" + index.toString()} in={Boolean(element.isOpen)} timeout="auto" unmountOnExit>
+                                    <Collapse key={"Clps_" + index.toString()} in={Boolean(element.isOpen)} timeout={200} mountOnEnter>
                                         {/*submenu Items*/}
                                         <List component="div" key={"Cli_" + index.toString()} disablePadding>
                                             {element.subMenu && element.subMenu.map((subEle: IMenuItem, subIndex: number) => {

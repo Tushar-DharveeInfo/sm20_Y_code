@@ -2,7 +2,9 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { Splitter, SplitterPanel } from 'primereact/splitter';
 import { TicketCardList } from './TicketCardList';
 import { TicketNotesList } from './TicketNotesList';
-import type { ITicketDoc, IContactDoc, ITicketNoteDoc } from '../../../db/IDatasets';
+import { TicketDetailPane } from './TicketDetailPane';
+import { Label } from '../../../shared/basic/label/Label';
+import type { ITicketDoc, IContactDoc, ITicketNoteDoc } from '@n20a/libfsdb';
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl';
 import { ILibraryTicketMode, filterTicketsByLibraryMode } from '../../appqa/allcommon/FnBuildTicketTree';
 import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
@@ -10,6 +12,8 @@ import { useSelectedNodeContext } from '../../../shared/context/hooks/SelectedNo
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
 import { useCommonVariableContext } from '../../../shared/context/hooks/CommonVariableHooks';
 import { useRmsContext } from '../../../shared/context/hooks/RmsHooks';
+import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks';
+import { FnHideShowSaveIconForForm } from '../../../shared/allcommon/basic/FnHideShowSaveIconForForm';
 import { FnGetSourceDataset } from '../../../shared/allcommon/FnLoadSampleDatasets';
 import { TicketsEnums, RmsEnums } from '../../../constants/Feature';
 import { useBusinessTickets, useFirestore, useTicketNotes, type IFirestoreQueryFilter } from '@n20a/libfsdb';
@@ -17,7 +21,11 @@ import {
     loadFullTickets,
     getFullTicketsCached,
     updateTicketStatusInStore,
+    updateTicketInStore,
+    addTicketToStore,
+    generateClonedTicketId,
 } from '../allcommon/TicketsDataStore';
+import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer';
 import {
     filterTicketsByFeature,
     normalizeBidKey,
@@ -147,10 +155,11 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     const mainAppContext = useMainAppContext();
     const rmsContext = useRmsContext();
     const commonVariableContext = useCommonVariableContext();
+    const statusBarContext = useStatusBarContext();
     const firestore = useFirestore();
 
     const isRmsEqid =
-        featureId === RmsEnums.EQID ||
+        featureId === RmsEnums.EQIDByTicket ||
         featureId === '404';
 
     // Determine library mode: 'Open' vs 'InProgress'
@@ -364,6 +373,23 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             return fromCtx as ITicketDoc;
         }
         return null;
+    });
+
+    // Active overlay tab for right-side pane: 'Notes' or 'Ticket Details'
+    const [activeOverlayTab, setActiveOverlayTab] = useState<'Ticket Details' | 'Notes'>('Ticket Details');
+
+    // Split ticket confirmation dialog state
+    const [splitDialog, setSplitDialog] = useState<{
+        isOpen: boolean;
+        dialogTitle: string;
+        message: string;
+        showOkButton?: boolean;
+        targetTicket?: ITicketDoc;
+    }>({
+        isOpen: false,
+        dialogTitle: 'Confirm Split Ticket',
+        message: '',
+        showOkButton: false,
     });
 
     const prevNodeKeyRef = useRef<string>('');
@@ -674,6 +700,302 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         [selectedTicketBid, selectedTicketId, selectedTicket, createTicketNote, getTicketNotes]
     );
 
+    const handleSaveTicket = useCallback(
+        async (ticketId: string, updates: Partial<ITicketDoc>) => {
+            if (!ticketId) return;
+            statusBarContext?.setIsLoading?.(true);
+            const nowIso = new Date().toISOString();
+
+            // Strictly preserve the existing ticket status so it never changes during detail update
+            const allCached = getFullTicketsCached();
+            const existingInStore = allCached.find(
+                (t) => String(t.ticketid || (t as any).id || '').trim().toLowerCase() === ticketId.trim().toLowerCase()
+            );
+            const preservedStatus = selectedTicket?.status || existingInStore?.status || updates.status || '';
+
+            const payloadUpdates: Partial<ITicketDoc> = {
+                ...updates,
+                ...(preservedStatus ? { status: preservedStatus } : {}),
+                lastupdated: nowIso,
+                monitorupdated: nowIso,
+            };
+
+            let bid = String(selectedTicket?.bid || existingInStore?.bid || '').trim();
+            if (!bid && ticketId) {
+                const m = ticketId.match(/bid[_-]?\d+/i);
+                if (m) bid = m[0];
+            }
+            if (bid && /^\d+$/.test(bid)) {
+                bid = `bid_${bid}`;
+            }
+
+            try {
+                // 1. Single API call: update ticket document in Firestore if available
+                if (bid && ticketId && firestore) {
+                    try {
+                        const firestorePayload: Record<string, unknown> = {
+                            lastupdated: nowIso,
+                            monitorupdated: nowIso,
+                        };
+                        if (payloadUpdates.mfg !== undefined) firestorePayload.mfg = payloadUpdates.mfg;
+                        if (payloadUpdates.eqtype !== undefined) firestorePayload.eqtype = payloadUpdates.eqtype;
+                        if (payloadUpdates.prodno !== undefined) firestorePayload.prodno = payloadUpdates.prodno;
+                        if (payloadUpdates.moreinfo !== undefined) firestorePayload.moreinfo = payloadUpdates.moreinfo;
+                        if (preservedStatus) firestorePayload.status = preservedStatus;
+
+                        await firestore.updateDocument({
+                            pathSegments: ['businesses', bid, 'tickets', ticketId],
+                            data: firestorePayload,
+                        });
+                    } catch (fsErr) {
+                        console.warn('Failed to update ticket document via firestore.updateDocument:', fsErr);
+                    }
+                }
+
+                // 2. Hide save icon on form
+                FnHideShowSaveIconForForm('hide');
+
+                // 3. Put activity log
+                try {
+                    const logCid = selectedTicket?.cid || (mainAppContext?.authSession as any)?.cid || 'User';
+                    await mainAppContext?.createActivityLog?.(
+                        `${logCid} of ${bid || 'business'} updated ticket ${ticketId} successfully.`
+                    );
+                } catch (logErr) {
+                    console.error('TicketCardsPane: createActivityLog failed', logErr);
+                }
+
+                // 4. Update local state
+                setSelectedTicket((prev) => {
+                    if (prev && (prev.ticketid === ticketId || (prev as any).id === ticketId)) {
+                        const updated = {
+                            ...prev,
+                            ...payloadUpdates,
+                            status: preservedStatus || prev.status,
+                        };
+                        if (isRmsEqid) {
+                            const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
+                                (e: any) => e.ticketid && e.ticketid === ticketId
+                            );
+                            const resolvedEqid = (updated as any).eqid || (updated as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+                            const ticketNode = {
+                                key: `ticket-${ticketId}`,
+                                NodeEntID: ticketId,
+                                Name: `${updated.mfg || 'Device'} ${updated.prodno || ticketId}`,
+                                Label: `${updated.mfg || 'Device'} ${updated.prodno || ticketId}`,
+                                NodeType: 'Ticket',
+                                treetype: 'Ticket',
+                                ticketid: ticketId,
+                                eqid: resolvedEqid,
+                                EQID: resolvedEqid,
+                                ...updated,
+                                status: preservedStatus || updated.status,
+                            } as unknown as ITreeNode;
+                            selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
+                            rmsContext?.setSelectedTicketCard?.(ticketNode);
+                        }
+                        return updated;
+                    }
+                    return prev;
+                });
+
+                // 5. Update ticket in global tickets store
+                updateTicketInStore(ticketId, {
+                    ...payloadUpdates,
+                    ...(preservedStatus ? { status: preservedStatus } : {}),
+                });
+                setTicketStoreVersion((v) => v + 1);
+
+                // 6. Keep smDataContext.datasets.tickets in sync
+                if (smDataContext.datasets?.tickets) {
+                    const updatedList = smDataContext.datasets.tickets.map((t) =>
+                        t.ticketid === ticketId
+                            ? { ...t, ...payloadUpdates, status: preservedStatus || t.status }
+                            : t
+                    );
+                    smDataContext.updateDataset?.('tickets', updatedList);
+                }
+
+                // 7. Trigger tree reload
+                const targetFeatureId = String(featureId || TicketsEnums.RequestsReceived);
+                commonVariableContext.setReloadTreeFor({
+                    featureId: targetFeatureId,
+                    entId: bid,
+                    timestamp: Date.now(),
+                });
+            } catch (err) {
+                console.error('TicketCardsPane: Error saving ticket:', err);
+            } finally {
+                statusBarContext?.setIsLoading?.(false);
+            }
+        },
+        [
+            selectedTicket,
+            firestore,
+            mainAppContext,
+            isRmsEqid,
+            rmsContext,
+            selectedNodeContext,
+            smDataContext,
+            featureId,
+            commonVariableContext,
+            statusBarContext,
+        ]
+    );
+
+    const handlePerformSplit = useCallback(
+        async (ticket: ITicketDoc) => {
+            statusBarContext?.setIsLoading?.(true);
+            statusBarContext?.setLoadingLabel?.('Splitting ticket...');
+            try {
+                const nowIso = new Date().toISOString();
+                let bid = String(ticket.bid || '').trim();
+                if (!bid && ticket.ticketid) {
+                    const m = ticket.ticketid.match(/bid[_-]?\d+/i);
+                    if (m) bid = m[0];
+                }
+                if (bid && /^\d+$/.test(bid)) {
+                    bid = `bid_${bid}`;
+                }
+
+                const allCached = getFullTicketsCached();
+                const newTicketId = generateClonedTicketId(ticket.ticketid, allCached);
+
+                const clonedTicket: ITicketDoc = {
+                    ...ticket,
+                    ticketid: newTicketId,
+                    bid: bid || ticket.bid,
+                    status: ticket.status, // Strictly maintain the exact same status
+                    daterequested: nowIso,
+                    lastupdated: nowIso,
+                    monitorupdated: nowIso,
+                    monitor: false,
+                };
+
+                // 1. Single API call: upsert cloned ticket document in Firestore if available
+                if (bid && newTicketId && firestore) {
+                    try {
+                        await firestore.upsertDocument({
+                            pathSegments: ['businesses', bid, 'tickets', newTicketId],
+                            data: clonedTicket,
+                        });
+                    } catch (fsErr) {
+                        console.warn('Failed to upsert cloned ticket to Firestore:', fsErr);
+                    }
+                }
+
+                // 2. Add to global store
+                addTicketToStore(clonedTicket);
+                setTicketStoreVersion((v) => v + 1);
+
+                // 3. Keep smDataContext.datasets.tickets in sync
+                if (smDataContext.datasets?.tickets) {
+                    smDataContext.updateDataset?.('tickets', [clonedTicket, ...smDataContext.datasets.tickets]);
+                }
+
+                // 4. Put activity log
+                const logCid = ticket.cid || (mainAppContext?.authSession as any)?.cid || 'User';
+                const logMsg = `${logCid} of ${bid || 'business'} split ticket ${ticket.ticketid} to create ${newTicketId}.`;
+                try {
+                    await mainAppContext?.createActivityLog?.(logMsg);
+                } catch (logErr) {
+                    console.error('TicketCardsPane: createActivityLog failed', logErr);
+                }
+
+                // 5. Select new ticket
+                setSelectedTicket(clonedTicket);
+                if (isRmsEqid) {
+                    const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
+                        (e: any) => e.ticketid && e.ticketid === ticket.ticketid
+                    );
+                    const resolvedEqid = (clonedTicket as any).eqid || (clonedTicket as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+                    const ticketNode = {
+                        key: `ticket-${newTicketId}`,
+                        NodeEntID: newTicketId,
+                        Name: `${clonedTicket.mfg || 'Device'} ${clonedTicket.prodno || newTicketId}`,
+                        Label: `${clonedTicket.mfg || 'Device'} ${clonedTicket.prodno || newTicketId}`,
+                        NodeType: 'Ticket',
+                        treetype: 'Ticket',
+                        ticketid: newTicketId,
+                        eqid: resolvedEqid,
+                        EQID: resolvedEqid,
+                        ...clonedTicket,
+                        status: clonedTicket.status,
+                    } as unknown as ITreeNode;
+                    selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
+                    rmsContext?.setSelectedTicketCard?.(ticketNode);
+                }
+
+                // 6. Trigger tree reload
+                const targetFeatureId = String(featureId || TicketsEnums.RequestsReceived);
+                commonVariableContext.setReloadTreeFor({
+                    featureId: targetFeatureId,
+                    entId: bid,
+                    timestamp: Date.now(),
+                });
+
+                // 7. Show success confirmation message popup with OK button
+                setSplitDialog({
+                    isOpen: true,
+                    dialogTitle: 'Split Ticket',
+                    message: `Ticket "${ticket.ticketid}" was successfully split into "${newTicketId}".`,
+                    showOkButton: true,
+                    targetTicket: undefined,
+                });
+            } catch (err) {
+                console.error('TicketCardsPane: Error splitting ticket:', err);
+                setSplitDialog({
+                    isOpen: true,
+                    dialogTitle: 'Error',
+                    message: 'Failed to split ticket. Please try again.',
+                    showOkButton: true,
+                    targetTicket: undefined,
+                });
+            } finally {
+                statusBarContext?.setIsLoading?.(false);
+                statusBarContext?.setLoadingLabel?.(undefined);
+            }
+        },
+        [
+            firestore,
+            mainAppContext,
+            isRmsEqid,
+            rmsContext,
+            selectedNodeContext,
+            smDataContext,
+            featureId,
+            commonVariableContext,
+            statusBarContext,
+        ]
+    );
+
+    const handleSplitTicketClick = useCallback((ticket: ITicketDoc) => {
+        setSplitDialog({
+            isOpen: true,
+            dialogTitle: 'Confirm Split Ticket',
+            message: `Are you sure you want to split ticket "${ticket.ticketid}"?`,
+            showOkButton: false,
+            targetTicket: ticket,
+        });
+    }, []);
+
+    const handleDialogYes = useCallback(() => {
+        const target = splitDialog.targetTicket;
+        if (target) {
+            void handlePerformSplit(target);
+        } else {
+            setSplitDialog((prev) => ({ ...prev, isOpen: false }));
+        }
+    }, [splitDialog.targetTicket, handlePerformSplit]);
+
+    const handleDialogNo = useCallback(() => {
+        setSplitDialog((prev) => ({ ...prev, isOpen: false }));
+    }, []);
+
+    const handleDialogOk = useCallback(() => {
+        setSplitDialog((prev) => ({ ...prev, isOpen: false }));
+    }, []);
+
     return (
         <div className="nz-ticket-cards-pane-container" key={uniqueName}>
             <Splitter tabIndex={-1} className="nz-ticket-cards-pane-content">
@@ -692,6 +1014,9 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                         onSelectTicket={handleSelectTicket}
                         onSkuClick={onSkuClick}
                         onStatusChange={handleStatusChange}
+                        onSplitTicket={handleSplitTicketClick}
+                        activeOverlayTab={activeOverlayTab}
+                        onSelectOverlayTab={setActiveOverlayTab}
                     />
                 </SplitterPanel>
                 <SplitterPanel
@@ -700,15 +1025,36 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                     minSize={25}
                     className="nz-ticket-cards-right-panel"
                 >
-                    <TicketNotesList
-                        uniqueName={`${uniqueName}-notes`}
-                        ticketId={selectedTicket?.ticketid ?? null}
-                        ticket={selectedTicket}
-                        ticketnotes={ticketnotes}
-                        onAddNote={handleAddNote}
-                    />
+                    {activeOverlayTab === 'Notes' ? (
+                        <TicketNotesList
+                            uniqueName={`${uniqueName}-notes`}
+                            ticketId={selectedTicket?.ticketid ?? null}
+                            ticket={selectedTicket}
+                            ticketnotes={ticketnotes}
+                            onAddNote={handleAddNote}
+                        />
+                    ) : (
+                        <TicketDetailPane
+                            uniqueName={`${uniqueName}-ticket-detail`}
+                            ticket={selectedTicket}
+                            onSaveTicket={handleSaveTicket}
+                        />
+                    )}
                 </SplitterPanel>
             </Splitter>
+
+            {splitDialog.isOpen && (
+                <YesNoFormContainer
+                    uniqueName={`${uniqueName}-split-dialog`}
+                    isOpen={splitDialog.isOpen}
+                    dialogTitle={splitDialog.dialogTitle}
+                    message={splitDialog.message}
+                    showOkButton={splitDialog.showOkButton}
+                    handleYesButtonClick={handleDialogYes}
+                    handleNoButtonClick={handleDialogNo}
+                    handleOkButtonClick={handleDialogOk}
+                />
+            )}
         </div>
     );
 };

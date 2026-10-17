@@ -103,33 +103,50 @@ const MyProfile = (myProfileProps: IMyProfile) => {
 
         const now = new Date().toISOString();
 
+        const toBoolean = (value: unknown): boolean => {
+            if (typeof value === "boolean") {
+                return value;
+            }
+            const raw = String(value ?? "").trim().toLowerCase();
+            return raw === "true" || raw === "1";
+        };
+
         // Build contact document updates
         const contactUpdates: Record<string, any> = {
-            address1: String(mergedData.Address1 ?? ''),
-            address2: String(mergedData.Address2 ?? ''),
-            city: String(mergedData.City ?? ''),
-            state: String(mergedData.State ?? ''),
-            country: String(mergedData.Country ?? ''),
-            zip: String(mergedData.Zip ?? ''),
-            countrycode: String(mergedData.CountryCode ?? ''),
+            title: String(mergedData.Title ?? mergedData.title ?? ''),
+            department: String(mergedData.Department ?? mergedData.department ?? ''),
+            website: String(mergedData.Website ?? mergedData.website ?? ''),
+            tagline: String(mergedData.Tagline ?? mergedData.tagline ?? ''),
+            address1: String(mergedData.Address1 ?? mergedData.address1 ?? ''),
+            address2: String(mergedData.Address2 ?? mergedData.address2 ?? ''),
+            city: String(mergedData.City ?? mergedData.city ?? ''),
+            state: String(mergedData.State ?? mergedData.state ?? ''),
+            country: String(mergedData.Country ?? mergedData.country ?? ''),
+            zip: String(mergedData.Zip ?? mergedData.zip ?? ''),
+            countrycode: String(mergedData.CountryCode ?? mergedData.countrycode ?? ''),
             timezoneoffset: mergedData.TimezoneOffset !== undefined && mergedData.TimezoneOffset !== ''
                 ? Number(mergedData.TimezoneOffset)
-                : 0,
-            donotcallme: Boolean(mergedData.Donotcallme),
-            removemefrommailinglist: Boolean(mergedData.Removemefrommailinglist),
-            smsoptin: Boolean(mergedData.Smsoptin),
+                : mergedData.timezoneoffset !== undefined && mergedData.timezoneoffset !== ''
+                    ? Number(mergedData.timezoneoffset)
+                    : 0,
+            donotcallme: toBoolean(mergedData.donotcallme !== undefined ? mergedData.donotcallme : mergedData.Donotcallme),
+            removemefrommailinglist: toBoolean(mergedData.removemefrommailinglist !== undefined ? mergedData.removemefrommailinglist : mergedData.Removemefrommailinglist),
+            smsoptin: toBoolean(mergedData.smsoptin !== undefined ? mergedData.smsoptin : mergedData.Smsoptin),
             dateupdated: now,
             monitorupdated: now,
         };
 
-        if (mergedData.Phone !== undefined && mergedData.Phone !== '') {
-            contactUpdates.phone = String(mergedData.Phone);
+        const phoneVal = mergedData.Phone ?? mergedData.phone;
+        if (phoneVal !== undefined && phoneVal !== '') {
+            contactUpdates.phone = String(phoneVal);
         }
-        if (mergedData.Email !== undefined && mergedData.Email !== '') {
-            contactUpdates.email = String(mergedData.Email);
+        const emailVal = mergedData.Email ?? mergedData.email;
+        if (emailVal !== undefined && emailVal !== '') {
+            contactUpdates.email = String(emailVal);
         }
-        if (mergedData.Name !== undefined && mergedData.Name !== '') {
-            contactUpdates.cname = String(mergedData.Name);
+        const nameVal = mergedData.Name ?? mergedData.name ?? mergedData.cname;
+        if (nameVal !== undefined && nameVal !== '') {
+            contactUpdates.cname = String(nameVal);
         }
 
         try {
@@ -165,7 +182,6 @@ const MyProfile = (myProfileProps: IMyProfile) => {
                 }
                 setPopupMessage("Profile address saved successfully.");
                 setPopupOpen(true);
-                myProfileProps.handleShowUserMessage?.("Profile address saved successfully.");
                 setIsFormChanged(false);
                 FnHideShowSaveIconForForm('hide');
                 await getContact(cid);

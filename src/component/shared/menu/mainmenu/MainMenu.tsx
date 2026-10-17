@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSessionContext } from '../../context/hooks/SessionHooks'
 import { useMainAppContext } from '../../context/hooks/MainAppHooks'
 import { FnGetIconForSubMenu } from '../../allcommon/menu/FnGetIconForSubMenu'
@@ -23,6 +23,8 @@ const MainMenu = (menuProps: IMainMenu) => {
   const [sessionValues, setSessionValues] = useState<string>();
   const sessionContext = useSessionContext();
   const mainAppContext = useMainAppContext();
+  const lastSelectedFeatureRef = useRef<string | null>(null);
+
   const setSubMenuData = (menu: IMenuItem[], selectedMenu?: IMenuItem, updatedFeatures?: IMenuItem[]) => {
     if (menu && menu.length > 0) {
       if (!menuProps.isDisableSort) {
@@ -31,27 +33,66 @@ const MainMenu = (menuProps: IMainMenu) => {
           (a: any, b: any) => a.SortOrder - b.SortOrder
         );
       }
+      const prevOpenMap = new Map<string, boolean>();
+      if (menuData) {
+        menuData.forEach((item) => {
+          const key = item.EntID ? String(item.EntID) : (item._Feature != null ? String(item._Feature) : item.Label);
+          if (key && item.isOpen) {
+            prevOpenMap.set(key, true);
+          }
+        });
+      }
+
+      const currentSelectedId = selectedMenu
+        ? String(selectedMenu._Feature ?? selectedMenu.EntID ?? "")
+        : null;
+      const isFeatureChange = currentSelectedId !== null && currentSelectedId !== lastSelectedFeatureRef.current;
+      if (currentSelectedId !== null) {
+        lastSelectedFeatureRef.current = currentSelectedId;
+      }
+
+      let selectedParentId: string | number | undefined;
       menu.forEach((element: IMenuItem) => {
         const submenu = FnGetSubMenus(updatedFeatures ?? menuProps.featureData, element.MenuID, element.Label, mainAppContext.authSession);
-        if (selectedMenu) {
+        element.subMenu = submenu;
+        if (isFeatureChange && selectedMenu && selectedParentId === undefined) {
           const selectedId = selectedMenu.EntID ? String(selectedMenu.EntID) : "";
           const selectedFeatureId = selectedMenu._Feature != null ? String(selectedMenu._Feature) : "";
-          const selectedMenuSub = submenu?.find((sub) => {
+          const found = submenu?.some((sub) => {
             const subEntId = sub.EntID ? String(sub.EntID) : "";
             const subFeatureId = sub._Feature != null ? String(sub._Feature) : "";
-            if (selectedId && subEntId && selectedId === subEntId) return true;
-            if (selectedFeatureId && subFeatureId && selectedFeatureId === subFeatureId) return true;
-            return false;
+            return (selectedId && subEntId && selectedId === subEntId) ||
+                   (selectedFeatureId && subFeatureId && selectedFeatureId === subFeatureId);
           });
-          if (selectedMenuSub) {
+          if (found) {
+            selectedParentId = element.MenuID ?? element._Feature ?? element.Label;
+          }
+        }
+      });
+
+      menu.forEach((element: IMenuItem) => {
+        const elementId = element.MenuID ?? element._Feature ?? element.Label;
+        if (selectedParentId !== undefined) {
+          element.isOpen = elementId === selectedParentId;
+        } else {
+          const key = element.EntID ? String(element.EntID) : (element._Feature != null ? String(element._Feature) : element.Label);
+          if (key && prevOpenMap.get(key)) {
             element.isOpen = true;
           }
         }
-        element.subMenu = submenu
         if (menuProps.uniqueName === "configure" && element.subMenu && element.subMenu.length > 0) {
           element.isOpen = true;
         }
-
+        if (selectedMenu && element.subMenu?.some((sub) => {
+          const selectedId = selectedMenu.EntID ? String(selectedMenu.EntID) : "";
+          const selectedFeatureId = selectedMenu._Feature != null ? String(selectedMenu._Feature) : "";
+          const subEntId = sub.EntID ? String(sub.EntID) : "";
+          const subFeatureId = sub._Feature != null ? String(sub._Feature) : "";
+          return (selectedId && subEntId && selectedId === subEntId) ||
+                 (selectedFeatureId && subFeatureId && selectedFeatureId === subFeatureId);
+        })) {
+          element.isOpen = true;
+        }
       });
       setMenuData(menu);
     }

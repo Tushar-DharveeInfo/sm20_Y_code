@@ -158,6 +158,16 @@
     color: #fff;
 }
 
+/* Split */
+.nz-ticket-action-btn-split {
+    border: 1px solid var(--primary, #2c7bb6);
+    color: var(--primary, #2c7bb6);
+}
+.nz-ticket-action-btn-split:hover {
+    background: var(--primary, #2c7bb6);
+    color: #fff;
+}
+
 /* Close */
 .nz-ticket-action-btn-close {
     border: 1px solid var(--primary, #2c7bb6);

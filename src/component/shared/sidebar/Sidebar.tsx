@@ -5,6 +5,7 @@ import { Drawer } from '@mui/material';
 import { useCommonVariableContext } from '../context/hooks/CommonVariableHooks';
 import { useSessionContext } from '../context/hooks/SessionHooks';
 import { useMainAppContext } from '../context/hooks/MainAppHooks';
+import { useSelectedNodeContext } from '../context/hooks/SelectedNodeHooks';
 import './Sidebar.css';
 import { Label } from '../basic/label/Label';
 import { HideSidebar24x24, Maximize24x24 } from '@n20a/libicon';
@@ -73,11 +74,17 @@ import { FnIsRootBusinessNode } from '../allcommon/tree/FnIsRootBusinessNode';
 
 const SUB_MENU_OPEN_DELAY_MS = 200;
 
+const getEqidDisplayValue = (value: unknown): string => {
+    const text = String(value ?? "").trim();
+    return text.split("__").pop()?.trim() ?? "";
+};
+
 const Sidebar = (sidebarProps: ISidebar) => {
     console.log('sidebarProps', sidebarProps)
     const commonVariableContext = useCommonVariableContext();
     const sessionContext = useSessionContext();
     const mainAppContext = useMainAppContext();
+    const selectedNodeContext = useSelectedNodeContext();
 
     const [actionList, setActionList] = useState<IMainMenu | null>(null);
     const [activeTab, setActiveTab] = useState<string>("");
@@ -116,7 +123,93 @@ const Sidebar = (sidebarProps: ISidebar) => {
     const getMenuSelectionValue = (item: IMenuItem): string =>
         item._Feature?.toString?.() ?? item.Label?.toString?.() ?? "";
 
-    const isRmsEqid = sidebarProps.featureId === RmsEnums.EQID || sidebarProps.featureId === '404';
+    const isRmsEqid =
+        sidebarProps.featureId === RmsEnums.EQIDByTicket ||
+        sidebarProps.featureId === RmsEnums.EQIDByMfg ||
+        sidebarProps.featureId === '404';
+
+    const getEqidSidebarTitle = (): string => {
+        const isMfg =
+            sidebarProps.featureId === RmsEnums.EQIDByMfg ||
+            sidebarProps.featureId === '404';
+        const source: Record<string, unknown> | undefined = isMfg
+            ? (sidebarProps.selectedNode ?? selectedNodeInfo ?? selectedNodeContext?.selectedTicketCard)
+            : (selectedNodeContext?.selectedTicketCard ??
+               selectedNodeInfo ??
+               sidebarProps.selectedNode ??
+               sidebarProps.selectedNodeExplorer);
+        if (Boolean((source as any)?.isNewRecord)) {
+            return `EQID for : New EQID`;
+        }
+        const eqidValue = getEqidDisplayValue(
+            source?.EQID ??
+            source?.eqid ??
+            source?.eqId ??
+            source?.MfgEQID ??
+            source?.selectedMfgEQID ??
+            (source as any)?.Name
+        );
+
+        return `EQID for : ${eqidValue || " "}`;
+    };
+
+    const getSidebarTitle = (): string => {
+        if (isRmsEqid) {
+            return getEqidSidebarTitle();
+        }
+
+        const activeNode =
+            selectedNodeInfo ??
+            sidebarProps.selectedNode ??
+            sidebarProps.selectedNodeExplorer;
+
+        if (activeNode && !FnIsRootBusinessNode(activeNode)) {
+            const nodeType = String(
+                activeNode.NodeType ??
+                activeNode.treetype ??
+                activeNode.NodeEntityname ??
+                ''
+            ).toLowerCase();
+
+            const isContact =
+                nodeType === 'contact' ||
+                Boolean(activeNode.cid && activeNode.cid !== activeNode.bid) ||
+                String(activeNode.key || '').startsWith('cid_');
+
+            const isBusiness =
+                !isContact &&
+                (nodeType === 'business' || String(activeNode.key || '').startsWith('bid_'));
+
+            const rawName = String(
+                activeNode.Name ??
+                activeNode.bname ??
+                activeNode.cname ??
+                activeNode.Label ??
+                sidebarProps.headerText ??
+                ''
+            ).trim();
+
+            const cleanName = rawName.replace(/^(Business|Contact):\s*/i, '');
+
+            if (isContact && cleanName) {
+                return cleanName.startsWith('Selected Contact ')
+                    ? cleanName
+                    : `Selected Contact ${cleanName}`;
+            }
+
+            if (isBusiness && cleanName) {
+                return cleanName.startsWith('Selected Business ')
+                    ? cleanName
+                    : `Selected Business ${cleanName}`;
+            }
+
+            if (cleanName) {
+                return cleanName;
+            }
+        }
+
+        return sidebarProps.headerText || '';
+    };
 
     const isPropertyLikeSidebarTab = (label?: string): boolean =>
         label === SidebarEnum.Property ||
@@ -393,11 +486,29 @@ const Sidebar = (sidebarProps: ISidebar) => {
                             setSelectedQa(value);
                         }
                     } else if (sidebarProps.selectedFeatureQa) {
-                        const value =
-                            sidebarProps.selectedFeatureQa?._Feature?.toString?.() ??
-                            sidebarProps.selectedFeatureQa?.Label?.toString?.();
-                        setActiveTab(sidebarProps.selectedFeatureQa.Label);
-                        setSelectedQa(value);
+                        const matchInFilter = filterData.find(
+                            (item) => item?.Label === sidebarProps.selectedFeatureQa?.Label ||
+                                      (item?._Feature && String(item._Feature) === String(sidebarProps.selectedFeatureQa?._Feature))
+                        );
+                        if (matchInFilter) {
+                            const value =
+                                matchInFilter._Feature?.toString?.() ??
+                                matchInFilter.Label?.toString?.();
+                            setActiveTab(matchInFilter.Label);
+                            setSelectedQa(value);
+                        } else if (propertyQaData) {
+                            const value =
+                                propertyQaData._Feature?.toString?.() ??
+                                propertyQaData.Label?.toString?.();
+                            setActiveTab(propertyQaData.Label);
+                            setSelectedQa(value);
+                        } else {
+                            const value =
+                                sidebarProps.selectedFeatureQa?._Feature?.toString?.() ??
+                                sidebarProps.selectedFeatureQa?.Label?.toString?.();
+                            setActiveTab(sidebarProps.selectedFeatureQa.Label || filterData[0]?.Label || "");
+                            setSelectedQa(value || "");
+                        }
                     } else if (assignQaData) {
                         setSelectedQa(getMenuSelectionValue(assignQaData));
                         setActiveTab(SidebarEnum.Assign);
@@ -949,7 +1060,7 @@ const Sidebar = (sidebarProps: ISidebar) => {
                 <div className='nz-resize-main-content'>
                     <div className={`nz-side-bar-container ${sidebarProps.fullView ? "nz-full-view" : ""}`}>
                         <div className='nz-sub-header nz-d-flex-row nz-align-center nz-justify-between nz-sidebar-title'>
-                            <Label uniqueName={`${sidebarProps.uniqueName}-sidebar-title`} label={sidebarProps.headerText} />
+                            <Label uniqueName={`${sidebarProps.uniqueName}-sidebar-title`} label={getSidebarTitle()} />
                             <div className='nz-d-flex-row nz-align-center'>
                                 {!sidebarProps.fullView && isShowFullViewBtn && !sidebarProps.isHideMaximizeButton && <ActionImage
                                     image={{

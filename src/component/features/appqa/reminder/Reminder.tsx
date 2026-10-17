@@ -1,33 +1,28 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Notes } from '@n20a/libavnotes';
 import type { INote } from '@n20a/libavnotes';
 import '@n20a/libavnotes/style.css';
-import { DateControl } from '@n20a/libform';
-import '@n20a/libform/style.css';
-import { Attach24x24, Delete24x24, Info24x24 } from '@n20a/libicon';
+import { Attach24x24, Bin24x24, Cross, Delete24x24, DeleteBin24x24, Info24x24 } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
-import { handleContainerKeyDown } from '../../allcommon/basic/FnHandleContainerKeyDown';
-import { IImage } from '../../allinterface/basic/IImage';
-import { ActionImage } from '../../basic/actionimage/ActionImage';
-import { Label } from '../../basic/label/Label';
-import { Image } from '../../basic/image/Image';
-import { YesNoFormContainer } from '../../basic/yesnoformcontainer/YesNoFormContainer';
-import { useMainAppContext } from '../../context/hooks/MainAppHooks';
-import { useStatusBarContext } from '../../context/hooks/StatusBarHooks';
-import { useSmDataContext } from '../../context/hooks/SmDataHooks';
+import { handleContainerKeyDown } from '../../../shared/allcommon/basic/FnHandleContainerKeyDown';
+import { IImage } from '../../../shared/allinterface/basic/IImage';
+import { ActionImage } from '../../../shared/basic/actionimage/ActionImage';
+import { Label } from '../../../shared/basic/label/Label';
+import { Image } from '../../../shared/basic/image/Image';
+import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer';
+import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
+import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks';
+import '../../../shared/sidebar/notes/FqaNotes.css';
+import './Reminder.css';
 import { useTodos, useFileDownload, useFileDelete } from '@n20a/libfsdb';
 import type { ITodoDoc } from '@n20a/libfsdb';
-import { useUploadRemoteFile } from '../../allcommon/UploadRemoteFileHooks';
-import { ITreeNode } from '../../allinterface/tree/ITreeControl';
+import { useUploadRemoteFile } from '../../../shared/allcommon/UploadRemoteFileHooks';
 import { ClientEnums } from '../../../constants/Feature';
-import './AddToDo.css';
-import '../../../features/appqa/todo/ToDo.css';
-import '../notes/FqaNotes.css';
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 
-interface IAddToDo {
+interface IToDo {
 	uniqueName: string;
 	featureId?: string;
-	selectedNode?: ITreeNode;
 }
 
 interface ITodoItem extends ITodoDoc {
@@ -37,6 +32,60 @@ interface ITodoItem extends ITodoDoc {
 	datecreated?: string;
 }
 
+/**
+ * Generates a unique filename for Cloud Storage:
+ * Format: {bid}-{cid}-{yymmddhhmmss}-{cleanName}
+ */
+function generateUniqueFileName(bid: string, cid: string, originalFileName: string): string {
+	const now = new Date();
+	const yy = String(now.getFullYear()).slice(-2);
+	const mm = String(now.getMonth() + 1).padStart(2, '0');
+	const dd = String(now.getDate()).padStart(2, '0');
+	const hh = String(now.getHours()).padStart(2, '0');
+	const min = String(now.getMinutes()).padStart(2, '0');
+	const ss = String(now.getSeconds()).padStart(2, '0');
+	const yymmddhhmmss = `${yy}${mm}${dd}${hh}${min}${ss}`;
+
+	const baseName = originalFileName ? originalFileName.split('/').pop()?.split('\\').pop() || '' : '';
+	let cleanName = baseName.replace(/^[^-]+-[^-]+-\d{12}-/, '');
+	if (!cleanName) {
+		cleanName = 'attachment.png';
+	}
+	return `${bid}-${cid}-${yymmddhhmmss}-${cleanName}`;
+}
+
+/**
+ * Strips the "{bid}-{cid}-{yymmddhhmmss}-" prefix to return the original clean file name.
+ */
+function getCleanFileName(rawName: string): string {
+	if (!rawName) return '';
+	const base = rawName.split('/').pop() || rawName;
+	const match = base.match(/^[^-]+-[^-]+-\d{12}-(.*)$/);
+	return match ? match[1] : base;
+}
+
+
+/**
+ * Extracts a numeric timestamp from date fields for ascending sorting.
+ */
+function parseTodoDate(item: Record<string, any>): number {
+	const raw = item.datecreated || item.duedate || item.lastupdated || item.updatedat || item.createdAt || item.dateupdated;
+	if (raw) {
+		if (typeof raw === 'object' && typeof raw.toDate === 'function') {
+			return raw.toDate().getTime();
+		}
+		if (typeof raw === 'object' && typeof raw.seconds === 'number') {
+			return raw.seconds * 1000;
+		}
+		const parsed = Date.parse(String(raw));
+		if (!isNaN(parsed)) return parsed;
+	}
+	const id = String(item.id || item.todoid || '');
+	const match = id.match(/(\d{10,})/);
+	if (match) return Number(match[1]);
+	return 0;
+}
+
 function getFormattedDate(date: Date): string {
 	if (!date || isNaN(date.getTime())) return '';
 	const year = date.getFullYear();
@@ -44,16 +93,6 @@ function getFormattedDate(date: Date): string {
 	const month = String(date.getMonth() + 1).padStart(2, '0');
 	const day = String(date.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
-}
-
-function getTomorrowDateString(): string {
-	const d = new Date();
-	d.setDate(d.getDate() + 1);
-	return getFormattedDate(d);
-}
-
-function getTodayDateString(): string {
-	return getFormattedDate(new Date());
 }
 
 function parseToIsoDate(dateStr: string): string {
@@ -135,88 +174,7 @@ function formatDueDateDisplay(raw: unknown): string {
 	if (result && /^\d{4}-\d{2}-\d{2}$/.test(result) && !result.includes('NaN')) {
 		return result;
 	}
-	// If not able to format, remove the due date (return empty string)
 	return '';
-}
-
-function isDateInFuture(dateStr: string): boolean {
-	if (!dateStr) return false;
-	const iso = parseToIsoDate(dateStr);
-	if (!iso) return false;
-	const todayStr = getTodayDateString();
-	return iso > todayStr;
-}
-
-function isBusinessExplorerNode(node?: ITreeNode): boolean {
-	const nodeType = node?.NodeType?.toLowerCase() ?? '';
-	return nodeType === 'business' || nodeType === 'contact';
-}
-
-function resolveBidCid(selection: { bid?: string; cid?: string }, node?: ITreeNode): { bid: string; cid: string } {
-	const bidFromSelection = String(selection.bid ?? '').trim();
-	const cidFromSelection = String(selection.cid ?? '').trim();
-	if (bidFromSelection) {
-		return { bid: bidFromSelection, cid: cidFromSelection };
-	}
-
-	if (!isBusinessExplorerNode(node)) {
-		return { bid: '', cid: '' };
-	}
-
-	if (String(node?.NodeType ?? '').toLowerCase() === 'contact') {
-		return {
-			bid: String(node?.bid ?? node?.parentEntID ?? '').trim(),
-			cid: String(node?.cid ?? node?.NodeEntID ?? node?.key ?? '').trim(),
-		};
-	}
-
-	return {
-		bid: String(node?.bid ?? node?.NodeEntID ?? node?.key ?? '').trim(),
-		cid: '',
-	};
-}
-
-function generateUniqueFileName(bid: string, cid: string, originalFileName: string): string {
-	const now = new Date();
-	const yy = String(now.getFullYear()).slice(-2);
-	const mm = String(now.getMonth() + 1).padStart(2, '0');
-	const dd = String(now.getDate()).padStart(2, '0');
-	const hh = String(now.getHours()).padStart(2, '0');
-	const min = String(now.getMinutes()).padStart(2, '0');
-	const ss = String(now.getSeconds()).padStart(2, '0');
-	const yymmddhhmmss = `${yy}${mm}${dd}${hh}${min}${ss}`;
-
-	const baseName = originalFileName ? originalFileName.split('/').pop()?.split('\\').pop() || '' : '';
-	let cleanName = baseName.replace(/^[^-]+-[^-]+-\d{12}-/, '');
-	if (!cleanName) {
-		cleanName = 'attachment.png';
-	}
-	return `${bid}-${cid}-${yymmddhhmmss}-${cleanName}`;
-}
-
-function getCleanFileName(rawName: string): string {
-	if (!rawName) return '';
-	const base = rawName.split('/').pop() || rawName;
-	const match = base.match(/^[^-]+-[^-]+-\d{12}-(.*)$/);
-	return match ? match[1] : base;
-}
-
-function parseTodoDate(item: Record<string, any>): number {
-	const raw = item.datecreated || item.duedate || item.lastupdated || item.updatedat || item.createdAt || item.dateupdated;
-	if (raw) {
-		if (typeof raw === 'object' && typeof raw.toDate === 'function') {
-			return raw.toDate().getTime();
-		}
-		if (typeof raw === 'object' && typeof raw.seconds === 'number') {
-			return raw.seconds * 1000;
-		}
-		const parsed = Date.parse(String(raw));
-		if (!isNaN(parsed)) return parsed;
-	}
-	const id = String(item.id || item.todoid || '');
-	const match = id.match(/(\d{10,})/);
-	if (match) return Number(match[1]);
-	return 0;
 }
 
 function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBid?: string, defaultCid?: string): ITodoItem {
@@ -230,6 +188,7 @@ function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBi
 		cid,
 		btype: String(record.btype ?? ''),
 		status: String(record.status ?? 'Open'),
+		eqid: String(record.eqid ?? ''),
 		whattodo: String(record.whattodo ?? record.title ?? record.message ?? ''),
 		duedate: formatDueDateDisplay(record.duedate),
 		addedby: String(record.addedby ?? ''),
@@ -238,6 +197,9 @@ function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBi
 	};
 }
 
+/**
+ * Determines whether a Reminder card's bid belongs to NetZoom or VisioStencils.
+ */
 function getTargetFeatureForBid(
 	item: ITodoItem,
 	businesses?: Array<{ bid?: string; btype?: string; tag?: string; bname?: string }>
@@ -262,7 +224,7 @@ function getTargetFeatureForBid(
 	return ClientEnums.NetZoom;
 }
 
-const AddToDo = (props: IAddToDo) => {
+const Reminder = (todoProps: IToDo) => {
 	const mainAppContext = useMainAppContext();
 	const statusBarContext = useStatusBarContext();
 	const smDataContext = useSmDataContext();
@@ -273,19 +235,6 @@ const AddToDo = (props: IAddToDo) => {
 	const noteby = authSession?.displayName ?? authSession?.username ?? userInfo?.username ?? userInfo?.email ?? 'User';
 	const bucketName = authSession?.bucketName ?? 'n20-bucket-01';
 	const baseFolder = authSession?.baseFolder ?? 'sm';
-
-	// Resolve selected bid & cid from tree selection or node
-	const resolvedTarget = useMemo(() => {
-		return resolveBidCid(smDataContext.selection, props.selectedNode);
-	}, [smDataContext.selection, props.selectedNode]);
-
-	const selectedBid = resolvedTarget.bid;
-	const selectedCid = resolvedTarget.cid;
-
-	// Due Date state (must be in future, after today)
-	const minFutureDate = useMemo(() => getTomorrowDateString(), []);
-	const [dueDate, setDueDate] = useState<string>(getTomorrowDateString());
-	const [dateError, setDateError] = useState<string>('');
 
 	const createActivityLogRef = useRef(mainAppContext.createActivityLog);
 	useEffect(() => {
@@ -299,7 +248,7 @@ const AddToDo = (props: IAddToDo) => {
 	}, [bucketName, baseFolder]);
 
 	const { loading, error, getTodos, todos, createTodo, updateTodo, deleteTodo } = useTodos();
-	const { upload: uploadRemoteFile, uploading: remoteUploading } = useUploadRemoteFile();
+	const { upload: uploadRemoteFile, uploading: remoteUploading, progress: uploadProgress, error: remoteUploadError } = useUploadRemoteFile();
 	const { downloadSingleFile, downloading } = useFileDownload();
 	const { deleteFiles, deleting } = useFileDelete();
 
@@ -315,7 +264,7 @@ const AddToDo = (props: IAddToDo) => {
 	const [noteDetailsState, setNoteDetailsState] = useState<INote | undefined>({
 		maxAudioRecordingTime: 0,
 		maxVideoRecordingTime: 0,
-		noteId: 'add-todo-note',
+		noteId: 'todo-note',
 		noteTitle: '',
 		notecontent: '',
 		notefile: undefined,
@@ -331,28 +280,18 @@ const AddToDo = (props: IAddToDo) => {
 		void getTodos();
 	}, [getTodos]);
 
-	// Filter and sort todos for selected bid / cid
+	// Sync local list with Firestore todos hook (sorted ascending by date)
 	useEffect(() => {
 		if (Array.isArray(todos)) {
 			const mapped = todos.map((item, index) => mapToTodoItem(item, index, userBid, userCid));
-			// Filter by selected bid / cid if available
-			const filtered = mapped.filter((item) => {
-				if (selectedBid && selectedCid) {
-					return item.bid === selectedBid && item.cid === selectedCid;
-				}
-				if (selectedBid) {
-					return item.bid === selectedBid;
-				}
-				return true;
-			});
-			const sorted = [...filtered].sort((a, b) => parseTodoDate(a) - parseTodoDate(b));
+			const sorted = [...mapped].sort((a, b) => parseTodoDate(a) - parseTodoDate(b));
 			setTodoItems(sorted);
 		} else if (todos === null) {
 			setTodoItems([]);
 		}
-	}, [todos, selectedBid, selectedCid, userBid, userCid]);
+	}, [todos, userBid, userCid]);
 
-	// Auto-scroll to bottom of list when items update
+	// Auto-scroll to bottom of list when todo items change
 	useEffect(() => {
 		if (scrollRef.current) {
 			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -371,6 +310,7 @@ const AddToDo = (props: IAddToDo) => {
 		}
 	}, [error, statusBarContext]);
 
+	// Download file from Cloud Storage to browser
 	const handleDownloadFile = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
 		event?.stopPropagation?.();
 		const rawFileName = String(item.filename || '').trim();
@@ -386,7 +326,7 @@ const AddToDo = (props: IAddToDo) => {
 		try {
 			const res = await downloadSingleFile(storagePath);
 			if (!res?.success) {
-				console.error('AddToDo: downloadSingleFile failed', res?.error, res?.message);
+				console.error('Reminder: downloadSingleFile failed', res?.error, res?.message);
 				return;
 			}
 			const downloadUrl = res?.blobUrl;
@@ -398,24 +338,23 @@ const AddToDo = (props: IAddToDo) => {
 				link.click();
 				document.body.removeChild(link);
 			} else {
-				console.error('AddToDo: no downloadUrl returned', res);
+				console.error('Reminder: no downloadUrl returned', res);
 			}
 		} catch (err) {
-			console.error('AddToDo: handleDownloadFile error', err);
+			console.error('Reminder: handleDownloadFile error', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
 	}, [downloadSingleFile, getStoragePath, statusBarContext]);
 
+	// Reset the editor to empty state
 	const resetEditor = useCallback(() => {
 		setSelectedItem(null);
-		setDueDate(getTomorrowDateString());
-		setDateError('');
 		setNoteDetailsState({
 			maxAudioRecordingTime: 0,
 			maxVideoRecordingTime: 0,
-			noteId: 'add-todo-note',
+			noteId: 'todo-note',
 			noteTitle: '',
 			notecontent: '',
 			notefile: undefined,
@@ -429,6 +368,7 @@ const AddToDo = (props: IAddToDo) => {
 		setNotesKey((prev) => prev + 1);
 	}, []);
 
+	// Select a todo item to view/edit in the bottom Notes control
 	const handleSelectTodo = useCallback(async (item: ITodoItem) => {
 		if (selectedItem === item) {
 			resetEditor();
@@ -436,13 +376,6 @@ const AddToDo = (props: IAddToDo) => {
 		}
 
 		setSelectedItem(item);
-		const rawDate = formatDueDateDisplay(item.duedate);
-		if (rawDate) {
-			setDueDate(rawDate);
-		} else {
-			setDueDate('');
-		}
-
 		const textContent = String(item.whattodo ?? '');
 		const rawFileName = String(item.filename || '').trim();
 		const hasFile = Boolean(rawFileName && !rawFileName.startsWith('sample-file-'));
@@ -451,7 +384,7 @@ const AddToDo = (props: IAddToDo) => {
 			setNoteDetailsState({
 				maxAudioRecordingTime: 0,
 				maxVideoRecordingTime: 0,
-				noteId: item.id || 'add-todo-note',
+				noteId: item.id || 'todo-note',
 				noteTitle: item.status ?? '',
 				notecontent: textContent,
 				notefile: undefined,
@@ -467,10 +400,12 @@ const AddToDo = (props: IAddToDo) => {
 		}
 
 		const cleanName = getCleanFileName(rawFileName);
+
+		// Show note text immediately while file is loading
 		setNoteDetailsState({
 			maxAudioRecordingTime: 0,
 			maxVideoRecordingTime: 0,
-			noteId: item.id || 'add-todo-note',
+			noteId: item.id || 'todo-note',
 			noteTitle: item.status ?? '',
 			notecontent: textContent,
 			notefile: undefined,
@@ -484,12 +419,13 @@ const AddToDo = (props: IAddToDo) => {
 		setNotesKey((prev) => prev + 1);
 
 		const storagePath = getStoragePath(rawFileName);
+
 		statusBarContext?.setIsLoading?.(true);
 		statusBarContext?.setLoadingLabel?.('Loading attachment...');
 		try {
 			const res = await downloadSingleFile(storagePath);
 			if (!res?.success) {
-				console.error('AddToDo: downloadSingleFile failed', res?.error, res?.message);
+				console.error('Reminder: downloadSingleFile failed', res?.error, res?.message);
 				return;
 			}
 			const downloadUrl = res?.blobUrl;
@@ -500,7 +436,7 @@ const AddToDo = (props: IAddToDo) => {
 				setNoteDetailsState({
 					maxAudioRecordingTime: 0,
 					maxVideoRecordingTime: 0,
-					noteId: item.id || 'add-todo-note',
+					noteId: item.id || 'todo-note',
 					noteTitle: item.status ?? '',
 					notecontent: textContent,
 					notefile: fileBlob,
@@ -514,13 +450,49 @@ const AddToDo = (props: IAddToDo) => {
 				setNotesKey((prev) => prev + 1);
 			}
 		} catch (err) {
-			console.error('AddToDo: error downloading file for edit', err);
+			console.error('Reminder: error downloading file for edit', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
 	}, [selectedItem, resetEditor, downloadSingleFile, getStoragePath, statusBarContext]);
+	const SM_TAB_PREFIX = 'SM-';
 
+	const getSmTabLabels = async (): Promise<string[]> => {
+		const currentTitle = document.title;
+		const initialLabels = currentTitle.startsWith(SM_TAB_PREFIX) ? [currentTitle] : [];
+		const labels = new Set<string>(initialLabels);
+
+		try {
+			const channel = new BroadcastChannel('sm-tab-control');
+			const requestId = `sm-tabs-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+			const listener = (event: MessageEvent) => {
+				if (event.data?.action !== 'response-sm-tab-label') return;
+				if (event.data?.requestId !== requestId) return;
+
+				const label = event.data?.label;
+				if (typeof label === 'string' && label.startsWith(SM_TAB_PREFIX)) {
+					labels.add(label);
+				}
+			};
+
+			channel.addEventListener('message', listener);
+			channel.postMessage({ action: 'request-sm-tab-label', requestId });
+
+			await new Promise((resolve) => setTimeout(resolve, 150));
+
+			channel.removeEventListener('message', listener);
+			channel.close();
+		} catch (error) {
+			console.warn('Failed to query SM- tab labels:', error);
+		}
+
+		return Array.from(labels);
+	};
+
+	// Clicking on a Reminder card selects the item locally and, if bid and cid are both non-empty,
+	// launches another instance of sm20 in a new browser tab with bid, cid, and auto-selected feature
 	const handleCardClick = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
 		void handleSelectTodo(item);
 
@@ -532,16 +504,20 @@ const AddToDo = (props: IAddToDo) => {
 			const origin = window.location.origin;
 			const pathname = window.location.pathname;
 			const params = new URLSearchParams();
+			const existingSMTabs = await getSmTabLabels();
+			const newTabLabel = `SM-${existingSMTabs.length + 1}`;
 			params.set('bid', bid);
 			params.set('cid', cid);
 			params.set('feature', targetFeature);
 			params.set('isnew', '1');
+			params.set('tablabel', newTabLabel);
 
 			const url = `${origin}${pathname}?${params.toString()}`;
 			window.open(url, '_blank', 'noopener,noreferrer');
 		}
 	}, [handleSelectTodo, smDataContext.datasets.businesses]);
 
+	// Remove file attachment inside Notes control
 	const handleDeleteAttachment = useCallback(
 		(objectType: 'file' | 'audio' | 'video', _objectData?: Blob | File) => {
 			void objectType;
@@ -567,27 +543,20 @@ const AddToDo = (props: IAddToDo) => {
 		[]
 	);
 
+	// Create or Update todo
 	const sendTodo = useCallback(async (message: INote) => {
 		const content = String(message.notecontent ?? '').trim();
 		if (!content) {
 			return;
 		}
 
-		// Validate future due date
-		if (!dueDate || !isDateInFuture(dueDate)) {
-			setDateError('Due date must be in the future (after current date)');
-			return;
-		}
-		setDateError('');
-
-		const isoDueDate = parseToIsoDate(dueDate) || dueDate;
-
-		const effectiveBid = selectedBid || userBid;
-		const effectiveCid = selectedCid || userCid;
+		const authSession = mainAppContext.authSession;
+		const userBid = String(userInfo?.bid ?? authSession?.bid ?? '').trim();
+		const userCid = String(userInfo?.cid ?? authSession?.cid ?? '').trim();
 		const userShortName = String(userInfo?.username ?? userInfo?.email ?? authSession?.displayName ?? authSession?.username ?? 'User').trim();
 		const now = new Date().toISOString();
 
-		// Upload attached file if present
+		// ── Upload attached file if present ──
 		let uploadedFileName = '';
 		const attachedData = message.notefile;
 
@@ -604,7 +573,7 @@ const AddToDo = (props: IAddToDo) => {
 			if (isSameAsExisting) {
 				uploadedFileName = existingFileName;
 			} else {
-				uploadedFileName = generateUniqueFileName(effectiveBid, effectiveCid, rawFileName);
+				uploadedFileName = generateUniqueFileName(userBid, userCid, rawFileName);
 
 				setFileUploading(true);
 				statusBarContext?.setIsLoading?.(true);
@@ -617,10 +586,10 @@ const AddToDo = (props: IAddToDo) => {
 						fileName: `smfiles/tickets/${uploadedFileName}`,
 					});
 					if (!uploadResult?.success) {
-						console.error('AddToDo: uploadRemoteFile failed', uploadResult?.error, uploadResult?.message);
+						console.error('Reminder: uploadRemoteFile failed', uploadResult?.error, uploadResult?.message);
 					}
 				} catch (err) {
-					console.error('AddToDo: uploadRemoteFile error', err);
+					console.error('Reminder: uploadRemoteFile error', err);
 				} finally {
 					setFileUploading(false);
 					statusBarContext?.setIsLoading?.(false);
@@ -634,6 +603,7 @@ const AddToDo = (props: IAddToDo) => {
 			const finalFileName = uploadedFileName || '';
 			const previousFileName = String(selectedItem.filename || '').trim();
 
+			// If previous file attachment was replaced or removed, delete it from Cloud Storage
 			if (previousFileName && previousFileName !== finalFileName && !previousFileName.startsWith('sample-file-')) {
 				try {
 					statusBarContext?.setIsLoading?.(true);
@@ -641,7 +611,7 @@ const AddToDo = (props: IAddToDo) => {
 					const oldStoragePath = getStoragePath(previousFileName);
 					await deleteFiles([oldStoragePath]);
 				} catch (err) {
-					console.warn('AddToDo: error deleting previous attachment', err);
+					console.warn('Reminder: error deleting previous attachment', err);
 				} finally {
 					statusBarContext?.setIsLoading?.(false);
 					statusBarContext?.setLoadingLabel?.('');
@@ -649,23 +619,23 @@ const AddToDo = (props: IAddToDo) => {
 			}
 
 			const updatedDoc: Record<string, unknown> = {
-				bid: selectedItem.bid || effectiveBid,
-				cid: selectedItem.cid || effectiveCid,
+				bid: selectedItem.bid || userBid,
+				cid: selectedItem.cid || userCid,
 				btype: selectedItem.btype || 'Standard',
 				status: selectedItem.status || 'Open',
 				whattodo: content,
-				duedate: isoDueDate,
+				duedate: selectedItem.duedate || now,
 				addedby: selectedItem.addedby || userShortName,
 				filename: finalFileName,
 			};
 
+			// Optimistic local update
 			setTodoItems((prev) =>
 				prev.map((item) =>
 					item === selectedItem || (todoId && item.id === todoId)
 						? {
 							...item,
 							whattodo: content,
-							duedate: isoDueDate,
 							filename: finalFileName,
 						}
 						: item
@@ -679,12 +649,12 @@ const AddToDo = (props: IAddToDo) => {
 					const result = await updateTodo(todoId, updatedDoc);
 					if (result && result.success !== false) {
 						try {
-							await createActivityLogRef.current?.(`${effectiveCid || noteby} of ${effectiveBid} updated todo ${todoId} successfully.`);
+							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} updated todo ${todoId} successfully.`);
 						} catch (logErr) {
-							console.error('AddToDo: createActivityLog failed', logErr);
+							console.error('Reminder: createActivityLog failed', logErr);
 						}
 					} else {
-						console.error('AddToDo: updateTodo failed', result?.error);
+						console.error('Reminder: updateTodo failed', result?.error);
 					}
 				}
 				await getTodos();
@@ -694,31 +664,32 @@ const AddToDo = (props: IAddToDo) => {
 			return;
 		}
 
-		// CREATE MODE
+		// ── CREATE MODE: Appended to the end of the list ──
 		const finalFilename = uploadedFileName || '';
-		const newDocId = `todo_${effectiveCid || effectiveBid}_${Date.now()}`;
+		const newDocId = `todo_${userCid}_${Date.now()}`;
 		const newTodoDoc: Record<string, unknown> = {
-			bid: effectiveBid,
-			cid: effectiveCid,
+			bid: userBid,
+			cid: userCid,
 			btype: 'Standard',
 			status: 'Open',
 			whattodo: content,
-			duedate: isoDueDate,
+			duedate: now,
 			addedby: userShortName,
 			filename: finalFilename,
 		};
 
 		const optimisticRow: ITodoItem = {
 			id: newDocId,
-			bid: effectiveBid,
-			cid: effectiveCid,
+			bid: userBid,
+			cid: userCid,
 			btype: 'Standard',
 			status: 'Open',
 			whattodo: content,
-			duedate: isoDueDate,
+			duedate: now,
 			addedby: userShortName,
 			filename: finalFilename,
 			datecreated: now,
+			eqid: ''
 		};
 
 		setTodoItems((prev) => [...prev, optimisticRow]);
@@ -729,23 +700,23 @@ const AddToDo = (props: IAddToDo) => {
 			if (result && result.success !== false) {
 				const createdId = result.id || newDocId;
 				try {
-					await createActivityLogRef.current?.(`${effectiveCid || noteby} of ${effectiveBid} created todo ${createdId} successfully.`);
+					await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} created reminder ${createdId} successfully.`);
 				} catch (logErr) {
-					console.error('AddToDo: createActivityLog failed', logErr);
+					console.error('Reminder: createActivityLog failed', logErr);
 				}
 			} else {
-				console.error('AddToDo: createTodo failed', result?.error);
+				console.error('Reminder: createTodo failed', result?.error);
 			}
 			await getTodos();
 		} catch (err) {
 			console.error('Error creating todo:', err);
 		}
-	}, [dueDate, selectedBid, userBid, selectedCid, userCid, userInfo, authSession, selectedItem, resetEditor, noteby, getStoragePath, deleteFiles, updateTodo, getTodos, createTodo, uploadRemoteFile, bucketName, baseFolder, statusBarContext]);
+	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, createTodo, updateTodo, getTodos, uploadRemoteFile, resetEditor, bucketName, baseFolder, getStoragePath, deleteFiles, statusBarContext]);
 
 	const deleteImage: IImage = {
-		uniqueName: 'add-todo-delete-icon',
+		uniqueName: 'todo-delete-icon',
 		source: (
-			<Delete24x24
+			<Cross
 				size={FnGetCssVariable('--image-size-2')}
 				fill="none"
 				strokeWidth={1}
@@ -756,11 +727,26 @@ const AddToDo = (props: IAddToDo) => {
 		tooltip: 'Click to Delete',
 	};
 
+	const closeImage: IImage = {
+		uniqueName: 'todo-close-icon',
+		source: (
+			<Delete24x24
+				size={FnGetCssVariable('--image-size-2')}
+				fill="none"
+				strokeWidth={1}
+			/>
+		),
+		w: 'var(--image-size-2)',
+		type: 'svg',
+		tooltip: 'Click to Close',
+	};
+
 	const handleDelete = (item: ITodoItem) => {
 		setDeleteItem(item);
 		setDeleteOpen(true);
 	};
 
+	// Delete file from Cloud Storage FIRST, then delete todo document
 	const handleConfirmDelete = async () => {
 		if (deleteItem) {
 			if (selectedItem === deleteItem) {
@@ -771,16 +757,18 @@ const AddToDo = (props: IAddToDo) => {
 			statusBarContext?.setIsLoading?.(true);
 			statusBarContext?.setLoadingLabel?.('Deleting todo...');
 			try {
+				// Delete file from Cloud Storage FIRST if it exists
 				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
 					try {
 						statusBarContext?.setLoadingLabel?.('Deleting attachment...');
 						const storagePath = getStoragePath(rawFileName);
 						await deleteFiles([storagePath]);
 					} catch (err) {
-						console.error('AddToDo: error deleting file from cloud storage', err);
+						console.error('Reminder: error deleting file from cloud storage', err);
 					}
 				}
 
+				// Optimistic deletion
 				setTodoItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== deleteItem.id));
 
 				const todoId = deleteItem.id;
@@ -789,12 +777,12 @@ const AddToDo = (props: IAddToDo) => {
 					const result = await deleteTodo(todoId);
 					if (result && result.success !== false) {
 						try {
-							await createActivityLogRef.current?.(`${selectedCid || noteby} of ${selectedBid || userBid} deleted todo ${todoId} successfully.`);
+							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} deleted reminder ${todoId} successfully.`);
 						} catch (logErr) {
-							console.error('AddToDo: createActivityLog failed', logErr);
+							console.error('Reminder: createActivityLog failed', logErr);
 						}
 					} else {
-						console.error('AddToDo: deleteTodo failed', result?.error);
+						console.error('Reminder: deleteTodo failed', result?.error);
 					}
 				}
 				await getTodos();
@@ -808,6 +796,64 @@ const AddToDo = (props: IAddToDo) => {
 		setDeleteOpen(false);
 		setDeleteItem(null);
 	};
+
+	// Close todo: update status to Close and refresh ui
+	const handleCloseTodo = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+		event?.stopPropagation?.();
+		const todoId = item.id;
+		if (!todoId) return;
+
+		const userShortName = String(userInfo?.username ?? userInfo?.email ?? authSession?.displayName ?? authSession?.username ?? 'User').trim();
+		const now = new Date().toISOString();
+
+		// Optimistic local update
+		setTodoItems((prev) =>
+			prev.map((todo) =>
+				todo === item || (todoId && todo.id === todoId)
+					? { ...todo, status: 'Close' }
+					: todo
+			)
+		);
+
+		if (selectedItem?.id === todoId || selectedItem === item) {
+			setSelectedItem((prev) => (prev ? { ...prev, status: 'Close' } : null));
+			setNoteDetailsState((prev) => (prev ? { ...prev, noteTitle: 'Close' } : prev));
+		}
+
+		statusBarContext?.setIsLoading?.(true);
+		statusBarContext?.setLoadingLabel?.('Closing reminder...');
+
+		try {
+			const updatedDoc: Record<string, unknown> = {
+				bid: item.bid || userBid,
+				cid: item.cid || userCid,
+				btype: item.btype || 'Standard',
+				status: 'Close',
+				whattodo: item.whattodo || '',
+				duedate: item.duedate || now,
+				addedby: item.addedby || userShortName,
+				filename: item.filename || '',
+				...(item.datecreated ? { datecreated: item.datecreated } : {}),
+			};
+
+			const result = await updateTodo(todoId, updatedDoc);
+			if (result && result.success !== false) {
+				try {
+					await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} closed reminder ${todoId} successfully.`);
+				} catch (logErr) {
+					console.error('Reminder: createActivityLog failed', logErr);
+				}
+			} else {
+				console.error('Reminder: updateTodo failed', result?.error);
+			}
+			await getTodos();
+		} catch (err) {
+			console.error('Error Closing reminder...:', err);
+		} finally {
+			statusBarContext?.setIsLoading?.(false);
+			statusBarContext?.setLoadingLabel?.('');
+		}
+	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, updateTodo, getTodos, statusBarContext]);
 
 	const renderTodoIcon = (item: ITodoItem, index: number) => {
 		const rawFileName = String(item.filename || '').trim();
@@ -826,7 +872,7 @@ const AddToDo = (props: IAddToDo) => {
 					}}
 				>
 					<Image
-						uniqueName={`${props.uniqueName}-attach-${index}`}
+						uniqueName={`${todoProps.uniqueName}-attach-${index}`}
 						source={
 							<Attach24x24
 								size={FnGetCssVariable('--image-size-1')}
@@ -844,7 +890,7 @@ const AddToDo = (props: IAddToDo) => {
 		return (
 			<div className="nz-info-image">
 				<Image
-					uniqueName={`${props.uniqueName}-info-${index}`}
+					uniqueName={`${todoProps.uniqueName}-info-${index}`}
 					source={
 						<Info24x24
 							size={FnGetCssVariable('--image-size-1')}
@@ -859,53 +905,42 @@ const AddToDo = (props: IAddToDo) => {
 		);
 	};
 
-	const targetSummary = useMemo(() => {
-		if (selectedBid && selectedCid) {
-			return `Showing ToDo for Business: ${selectedBid} · Contact: ${selectedCid}`;
-		}
-		if (selectedBid) {
-			return `Showing ToDo for Business: ${selectedBid}`;
-		}
-		return '';
-	}, [selectedBid, selectedCid]);
-
 	return (
 		<div
-			className="nz-node-list-Container nz-fqa-add-todo"
+			className="nz-node-list-Container nz-appqa-todo"
 			tabIndex={1}
 			onKeyDown={handleContainerKeyDown}
-			key={props.uniqueName}
+			key={todoProps.uniqueName}
 		>
 			<div className="nz-notes-list-main-div">
 				<div className="nz-notes-list-with-msg-box">
 					<div className="nz-sub-header">
 						<Label
-							uniqueName={`${props.uniqueName}-header`}
-							label="Add to ToDo"
+							uniqueName={`${todoProps.uniqueName}-header`}
+							label={`Reminder${todoItems.length > 0 ? ` (${todoItems.length})` : ''}`}
 						/>
 					</div>
-
 					<div className="nz-notes-list-scroll" ref={scrollRef}>
 						{loading && (
-							<div className="nz-notes-loading" style={{ padding: '10px', textAlign: 'center' }}>
-								<Label uniqueName="todo-loading" label="Loading todos..." />
+							<div className="nz-notes-loading" style={{ textAlign: 'center' }}>
+								<Label uniqueName="todo-loading" label="Loading Reminders..." />
 							</div>
 						)}
 						{error && (
-							<div className="nz-notes-error" style={{ padding: '10px', color: 'var(--danger, #ff4d4f)' }}>
-								<Label uniqueName="todo-error" label={typeof error === 'string' ? error : 'Failed to load todos'} />
+							<div className="nz-notes-error" style={{ color: 'var(--danger, #ff4d4f)' }}>
+								<Label uniqueName="todo-error" label={typeof error === 'string' ? error : 'Failed to load Reminders	'} />
 							</div>
 						)}
 						{!loading && !error && todoItems.length === 0 && (
-							<div className="nz-notes-empty" style={{ padding: '10px', textAlign: 'center', opacity: 0.7 }}>
-								<Label uniqueName="todo-empty" label="No to-do items found" />
+							<div className="nz-notes-empty" style={{ textAlign: 'center', opacity: 0.7 }}>
+								<Label uniqueName="todo-empty" label="No Reminders items found" />
 							</div>
 						)}
 						{todoItems.map((item, index) => {
 							const todoKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
 							const message = item.whattodo ?? '';
 							const isSelected = selectedItem === item || (selectedItem?.id && item.id === selectedItem.id);
-							const formattedDueDate = formatDueDateDisplay(item.duedate);
+							const isClosed = String(item.status ?? '').trim().toLowerCase() === 'close';
 							return (
 								<div
 									className={`nz-node-list-box${isSelected ? ' nz-node-list-box-selected' : ''}`}
@@ -914,116 +949,111 @@ const AddToDo = (props: IAddToDo) => {
 									style={{ cursor: 'pointer' }}
 									title={item.bid && item.cid ? `Click to launch SM for BID: ${item.bid}, CID: ${item.cid}` : undefined}
 								>
-									<div className="nz-node-list-delete">
-										<div
-											onClick={(event) => event.stopPropagation()}
-											onKeyDown={(event) => event.stopPropagation()}
-										>
-											<ActionImage
-												image={deleteImage}
-												w="var(--node_height)"
-												h="var(--node_height)"
-												uniqueName={`${props.uniqueName}-delete-${index}`}
-												actionCode="delete"
-												disabled={false}
-												handleMouse={() => handleDelete(item)}
-											/>
+									<div className="nz-todo-card-inner">
+										<div className="nz-todo-card-actions">
+											<div
+												onClick={(event) => event.stopPropagation()}
+												onKeyDown={(event) => event.stopPropagation()}
+											>
+												<ActionImage
+													image={deleteImage}
+													w="var(--node_height)"
+													h="var(--node_height)"
+													uniqueName={`${todoProps.uniqueName}-delete-${index}`}
+													actionCode="delete"
+													disabled={false}
+													handleMouse={() => handleDelete(item)}
+												/>
+											</div>
+											{item.status && !item.status.toLowerCase().includes('close') && <div
+												className={isClosed ? 'nz-todo-action-closed' : ''}
+												onClick={(event) => event.stopPropagation()}
+												onKeyDown={(event) => event.stopPropagation()}
+											>
+												<ActionImage
+													image={{
+														...closeImage,
+														tooltip: isClosed ? 'Status is Close' : 'Click to Close',
+													}}
+													w="var(--node_height)"
+													h="var(--node_height)"
+													uniqueName={`${todoProps.uniqueName}-close-${index}`}
+													actionCode="close"
+													disabled={false}
+													handleMouse={(e) => handleCloseTodo(item, e)}
+												/>
+											</div>}
 										</div>
-										<div className="nz-note-date">
-											<Label
-												uniqueName={`${props.uniqueName}-status-${index}`}
-												label={item.status || ''}
-											/>
-											{formattedDueDate ? (
-												<span className="nz-todo-badge-duedate" title={`Due Date: ${formattedDueDate}`}>
-													Due: {formattedDueDate}
-												</span>
-											) : null}
-										</div>
-										<div className="nz-note-user">
-											<Label
-												uniqueName={`${props.uniqueName}-type-${index}`}
-												label={[item.btype, item.bid ? `bid: ${item.bid}` : '', item.cid ? `cid: ${item.cid}` : ''].filter(Boolean).join(' · ')}
-											/>
-										</div>
-									</div>
-									<div className="nz-info-div">
-										{renderTodoIcon(item, index)}
-										<div className="nz-nodes-text">
-											<Label
-												uniqueName={`${props.uniqueName}-text-${index}`}
-												label={message}
-											/>
+										<div className="nz-todo-card-content">
+											<div className="nz-node-list-delete">
+												<div className="nz-note-date">
+													<Label
+														uniqueName={`${todoProps.uniqueName}-status-${index}`}
+														label={item.status || ''}
+													/>
+												</div>
+												<div className="nz-note-user">
+													<Label
+														uniqueName={`${todoProps.uniqueName}-type-${index}`}
+														label={[item.btype, item.bid ? `bid: ${item.bid}` : '', item.cid ? `cid: ${item.cid}` : ''].filter(Boolean).join(' · ')}
+													/>
+												</div>
+											</div>
+											<div className="nz-info-div">
+												{renderTodoIcon(item, index)}
+												<div className="nz-nodes-text">
+													<Label
+														uniqueName={`${todoProps.uniqueName}-text-${index}`}
+														label={message}
+													/>
+												</div>
+											</div>
 										</div>
 									</div>
 								</div>
 							);
 						})}
 					</div>
-					<div className="nz-todo-editor-section">
-						<div className="nz-todo-due-date-row">
-							<DateControl
-								id={`${props.uniqueName}-duedate`}
-								name="dueDate"
-								label="Due Date:"
-								value={dueDate}
-								min={minFutureDate}
-								onChange={(val) => {
-									const strVal = String(val ?? '');
-									setDueDate(strVal);
-									if (!isDateInFuture(strVal)) {
-										setDateError('Due date must be in the future (after current date)');
-									} else {
-										setDateError('');
-									}
+					<div className="nz-notes-container">
+						{selectedItem && (
+							<button
+								type="button"
+								onClick={resetEditor}
+								style={{
+									background: 'none',
+									border: 'none',
+									color: 'var(--theme-text-color, #666)',
+									cursor: 'pointer',
+									fontSize: '12px',
+									textDecoration: 'underline',
+									padding: 0,
+									position: 'absolute',
+									marginRight: 12,
+									right: 0,
 								}}
-							/>
-
-							{selectedItem && (
-								<button
-									type="button"
-									onClick={resetEditor}
-									className="nz-todo-cancel-edit-btn"
-									title="clear"
-								>
-									Clear
-								</button>
-							)}
-
-							{dateError && (
-								<div className="nz-todo-date-error">
-									{dateError}
-								</div>
-							)}
-						</div>
-
-						{targetSummary && (
-							<div className="nz-todo-target-info">
-								{targetSummary}
-							</div>
+							>
+								Cancel
+							</button>
 						)}
-
-						<div className="nz-notes-container">
-							{noteDetailsState && (
-								<Notes
-									key={`${notesKey}-${selectedItem?.id ?? 'new'}`}
-									{...noteDetailsState}
-									allowAudio={false}
-									allowVideo={false}
-									sendTooltip={selectedItem ? 'Update To Do' : 'Add To Do'}
-									sendNote={sendTodo}
-									handleDelete={handleDeleteAttachment}
-									placeholderMessage="Enter a to do here..."
-								/>
-							)}
-						</div>
+						{noteDetailsState && (
+							<Notes
+								key={`${notesKey}-${selectedItem?.id ?? 'new'}`}
+								{...noteDetailsState}
+								allowAudio={false}
+								allowVideo={false}
+								sendTooltip={selectedItem ? 'Update Reminder' : 'Send Reminder'}
+								sendNote={sendTodo}
+								handleDelete={handleDeleteAttachment}
+								placeholderMessage="Enter a reminder here..."
+							/>
+						)}
 					</div>
 				</div>
 			</div>
 			<YesNoFormContainer
 				isOpen={deleteOpen}
-				uniqueName={`${props.uniqueName}-delete`}
-				message="Are you sure you want to delete this to-do?"
+				uniqueName={`${todoProps.uniqueName}-delete`}
+				message="Are you sure you want to delete this reminder?"
 				showOkButton={false}
 				handleYesButtonClick={handleConfirmDelete}
 				handleNoButtonClick={() => {
@@ -1035,5 +1065,5 @@ const AddToDo = (props: IAddToDo) => {
 	);
 };
 
-export { AddToDo, AddToDo as ToDo };
-export default AddToDo;
+export { Reminder };
+export default Reminder;

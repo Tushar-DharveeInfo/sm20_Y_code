@@ -334,6 +334,15 @@
     background-color: transparent !important;
 }
 
+
+.nz-side-bar-container .nz-nav-link:hover .MuiTypography-root {
+    color: black !important;
+}
+
+.nz-sidebar-expandableList .nz-nav-link .nz-nav-li-button.nz-nav-li-menu.nz-nav-li-button-selected {
+    background-color: transparent !important;
+}
+
 .nz-sidebar .nz-sidebar-expandableList,
 .nz-sidebar .nz-sidebar-expandableList .nz-nav-bar {
     background-color: #FFFF99 !important;
@@ -341,8 +350,4 @@
 
 .nz-sidebar .nz-sidebar-expandableList .nz-nav-bar {
     border-color: #007acc !important;
-}
-
-.nz-side-bar-container .nz-nav-link:hover .MuiTypography-root {
-    color: black !important;
 }

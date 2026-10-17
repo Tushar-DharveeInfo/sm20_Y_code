@@ -351,7 +351,7 @@ export function FnBuildRmsEqidTree(
     eqidRecords: IEqidDoc[] = [],
     filters: IDCFilterControlValues = {},
     featureProps?: IFeatureTree,
-    featureId: string = RmsEnums.EQID,
+    featureId: string = RmsEnums.EQIDByTicket,
     wrapWithRootLabel: string = "Businesses",
     handleKebabMenuSelect?: (selectedItem: any) => void,
     tickets: ITicketDoc[] = []

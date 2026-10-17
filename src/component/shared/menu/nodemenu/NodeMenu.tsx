@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStatusBarContext } from '../../context/hooks/StatusBarHooks';
 import { Kebab24x24 } from '@n20a/libicon';
 import './NodeMenu.css';
-import { KebabMenuRange, kebabMenuEnums, SettingEnums } from '../../../constants/Feature';
+import { KebabMenuRange, kebabMenuEnums, SettingEnums, RmsEnums } from '../../../constants/Feature';
 import { IActionImageForSubMenu } from '../../allinterface/basic/IActionImageList';
 import { ITreeNode, ISelectedNodeInfo } from '../../allinterface/tree/ITreeControl';
 import { IMenuImage, MenuImage } from '../menuimage/MenuImage';
@@ -311,6 +311,34 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
             }
         });
 
+        const isEqidByMfg =
+            targetFeatureId === '404' ||
+            targetFeatureId === RmsEnums.EQIDByMfg ||
+            targetFeatureId.toLowerCase() === 'eqidbymfg';
+        const isEqTypeNode =
+            activeNode.NodeType?.toLowerCase() === 'eqtype' ||
+            activeNode.nodeType?.toLowerCase() === 'eqtype' ||
+            activeNode.treetype?.toLowerCase() === 'eqtype';
+        const isEqidNode =
+            activeNode.NodeType?.toLowerCase() === 'eqid' ||
+            activeNode.nodeType?.toLowerCase() === 'eqid' ||
+            activeNode.treetype?.toLowerCase() === 'eqid';
+
+        if (isEqidByMfg && (isEqTypeNode || isEqidNode) && !menu.some((m) => String(m.Label).toLowerCase() === 'add eqid')) {
+            menu.push({
+                Secured: '',
+                EntityName: 'Feature',
+                MenuID: '404',
+                _Feature: 14046,
+                Feature: '14046',
+                NodeType: activeNode.NodeType || 'EqType',
+                Label: 'Add EQID',
+                Tooltip: 'Add EQID',
+                SortOrder: '3',
+                Alias: 'addeqid',
+            } as IFeatureItem);
+        }
+
         if (menu.length > 0) {
             setShowKebabIcon(true);
         } else {
@@ -482,7 +510,19 @@ const NodeMenu = (nodeMenuProps: INodeMenu) => {
         manufacturerNodeType === "prodline" ||
         manufacturerNodeType === "mfgeqtype";
 
-    if (nodeMenuProps.container === "explorer_tree" && !isContactNodeForMenu && !isSettingDeleteFeatureForMenu && !isManufacturerTreeNode) {
+    const isEqidByMfgFeatureForMenu =
+        nodeMenuProps.featureId === '404' ||
+        nodeMenuProps.featureId === RmsEnums.EQIDByMfg ||
+        String(nodeMenuProps.featureId ?? "").toLowerCase() === "eqidbymfg";
+
+    if (
+        nodeMenuProps.container === "explorer_tree" &&
+        !isContactNodeForMenu &&
+        !isSettingDeleteFeatureForMenu &&
+        !isManufacturerTreeNode &&
+        !isEqidByMfgFeatureForMenu &&
+        (!menuData || menuData.length === 0)
+    ) {
         return null;
     }
 

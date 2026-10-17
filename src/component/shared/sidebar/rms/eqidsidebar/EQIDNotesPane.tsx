@@ -17,7 +17,7 @@ import { FnGetSessionVariableFromStorage } from '../../../allcommon/basic/FnGetS
 import { ITreeNode } from '../../../allinterface/tree/ITreeControl';
 import { Label } from '../../../basic/label/Label';
 import { Image } from '../../../basic/image/Image';
-import { Attach24x24 } from '@n20a/libicon';
+import { Attach24x24, Close24x24 } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../../../appcontainer/allcommon/FnGetCssVariable';
 import { ISession } from '../../../context/allinterface/ISession';
 import { useTicketNotes, useFileDownload, useFileDelete } from '@n20a/libfsdb';
@@ -30,6 +30,7 @@ interface IEQIDNotesPaneProps {
   selectedNode?: ITreeNode;
   hideSearchControl?: boolean;
   hideSubHeader?: boolean;
+  featureId?: string;
 }
 
 interface INoteItems {
@@ -194,55 +195,49 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
 
   const activeNode = props.selectedNode ?? selectedNodeContext?.selectedNode;
   const selectedTicketCard =
+    props.ticket ??
     (selectedNodeContext as any)?.selectedTicketCard ??
     (selectedNodeContext as any)?.SelectedTicketCard ??
     (rmsContext as any)?.selectedTicketCard ??
     (rmsContext as any)?.SelectedTicketCard ??
-    props.ticket ??
     (activeNode && (activeNode.ticketid || (activeNode as any).prodno || activeNode.NodeType === 'Ticket') ? activeNode : null);
 
   const selectedTicketId = String(
+    props.ticket?.ticketid ||
+    props.ticket?.id ||
     selectedTicketCard?.ticketid ||
     selectedTicketCard?.id ||
     selectedTicketCard?.NodeEntID ||
-    props.ticket?.ticketid ||
-    props.ticket?.id ||
     (activeNode as any)?.ticketid ||
     activeNode?.NodeEntID ||
     ''
   ).trim();
 
   const selectedBid = String(
-    selectedTicketCard?.bid ||
     props.ticket?.bid ||
+    selectedTicketCard?.bid ||
     resolvedTarget.bid ||
     ''
   ).trim();
 
   const selectedCid = String(
-    selectedTicketCard?.cid ||
     props.ticket?.cid ||
+    selectedTicketCard?.cid ||
     resolvedTarget.cid ||
     ''
   ).trim();
 
   const rawTicketEqid = String(
-    (selectedNodeContext as any)?.selectedTicketCard?.eqid ||
-    (selectedNodeContext as any)?.selectedTicketCard?.EQID ||
-    (selectedNodeContext as any)?.selectedTicketCard?.eqId ||
-    (selectedNodeContext as any)?.SelectedTicketCard?.eqid ||
-    (selectedNodeContext as any)?.SelectedTicketCard?.EQID ||
-    (selectedNodeContext as any)?.SelectedTicketCard?.eqId ||
-    (rmsContext as any)?.selectedTicketCard?.eqid ||
-    (rmsContext as any)?.selectedTicketCard?.EQID ||
-    (rmsContext as any)?.selectedTicketCard?.eqId ||
-    selectedTicketCard?.eqid ||
-    selectedTicketCard?.EQID ||
-    (selectedTicketCard as any)?.eqId ||
+    props.eqid ||
     props.ticket?.eqid ||
     props.ticket?.EQID ||
     (props.ticket as any)?.eqId ||
-    props.eqid ||
+    selectedTicketCard?.eqid ||
+    selectedTicketCard?.EQID ||
+    (selectedTicketCard as any)?.eqId ||
+    (selectedNodeContext as any)?.selectedTicketCard?.eqid ||
+    (selectedNodeContext as any)?.selectedTicketCard?.EQID ||
+    (selectedNodeContext as any)?.selectedTicketCard?.eqId ||
     (activeNode as any)?.eqid ||
     (activeNode as any)?.EQID ||
     ''
@@ -657,20 +652,22 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
 
       // Resolve active ticket card and eqid directly from context at save time
       const activeTicketCard =
+        props.ticket ??
+        selectedTicketCard ??
         (selectedNodeContext as any)?.selectedTicketCard ??
         (selectedNodeContext as any)?.SelectedTicketCard ??
         (rmsContext as any)?.selectedTicketCard ??
-        (rmsContext as any)?.SelectedTicketCard ??
-        selectedTicketCard ??
-        props.ticket;
+        (rmsContext as any)?.SelectedTicketCard;
 
       const currentTicketEqid = String(
+        props.eqid ||
+        props.ticket?.eqid ||
+        props.ticket?.EQID ||
         activeTicketCard?.eqid ||
         activeTicketCard?.EQID ||
         (activeTicketCard as any)?.eqId ||
         rawTicketEqid ||
         effectiveEqid ||
-        props.eqid ||
         ''
       ).trim();
 
@@ -781,20 +778,22 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
 
     // ── CREATE MODE: Add a new note ──
     const activeTicketCard =
+      props.ticket ??
+      selectedTicketCard ??
       (selectedNodeContext as any)?.selectedTicketCard ??
       (selectedNodeContext as any)?.SelectedTicketCard ??
       (rmsContext as any)?.selectedTicketCard ??
-      (rmsContext as any)?.SelectedTicketCard ??
-      selectedTicketCard ??
-      props.ticket;
+      (rmsContext as any)?.SelectedTicketCard;
 
     const currentTicketEqid = String(
+      props.eqid ||
+      props.ticket?.eqid ||
+      props.ticket?.EQID ||
       activeTicketCard?.eqid ||
       activeTicketCard?.EQID ||
       (activeTicketCard as any)?.eqId ||
       rawTicketEqid ||
       effectiveEqid ||
-      props.eqid ||
       ''
     ).trim();
 
@@ -916,6 +915,78 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
     [selectedTicketId, processSaveNote]
   );
 
+  // Remove Important flag from a note, save back with important = false, and re-render note container
+  const handleRemoveImportant = useCallback(
+    async (item: INoteItems) => {
+      const noteId = String(
+        item.id ?? item.noteid ?? item._noteid ?? item.FileUID ?? ''
+      );
+      const now = new Date().toISOString();
+
+      // 1. Optimistic update to immediately re-render this note container without Important
+      const applyUpdate = (prev: INoteItems[]) =>
+        prev.map((n) => {
+          const nId = String(n.id ?? n.noteid ?? n._noteid ?? n.FileUID ?? '');
+          if (n === item || (noteId && nId === noteId)) {
+            return {
+              ...n,
+              important: false,
+              LastUpdated: now,
+              monitorupdated: now,
+            };
+          }
+          return n;
+        });
+
+      setNoteItems(applyUpdate);
+
+      if (editingItem && (editingItem === item || (noteId && String(editingItem.noteid ?? editingItem.id ?? '') === noteId))) {
+        setEditingItem((prev) => (prev ? { ...prev, important: false } : null));
+      }
+
+      // 2. Persist update with important = false to backend
+      if (noteId && selectedBid && selectedTicketId && updateTicketNote) {
+        statusBarContext?.setIsLoading?.(true);
+        try {
+          const updatePayload: Record<string, unknown> = {
+            important: false,
+            Important: false,
+            monitorupdated: now,
+          };
+          const result = await updateTicketNote(noteId, updatePayload);
+          if (result && result.success !== false) {
+            smDataContext?.setDatasets?.((prev: any) => ({
+              ...prev,
+              ticketnotes: (prev?.ticketnotes || []).map((n: any) =>
+                (n.noteid === noteId || n.id === noteId || n._noteid === noteId)
+                  ? { ...n, important: false }
+                  : n
+              ),
+            }));
+            try {
+              const userName = authSession?.displayName || authSession?.username || authSession?.cid || 'User';
+              await createActivityLogRef.current?.(
+                `${selectedCid || userName} of ${selectedBid} removed important flag from note ${noteId} successfully.`
+              );
+            } catch (logErr) {
+              console.error('EQIDNotesPane: createActivityLog failed', logErr);
+            }
+          }
+        } catch (err) {
+          console.error('EQIDNotesPane: handleRemoveImportant error', err);
+        } finally {
+          statusBarContext?.setIsLoading?.(false);
+        }
+      }
+
+      // 3. Re-fetch
+      if (getNotesDetails) {
+        void getNotesDetails();
+      }
+    },
+    [selectedBid, selectedTicketId, selectedCid, updateTicketNote, editingItem, authSession, statusBarContext, getNotesDetails, smDataContext]
+  );
+
   return (
     <div className="nz-node-list-Container" key={uniqueName}>
       <div className="nz-notes-list-main-div">
@@ -1004,6 +1075,29 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
                           label={currentUserName}
                         />
                       </div>
+                      {isImportantNote && (
+                        <button
+                          type="button"
+                          className="nz-note-remove-important"
+                          title="Click to remove Important"
+                          aria-label="Click to remove Important"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleRemoveImportant(item);
+                          }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                          }}
+                        >
+                          <Close24x24
+                            size="14px"
+                            strokeWidth={2}
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            fill="none"
+                          />
+                        </button>
+                      )}
                     </div>
                     <div className="nz-info-div">
                       <div

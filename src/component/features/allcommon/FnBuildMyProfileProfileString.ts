@@ -14,16 +14,28 @@ const getPhoneNumber = (authUser: TMyProfileAuthUser): string => {
     return rawUser.phoneNumber ?? "";
 };
 
+const toBoolean = (value: unknown): boolean => {
+    if (typeof value === "boolean") {
+        return value;
+    }
+    const raw = String(value ?? "").trim().toLowerCase();
+    return raw === "true" || raw === "1";
+};
+
 const FnBuildMyProfileString = (
     authUser: TMyProfileAuthUser,
-    contact: IContactDoc
+    contact: IContactDoc & { title?: string; department?: string; website?: string; tagline?: string }
 ): string => {
     const profile = {
         Company: authUser.tenantNickname ?? "",
         Login: authUser.username ?? "",
-        Name: authUser.displayName ?? "",
+        Name: (contact as any)?.cname || authUser.displayName || "",
         Email: authUser.email ?? "",
-        Phone: getPhoneNumber(authUser),
+        Phone: (contact as any)?.phone || getPhoneNumber(authUser),
+        Title: contact.title ?? "",
+        Department: contact.department ?? "",
+        Website: contact.website ?? "",
+        Tagline: contact.tagline ?? "",
         Address1: contact.address1 ?? "",
         Address2: contact.address2 ?? "",
         City: contact.city ?? "",
@@ -32,9 +44,9 @@ const FnBuildMyProfileString = (
         Zip: contact.zip ?? "",
         CountryCode: contact.countrycode ?? "",
         TimezoneOffset: contact.timezoneoffset ?? "",
-        Donotcallme: Boolean(contact?.donotcallme),
-        Removemefrommailinglist: Boolean(contact?.removemefrommailinglist),
-        Smsoptin: Boolean(contact?.smsoptin),
+        Donotcallme: toBoolean(contact?.donotcallme),
+        Removemefrommailinglist: toBoolean(contact?.removemefrommailinglist),
+        Smsoptin: toBoolean(contact?.smsoptin),
     };
 
     return JSON.stringify([profile]);

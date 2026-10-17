@@ -1,8 +1,11 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { TicketCard } from './TicketCard';
-import { Label } from '../../../shared/basic/label/Label';
+import { OverlayTab } from '../../../shared/basic/overlaytab/OverlayTab';
+import { Details24x24, Notes24x24 } from '@n20a/libicon';
+import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
+import type { IActionLabel } from '../../../shared/allinterface/basic/IActionLabel';
 import { EditTextXControl } from '@n20a/libform';
-import type { ITicketDoc, IContactDoc } from '../../../db/IDatasets';
+import type { ITicketDoc, IContactDoc } from '@n20a/libfsdb';
 import './TicketCardList.css';
 
 interface ITicketCardListProps {
@@ -14,6 +17,9 @@ interface ITicketCardListProps {
     onSelectTicket: (ticket: ITicketDoc) => void;
     onSkuClick?: (sku: string, ticket: ITicketDoc) => void;
     onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void | Promise<void>;
+    onSplitTicket?: (ticket: ITicketDoc) => void;
+    activeOverlayTab?: 'Ticket Details' | 'Notes';
+    onSelectOverlayTab?: (tab: 'Ticket Details' | 'Notes') => void;
 }
 
 /** Sort tickets newest → oldest by daterequested (Z-A). */
@@ -34,6 +40,9 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
     onSelectTicket,
     onSkuClick,
     onStatusChange,
+    onSplitTicket,
+    activeOverlayTab = 'Ticket Details',
+    onSelectOverlayTab,
 }) => {
     const [filterText, setFilterText] = useState('');
 
@@ -76,14 +85,73 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
         }
     }, [filtered, selectedTicketId]);
 
+    const overlayTabs: IActionLabel[] = useMemo(
+        () => [
+            {
+                uniqueName: `${uniqueName}-tab-details`,
+                label: {
+                    uniqueName: `${uniqueName}-tab-details-label`,
+                    label: 'Ticket Details',
+                    tooltip: 'Ticket Details',
+                },
+                w: 'auto',
+                h: 'calc(var(--node_height) - var(--spacing-1))',
+                actionCode: 'Ticket Details',
+                imageTooltip: 'Ticket Details',
+                iconSource: (
+                    <Details24x24
+                        size={FnGetCssVariable('--image-size-2')}
+                        fill="none"
+                        strokeWidth={1}
+                    />
+                ),
+                handleMouse: () => { },
+            },
+            {
+                uniqueName: `${uniqueName}-tab-notes`,
+                label: {
+                    uniqueName: `${uniqueName}-tab-notes-label`,
+                    label: 'Notes',
+                    tooltip: 'Notes',
+                },
+                w: 'auto',
+                h: 'calc(var(--node_height) - var(--spacing-1))',
+                actionCode: 'Notes',
+                imageTooltip: 'Notes',
+                iconSource: (
+                    <Notes24x24
+                        size={FnGetCssVariable('--image-size-2')}
+                        fill="none"
+                        strokeWidth={1}
+                    />
+                ),
+                handleMouse: () => { },
+            },
+        ],
+        [uniqueName]
+    );
+
+    const handleOverlayTabSelect = useCallback(
+        (selectedTabs: string[]) => {
+            if (selectedTabs.length > 0) {
+                const selected = selectedTabs[0] as 'Ticket Details' | 'Notes';
+                onSelectOverlayTab?.(selected);
+            }
+        },
+        [onSelectOverlayTab]
+    );
+
     return (
         <div className="nz-ticket-card-list-root">
-            <div className="nz-sub-header">
-                <Label
-                    uniqueName={`${uniqueName}-header`}
-                    label={`Tickets (${filtered.length})`}
-                />
-            </div>
+            <OverlayTab
+                uniqueName={`${uniqueName}-overlay-tab`}
+                headerText={`Tickets (${filtered.length})`}
+                tabs={overlayTabs}
+                selectedTabName={activeOverlayTab}
+                tabAlignment="horizontal"
+                ShowOnlyIcon={true}
+                handleSelectedTab={handleOverlayTabSelect}
+            />
 
             <div className="nz-sidebar-contact-list-search">
                 <EditTextXControl
@@ -118,6 +186,7 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
                                 onSelect={onSelectTicket}
                                 onSkuClick={onSkuClick}
                                 onStatusChange={onStatusChange}
+                                onSplit={onSplitTicket}
                             />
                         );
                     })

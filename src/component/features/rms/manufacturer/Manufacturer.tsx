@@ -181,6 +181,71 @@ function removeChildFromNodeInTree(
     return changed ? updated : tree;
 }
 
+function findProdlinesForMfgInTree(tree: ITreeNode[], acronym: string): string[] {
+    const normAcronym = normalizeMfgKey(acronym);
+    if (!normAcronym || !tree || tree.length === 0) return [];
+    const results: string[] = [];
+
+    function traverse(nodes: ITreeNode[]) {
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            const nodeTypeLower = String(node.NodeType ?? '').toLowerCase();
+            const nodeAcronym = normalizeMfgKey(String(node.mfgAcronym ?? node.NodeEntID ?? ''));
+
+            if (nodeTypeLower === 'mfg' && nodeAcronym === normAcronym) {
+                const children = node.children ?? [];
+                for (let j = 0; j < children.length; j++) {
+                    const c = children[j];
+                    const val = String(c.prodline ?? c.title ?? c.Name ?? '').trim();
+                    if (val) results.push(val);
+                }
+                return;
+            }
+            if (node.children && node.children.length > 0) {
+                traverse(node.children);
+            }
+        }
+    }
+
+    traverse(tree);
+    return results;
+}
+
+function findProdlineEqtypesInTree(tree: ITreeNode[], acronym: string, prodline: string): string[] {
+    const normAcronym = normalizeMfgKey(acronym);
+    const normProd = prodline.trim().toLowerCase();
+    if (!normProd || !tree || tree.length === 0) return [];
+    const results: string[] = [];
+
+    function traverse(nodes: ITreeNode[]) {
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            const nodeTypeLower = String(node.NodeType ?? '').toLowerCase();
+            const nodeAcronym = normalizeMfgKey(String(node.mfgAcronym ?? ''));
+            const nodeProd = String(node.prodline ?? node.title ?? node.Name ?? '').trim().toLowerCase();
+
+            if (nodeTypeLower === 'prodline') {
+                const matchesAcronym = !normAcronym || !nodeAcronym || nodeAcronym === normAcronym;
+                if (matchesAcronym && nodeProd === normProd) {
+                    const children = node.children ?? [];
+                    for (let j = 0; j < children.length; j++) {
+                        const c = children[j];
+                        const val = String(c.eqtype ?? c.title ?? c.Name ?? '').trim();
+                        if (val) results.push(val);
+                    }
+                    return;
+                }
+            }
+            if (node.children && node.children.length > 0) {
+                traverse(node.children);
+            }
+        }
+    }
+
+    traverse(tree);
+    return results;
+}
+
 const featureTreeProps: IFeatureTree = {
     hideKebabMenu: false,
     hideCopyIcon: true,
@@ -265,6 +330,112 @@ const Manufacturer = (props: IManufacturerProps) => {
         () => featureTreeProps.allowIcon ? TreeNodeIcon({ NodeType: 'MfgEqtype' } as ITreeNode, featureTreeProps.instanceName ?? '') : null,
         []
     );
+
+    const sortedMfg = useMemo(() => {
+        return [...manufacturers].sort((a, b) =>
+            (a.mfgname || '').localeCompare(b.mfgname || '') || (a.mfgkey || '').localeCompare(b.mfgkey || '')
+        );
+    }, [manufacturers]);
+
+    // Filter manufacturers by search text
+    const filteredMfg = useMemo(() => {
+        const query = searchText.trim().toLowerCase();
+        if (!query) return sortedMfg;
+        return sortedMfg.filter((row) => {
+            const mfgName = String(row.mfgname || '').toLowerCase();
+            const mfgKey = String(row.mfgkey || '').toLowerCase();
+            if (mfgName.includes(query) || mfgKey.includes(query)) {
+                return true;
+            }
+            const key = normalizeMfgKey(row.mfgkey);
+            const prodlines = rmsContext.mfgVsProdline[key] ?? [];
+            if (prodlines.some((p) => String(p).toLowerCase().includes(query))) {
+                return true;
+            }
+            return false;
+        });
+    }, [rmsContext.mfgVsProdline, searchText, sortedMfg]);
+
+    // Build hierarchical tree base data (Root + Manufacturer nodes), preserving loaded subtrees
+    const buildBaseTree = useCallback((prevTree?: ITreeNode[]): ITreeNode[] => {
+        const rootLabel = headerText.replace(/^\[[^\]]+\]\s*/, '').trim() || 'Manufacturer';
+        const mfgNodes: ITreeNode[] = [];
+        const mfgLen = filteredMfg.length;
+
+        // Preserve already-loaded subtrees from prevTree if present
+        const existingMap = new Map<Key, ITreeNode>();
+        if (prevTree && prevTree.length > 0 && prevTree[0].children) {
+            const rootChildren = prevTree[0].children;
+            for (let i = 0; i < rootChildren.length; i++) {
+                existingMap.set(rootChildren[i].key, rootChildren[i]);
+            }
+        }
+
+        for (let i = 0; i < mfgLen; i++) {
+            const row = filteredMfg[i];
+            const acronym = row.mfgkey;
+            const mKey = mfgNodeKey(acronym);
+            const existing = existingMap.get(mKey);
+
+            if (existing) {
+                mfgNodes.push({
+                    ...existing,
+                    title: row.mfgname,
+                    Name: row.mfgname,
+                    TableLabel: row.mfgname,
+                    mfgName: row.mfgname,
+                });
+            } else {
+                mfgNodes.push({
+                    key: mKey,
+                    NodeEntityname: 'Mfg',
+                    NodeEntID: acronym,
+                    stepNo: 1,
+                    parentEntID: ROOT_KEY,
+                    Description: acronym,
+                    title: row.mfgname,
+                    children: [],
+                    treetype: 'Mfg',
+                    Name: row.mfgname,
+                    TableLabel: row.mfgname,
+                    Type: 'Mfg',
+                    icon: mfgIcon,
+                    HasChildren: 1,
+                    isLeaf: false,
+                    NodeType: 'Mfg',
+                    mfgAcronym: acronym,
+                    mfgName: row.mfgname,
+                });
+            }
+        }
+
+        const rootNode: ITreeNode = {
+            key: ROOT_KEY,
+            NodeEntityname: 'Root',
+            NodeEntID: ROOT_KEY,
+            stepNo: 0,
+            parentEntID: null,
+            Description: rootLabel,
+            title: rootLabel,
+            children: mfgNodes,
+            treetype: 'Root',
+            Name: `${rootLabel} (${mfgNodes.length})`,
+            TableLabel: `${rootLabel} (${mfgNodes.length})`,
+            Type: 'Root',
+            icon: null,
+            HasChildren: mfgNodes.length,
+            isLeaf: mfgNodes.length === 0,
+            NodeType: 'Root',
+        };
+
+        return [rootNode];
+    }, [filteredMfg, headerText, mfgIcon]);
+
+    const [treeData, setTreeData] = useState<ITreeNode[]>(() => buildBaseTree());
+
+    useEffect(() => {
+        setTreeData((prev) => buildBaseTree(prev));
+    }, [buildBaseTree]);
 
     // Form baseline record (stable during typing so SettingsLibForm doesn't reset)
     const [initialFormData, setInitialFormData] = useState<{
@@ -379,67 +550,139 @@ const Manufacturer = (props: IManufacturerProps) => {
     }, [manufacturers]);
 
     const prodlineOptions = useMemo(() => {
-        const names = new Set<string>();
-        const prodlineLists = Object.values(rmsContext.mfgVsProdline);
-        for (let i = 0; i < prodlineLists.length; i++) {
-            const list = prodlineLists[i];
-            for (let j = 0; j < list.length; j++) {
-                names.add(list[j]);
-            }
+        const targetAcronym = (SelectedMfgAcronym || initialFormData.acronym || enteredAcronym || '').trim();
+        const normAcr = normalizeMfgKey(targetAcronym);
+        if (!normAcr) {
+            return [];
         }
-        const currentUpper = (SelectedMfgAcronym || '').toUpperCase();
+
+        const names = new Set<string>();
+
+        // 1. Prodlines from rmsContext for this specific Acronym
+        const contextList = rmsContext.mfgVsProdline[normAcr] ?? rmsContext.mfgVsProdline[targetAcronym] ?? [];
+        for (let i = 0; i < contextList.length; i++) {
+            const p = String(contextList[i] ?? '').trim();
+            if (p) names.add(p);
+        }
+
+        // 2. Prodlines from MfgVsProdlineData matching this specific Acronym
         const mfgData = MfgVsProdlineData as Record<string, string[]>[];
         for (let i = 0; i < mfgData.length; i++) {
             const entry = mfgData[i];
             for (const k in entry) {
-                if (k.toUpperCase() === currentUpper || currentUpper.startsWith(k.toUpperCase())) {
+                if (normalizeMfgKey(k) === normAcr) {
                     const list = entry[k];
                     for (let j = 0; j < list.length; j++) {
-                        names.add(list[j]);
+                        const p = String(list[j] ?? '').trim();
+                        if (p) names.add(p);
                     }
                 }
             }
         }
-        if (names.size < 30) {
-            const limit = Math.min(100, mfgData.length);
-            for (let i = 0; i < limit; i++) {
-                const entry = mfgData[i];
-                for (const k in entry) {
-                    const list = entry[k];
-                    for (let j = 0; j < list.length; j++) {
-                        names.add(list[j]);
-                    }
-                }
-            }
+
+        // 3. Prodlines from current treeData under this Acronym
+        const treeProdlines = findProdlinesForMfgInTree(treeData, targetAcronym);
+        for (let i = 0; i < treeProdlines.length; i++) {
+            names.add(treeProdlines[i]);
         }
+
+        // 4. Currently selected / initial prodline value
+        const currentVal = (initialFormData.prodline || SelectedMfgProdline || enteredProdline || '').trim();
+        if (currentVal) {
+            names.add(currentVal);
+        }
+
         const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
         const options: { value: string; label: string }[] = [];
         for (let i = 0; i < sortedNames.length; i++) {
             options.push({ value: sortedNames[i], label: sortedNames[i] });
         }
         return options;
-    }, [SelectedMfgAcronym, rmsContext.mfgVsProdline]);
+    }, [
+        SelectedMfgAcronym,
+        enteredAcronym,
+        enteredProdline,
+        initialFormData.acronym,
+        initialFormData.prodline,
+        SelectedMfgProdline,
+        rmsContext.mfgVsProdline,
+        treeData,
+    ]);
 
     const eqtypeOptions = useMemo(() => {
+        const targetProdline = (SelectedMfgProdline || initialFormData.prodline || enteredProdline || '').trim();
+        const targetAcronym = (SelectedMfgAcronym || initialFormData.acronym || enteredAcronym || '').trim();
+        const normAcr = normalizeMfgKey(targetAcronym);
+
         const names = new Set<string>();
-        const sectionKeys = Object.keys(EQTypeVsSections);
-        for (let i = 0; i < sectionKeys.length; i++) {
-            names.add(sectionKeys[i]);
-        }
-        const eqtypeLists = Object.values(rmsContext.mfgVsMfgEqtype);
-        for (let i = 0; i < eqtypeLists.length; i++) {
-            const list = eqtypeLists[i];
-            for (let j = 0; j < list.length; j++) {
-                names.add(list[j]);
+
+        if (targetProdline) {
+            // 1. Prodline-based mfgeqtypes from treeData
+            const treeEqtypes = findProdlineEqtypesInTree(treeData, targetAcronym, targetProdline);
+            for (let i = 0; i < treeEqtypes.length; i++) {
+                names.add(treeEqtypes[i]);
+            }
+
+            // 2. Check context mapping for prodline-keyed eqtypes
+            const prodlineSpecific = rmsContext.mfgVsMfgEqtype[targetProdline] ??
+                rmsContext.mfgVsMfgEqtype[targetProdline.toUpperCase()] ??
+                (normAcr ? rmsContext.mfgVsMfgEqtype[`${normAcr}__${targetProdline}`] : undefined);
+            if (prodlineSpecific && prodlineSpecific.length > 0) {
+                for (let i = 0; i < prodlineSpecific.length; i++) {
+                    const e = String(prodlineSpecific[i] ?? '').trim();
+                    if (e) names.add(e);
+                }
+            }
+
+            // 3. If still empty, check context mapping for acronym
+            if (names.size === 0 && normAcr) {
+                const acrList = rmsContext.mfgVsMfgEqtype[normAcr] ?? rmsContext.mfgVsMfgEqtype[targetAcronym] ?? [];
+                for (let i = 0; i < acrList.length; i++) {
+                    const e = String(acrList[i] ?? '').trim();
+                    if (e) names.add(e);
+                }
+            }
+
+            // 4. Current selected / initial eqtype value
+            const currentVal = (initialFormData.eqtype || SelectedMfgEqtype || enteredEqtype || '').trim();
+            if (currentVal) {
+                names.add(currentVal);
+            }
+
+            // 5. If still completely empty (brand new prodline with no eqtypes), fallback to EQTypeVsSections
+            if (names.size === 0) {
+                const sectionKeys = Object.keys(EQTypeVsSections);
+                for (let i = 0; i < sectionKeys.length; i++) {
+                    names.add(sectionKeys[i]);
+                }
+            }
+        } else {
+            // No prodline selected: fallback to standard EQTypeVsSections
+            const sectionKeys = Object.keys(EQTypeVsSections);
+            for (let i = 0; i < sectionKeys.length; i++) {
+                names.add(sectionKeys[i]);
             }
         }
+
         const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
         const options: { value: string; label: string }[] = [];
         for (let i = 0; i < sortedNames.length; i++) {
             options.push({ value: sortedNames[i], label: sortedNames[i] });
         }
         return options;
-    }, [rmsContext.mfgVsMfgEqtype]);
+    }, [
+        SelectedMfgAcronym,
+        SelectedMfgEqtype,
+        SelectedMfgProdline,
+        enteredAcronym,
+        enteredEqtype,
+        enteredProdline,
+        initialFormData.acronym,
+        initialFormData.eqtype,
+        initialFormData.prodline,
+        rmsContext.mfgVsMfgEqtype,
+        treeData,
+    ]);
 
     const relationOptions = useMemo(() => {
         return acronymOptions;
@@ -1434,8 +1677,8 @@ const Manufacturer = (props: IManufacturerProps) => {
                         Name: val,
                         Type: 'Prodline',
                         icon: prodlineIcon,
-                        HasChildren: 1,
-                        isLeaf: false,
+                        HasChildren: 0,
+                        isLeaf: true,
                         NodeType: 'Prodline',
                         mfgAcronym: SelectedMfgAcronym,
                         prodline: val,
@@ -1634,116 +1877,6 @@ const Manufacturer = (props: IManufacturerProps) => {
         }
     }, [formMode, handleSaveEqtype, handleSaveMfg, handleSaveProdline, handleSaveRelation, showMessageDialog]);
 
-    const sortedMfg = useMemo(() => {
-        return [...manufacturers].sort((a, b) =>
-            (a.mfgname || '').localeCompare(b.mfgname || '') || (a.mfgkey || '').localeCompare(b.mfgkey || '')
-        );
-    }, [manufacturers]);
-
-    // Filter manufacturers by search text
-    const filteredMfg = useMemo(() => {
-        const query = searchText.trim().toLowerCase();
-        if (!query) return sortedMfg;
-        return sortedMfg.filter((row) => {
-            const mfgName = String(row.mfgname || '').toLowerCase();
-            const mfgKey = String(row.mfgkey || '').toLowerCase();
-            if (mfgName.includes(query) || mfgKey.includes(query)) {
-                return true;
-            }
-            const key = normalizeMfgKey(row.mfgkey);
-            const prodlines = rmsContext.mfgVsProdline[key] ?? [];
-            if (prodlines.some((p) => String(p).toLowerCase().includes(query))) {
-                return true;
-            }
-            const eqtypes = rmsContext.mfgVsMfgEqtype[key] ?? [];
-            if (eqtypes.some((e) => String(e).toLowerCase().includes(query))) {
-                return true;
-            }
-            return false;
-        });
-    }, [rmsContext.mfgVsMfgEqtype, rmsContext.mfgVsProdline, searchText, sortedMfg]);
-
-    // Build hierarchical tree base data (Root + Manufacturer nodes), preserving loaded subtrees
-    const buildBaseTree = useCallback((prevTree?: ITreeNode[]): ITreeNode[] => {
-        const rootLabel = headerText.replace(/^\[[^\]]+\]\s*/, '').trim() || 'Manufacturer';
-        const mfgNodes: ITreeNode[] = [];
-        const mfgLen = filteredMfg.length;
-
-        // Preserve already-loaded subtrees from prevTree if present
-        const existingMap = new Map<Key, ITreeNode>();
-        if (prevTree && prevTree.length > 0 && prevTree[0].children) {
-            const rootChildren = prevTree[0].children;
-            for (let i = 0; i < rootChildren.length; i++) {
-                existingMap.set(rootChildren[i].key, rootChildren[i]);
-            }
-        }
-
-        for (let i = 0; i < mfgLen; i++) {
-            const row = filteredMfg[i];
-            const acronym = row.mfgkey;
-            const mKey = mfgNodeKey(acronym);
-            const existing = existingMap.get(mKey);
-
-            if (existing) {
-                mfgNodes.push({
-                    ...existing,
-                    title: row.mfgname,
-                    Name: row.mfgname,
-                    TableLabel: row.mfgname,
-                    mfgName: row.mfgname,
-                });
-            } else {
-                mfgNodes.push({
-                    key: mKey,
-                    NodeEntityname: 'Mfg',
-                    NodeEntID: acronym,
-                    stepNo: 1,
-                    parentEntID: ROOT_KEY,
-                    Description: acronym,
-                    title: row.mfgname,
-                    children: [],
-                    treetype: 'Mfg',
-                    Name: row.mfgname,
-                    TableLabel: row.mfgname,
-                    Type: 'Mfg',
-                    icon: mfgIcon,
-                    HasChildren: 1,
-                    isLeaf: false,
-                    NodeType: 'Mfg',
-                    mfgAcronym: acronym,
-                    mfgName: row.mfgname,
-                });
-            }
-        }
-
-        const rootNode: ITreeNode = {
-            key: ROOT_KEY,
-            NodeEntityname: 'Root',
-            NodeEntID: ROOT_KEY,
-            stepNo: 0,
-            parentEntID: null,
-            Description: rootLabel,
-            title: rootLabel,
-            children: mfgNodes,
-            treetype: 'Root',
-            Name: `${rootLabel} (${mfgNodes.length})`,
-            TableLabel: `${rootLabel} (${mfgNodes.length})`,
-            Type: 'Root',
-            icon: null,
-            HasChildren: mfgNodes.length,
-            isLeaf: mfgNodes.length === 0,
-            NodeType: 'Root',
-        };
-
-        return [rootNode];
-    }, [filteredMfg, headerText, mfgIcon]);
-
-    const [treeData, setTreeData] = useState<ITreeNode[]>(() => buildBaseTree());
-
-    useEffect(() => {
-        setTreeData((prev) => buildBaseTree(prev));
-    }, [buildBaseTree]);
-
     const isSelectedInFiltered = useMemo(() => {
         if (!SelectedMfgAcronym) return true;
         return filteredMfg.some((m) => normalizeMfgKey(m.mfgkey) === normalizeMfgKey(SelectedMfgAcronym));
@@ -1802,11 +1935,7 @@ const Manufacturer = (props: IManufacturerProps) => {
                 const prodlines = rmsContext.mfgVsProdline[normKey] ?? [];
                 for (let j = 0; j < prodlines.length; j++) {
                     const p = prodlines[j];
-                    const eqtypes = rmsContext.mfgVsMfgEqtype[normKey] ?? [];
-                    if (
-                        String(p).toLowerCase().includes(query) ||
-                        eqtypes.some((e) => String(e).toLowerCase().includes(query))
-                    ) {
+                    if (String(p).toLowerCase().includes(query)) {
                         keysToExpand.push(prodlineNodeKey(row.mfgkey, p));
                     }
                 }
@@ -1822,7 +1951,7 @@ const Manufacturer = (props: IManufacturerProps) => {
             }
             setExpandedKeys(Array.from(new Set(baseKeys)));
         }
-    }, [filteredMfg, SelectedMfgAcronym, SelectedMfgProdline, rmsContext.mfgVsMfgEqtype, rmsContext.mfgVsProdline, searchText]);
+    }, [filteredMfg, SelectedMfgAcronym, SelectedMfgProdline, rmsContext.mfgVsProdline, searchText]);
 
     // Handle node selection in the tree
     const handleNodeSelect = useCallback((
@@ -1896,7 +2025,7 @@ const Manufacturer = (props: IManufacturerProps) => {
         }
     }, [handleNodeSelect, searchHistory, treeData]);
 
-    // Helper: recursively resolve single-child descent for manufacturer down to leaf or branching level
+    // Helper: resolve manufacturer descent to the Product Line level
     const resolveSingleChildDescentForMfg = useCallback(async (
         acronym: string,
         mfgName: string,
@@ -1907,8 +2036,7 @@ const Manufacturer = (props: IManufacturerProps) => {
 
         const prodlines = await loadProdlines(acronym);
 
-        if (prodlines.length > 1) {
-            // Multiple prodlines: do not call API to load mfgeqtypes
+        if (prodlines.length > 0) {
             const prodlineNodes: ITreeNode[] = [];
             const pLen = prodlines.length;
             for (let i = 0; i < pLen; i++) {
@@ -1926,8 +2054,8 @@ const Manufacturer = (props: IManufacturerProps) => {
                     Name: p,
                     Type: 'Prodline',
                     icon: prodlineIcon,
-                    HasChildren: 1,
-                    isLeaf: false,
+                    HasChildren: 0,
+                    isLeaf: true,
                     NodeType: 'Prodline',
                     mfgAcronym: acronym,
                     prodline: p,
@@ -1935,64 +2063,6 @@ const Manufacturer = (props: IManufacturerProps) => {
             }
             const targetNode = prodlineNodes[0];
             return { keysToExpand: keys, targetNode, childrenToInsert: prodlineNodes };
-        }
-
-        if (prodlines.length === 1) {
-            // Single prodline: load eqtypes and auto-descend down to end node (eqtype)
-            const p0 = prodlines[0];
-            const p0Key = prodlineNodeKey(acronym, p0);
-            keys.push(p0Key);
-
-            const eqtypes = await loadEqtypes(acronym);
-
-            const eqtypeNodes: ITreeNode[] = [];
-            const eLen = eqtypes.length;
-            for (let i = 0; i < eLen; i++) {
-                const eqtype = eqtypes[i];
-                eqtypeNodes.push({
-                    key: eqtypeNodeKey(acronym, p0, eqtype),
-                    NodeEntityname: 'MfgEqtype',
-                    NodeEntID: eqtype,
-                    stepNo: 3,
-                    parentEntID: p0Key,
-                    Description: eqtype,
-                    title: eqtype,
-                    children: [],
-                    treetype: 'MfgEqtype',
-                    Name: eqtype,
-                    Type: 'MfgEqtype',
-                    icon: eqtypeIcon,
-                    HasChildren: 0,
-                    isLeaf: true,
-                    NodeType: 'MfgEqtype',
-                    mfgAcronym: acronym,
-                    prodline: p0,
-                    eqtype,
-                });
-            }
-
-            const p0Node: ITreeNode = {
-                key: p0Key,
-                NodeType: 'Prodline',
-                treetype: 'Prodline',
-                NodeEntityname: 'Prodline',
-                NodeEntID: p0,
-                stepNo: 2,
-                parentEntID: mKey,
-                Description: `${acronym} / ${p0}`,
-                title: p0,
-                children: eqtypeNodes,
-                Name: p0,
-                Type: 'Prodline',
-                icon: prodlineIcon,
-                HasChildren: eqtypeNodes.length,
-                isLeaf: eqtypeNodes.length === 0,
-                mfgAcronym: acronym,
-                prodline: p0,
-            };
-
-            const targetNode = eqtypeNodes.length >= 1 ? eqtypeNodes[0] : p0Node;
-            return { keysToExpand: keys, targetNode, childrenToInsert: [p0Node] };
         }
 
         // prodlines.length === 0
@@ -2017,7 +2087,7 @@ const Manufacturer = (props: IManufacturerProps) => {
             mfgName,
         };
         return { keysToExpand: keys, targetNode, childrenToInsert: [] };
-    }, [eqtypeIcon, loadEqtypes, loadProdlines, mfgIcon, prodlineIcon]);
+    }, [loadProdlines, mfgIcon, prodlineIcon]);
 
     // Handle node expansion in the tree with single-child level descent down to end level
     const handleNodeExpand = useCallback(async (expandedNodeKeys: Key[], info: IExpandedNodeInfo) => {
@@ -2073,51 +2143,6 @@ const Manufacturer = (props: IManufacturerProps) => {
 
                 setTreeData((prev) => updateNodeChildrenInTree(prev, mfgNodeKey(acronym), childrenToInsert));
                 setExpandedKeys(Array.from(new Set(keysToExpand)));
-                applySelection(targetNode);
-                setCommandNode(targetNode);
-                setStatusMessage('');
-                setFormSessionId(`node-${String(targetNode.key)}`);
-                return;
-            }
-
-            if (nodeTypeLower === 'prodline') {
-                const acronym = String(info.node.mfgAcronym ?? '').trim();
-                const prodline = String(info.node.prodline ?? info.node.NodeEntID ?? '').trim();
-                const pKey = prodlineNodeKey(acronym, prodline);
-                const keysToExpand = Array.from(new Set([...baseExpanded, pKey]));
-
-                const eqtypes = await loadEqtypes(acronym);
-
-                const eqtypeNodes: ITreeNode[] = [];
-                const eLen = eqtypes.length;
-                for (let i = 0; i < eLen; i++) {
-                    const e = eqtypes[i];
-                    eqtypeNodes.push({
-                        key: eqtypeNodeKey(acronym, prodline, e),
-                        NodeType: 'MfgEqtype',
-                        treetype: 'MfgEqtype',
-                        NodeEntityname: 'MfgEqtype',
-                        NodeEntID: e,
-                        stepNo: 3,
-                        parentEntID: pKey,
-                        Description: e,
-                        title: e,
-                        children: [],
-                        Name: e,
-                        Type: 'MfgEqtype',
-                        icon: eqtypeIcon,
-                        HasChildren: 0,
-                        isLeaf: true,
-                        mfgAcronym: acronym,
-                        prodline,
-                        eqtype: e,
-                    });
-                }
-
-                setTreeData((prev) => updateNodeChildrenInTree(prev, pKey, eqtypeNodes));
-
-                const targetNode = eqtypeNodes.length >= 1 ? eqtypeNodes[0] : info.node;
-                setExpandedKeys(keysToExpand);
                 applySelection(targetNode);
                 setCommandNode(targetNode);
                 setStatusMessage('');
@@ -2195,12 +2220,9 @@ const Manufacturer = (props: IManufacturerProps) => {
         }
     }, [
         applySelection,
-        eqtypeIcon,
         filteredMfg,
         findMfg,
-        loadEqtypes,
         mfgIcon,
-        prodlineIcon,
         resolveSingleChildDescentForMfg,
         setCommandNode,
         setStatusMessage,

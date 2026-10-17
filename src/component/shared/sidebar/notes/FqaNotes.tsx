@@ -734,6 +734,73 @@ const FqaNotes = (props: IFqaNotes) => {
 		setDeleteOpen(true);
 	}, []);
 
+	// Remove Important flag from a note, save back with important = false, and re-render note container
+	const handleRemoveImportant = useCallback(
+		async (item: INoteItems) => {
+			const noteId = String(
+				item.id ?? item.noteid ?? item._noteid ?? item.FileUID ?? ''
+			);
+			const now = new Date().toISOString();
+
+			// 1. Optimistic update to immediately re-render this note container without Important
+			const applyUpdate = (prev: INoteItems[]) =>
+				prev.map((n) => {
+					const nId = String(n.id ?? n.noteid ?? n._noteid ?? n.FileUID ?? '');
+					if (n === item || (noteId && nId === noteId)) {
+						return {
+							...n,
+							important: false,
+							LastUpdated: now,
+							monitorupdated: now,
+						};
+					}
+					return n;
+				});
+
+			setNoteItems(applyUpdate);
+			setOriginalNotesItems(applyUpdate);
+
+			if (editingItem && (editingItem === item || (noteId && String(editingItem.noteid ?? editingItem.id ?? '') === noteId))) {
+				setEditingItem((prev) => (prev ? { ...prev, important: false } : null));
+			}
+
+			// 2. Persist update with important = false to backend
+			if (noteId && businessId && updateNote) {
+				statusBarContext?.setIsLoading?.(true);
+				try {
+					const updatePayload: Record<string, unknown> = {
+						important: false,
+						Important: false,
+						monitorupdated: now,
+					};
+					const result = await updateNote(noteId, updatePayload);
+					if (result && result.success !== false) {
+						try {
+							const userName = authSession?.displayName || authSession?.username || authSession?.cid || 'User';
+							await createActivityLogRef.current?.(
+								`${cid || userName} of ${businessId} removed important flag from note ${noteId} successfully.`
+							);
+						} catch (logErr) {
+							console.error('FqaNotes: createActivityLog failed', logErr);
+						}
+					} else {
+						console.error('FqaNotes: updateNote failed to remove important', result?.error);
+					}
+				} catch (err) {
+					console.error('FqaNotes: handleRemoveImportant error', err);
+				} finally {
+					statusBarContext?.setIsLoading?.(false);
+				}
+			}
+
+			// 3. Re-fetch / refresh notes to ensure database and UI are strictly synchronized
+			if (businessId && getNotes) {
+				void getNotes();
+			}
+		},
+		[businessId, updateNote, editingItem, cid, authSession, statusBarContext, getNotes]
+	);
+
 	// Search filter
 	const searchValueChange = (value: string): void => {
 		setSearchText(value);
@@ -1077,6 +1144,29 @@ const FqaNotes = (props: IFqaNotes) => {
 												label={`${item.UserName ?? item.noteby ?? ''}`}
 											/>
 										</div>
+										{isImportantNote && (
+											<button
+												type="button"
+												className="nz-note-remove-important"
+												title="Click to remove Important"
+												aria-label="Click to remove Important"
+												onClick={(e) => {
+													e.stopPropagation();
+													void handleRemoveImportant(item);
+												}}
+												onMouseDown={(e) => {
+													e.stopPropagation();
+												}}
+											>
+												<Close24x24
+													size="14px"
+													strokeWidth={2}
+													stroke="currentColor"
+													strokeLinecap="round"
+													fill="none"
+												/>
+											</button>
+										)}
 									</div>
 									<div className="nz-info-div">
 										{renderNoteCardIcon(item, index)}

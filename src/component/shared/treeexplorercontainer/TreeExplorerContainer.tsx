@@ -57,7 +57,7 @@ const getTicketsForTree = (): ITicketDoc[] => {
 const isRmsEqidFeature = (featureId?: string) => {
   if (!featureId) return false;
   const fid = String(featureId).toLowerCase().trim();
-  return featureId === RmsEnums.EQID || featureId === '404' || fid === '404' || fid === 'eqid';
+  return featureId === RmsEnums.EQIDByTicket || featureId === '404' || fid === '404' || fid === 'eqid';
 };
 
 const isReviewDeletedFeature = (featureId?: string) => {

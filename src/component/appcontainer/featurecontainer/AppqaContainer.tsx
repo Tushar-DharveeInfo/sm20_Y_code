@@ -23,7 +23,7 @@ const AppqaAlerts = lazy(() => import('../../features/appqa/alerts/Alerts.tsx'))
 const AppqaNotify = lazy(() => import('../../features/appqa/notify/Notify.tsx'));
 const AppqaReport = lazy(() => import('../../features/appqa/report/Report.tsx'));
 const AppqaLaunch = lazy(() => import('../../features/appqa/launch/Launch.tsx'));
-const AppqaToDo = lazy(() => import('../../features/appqa/todo/ToDo.tsx'));
+const AppqaToDo = lazy(() => import('../../features/appqa/reminder/Reminder.tsx'));
 const AppqaImpersonate = lazy(() => import('../../features/appqa/impersonateuser/ImpersonateUser.tsx'));
 
 function AppQaContainer(appQaContainerProps: IAppqaContainer) {
@@ -127,12 +127,13 @@ function AppQaContainer(appQaContainerProps: IAppqaContainer) {
             );
 
 
+        case AppQA.Reminder:
         case AppQA.ToDo:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
                         <AppqaToDo
-                            uniqueName={'app-qa-to-do'}
+                            uniqueName={'app-qa-reminder'}
                             featureId={featureContainerProps.appqaId}
                         />
                     </Suspense>

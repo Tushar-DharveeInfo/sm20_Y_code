@@ -1,5 +1,5 @@
 import React from 'react';
-import { FqaEqidToDo } from './FqaEqidToDo';
+import { EQIDReminder } from './EQIDReminder';
 
 interface IEQIDToDoPaneProps {
   eqid?: string;
@@ -8,7 +8,7 @@ interface IEQIDToDoPaneProps {
 }
 
 export const EQIDToDoPane: React.FC<IEQIDToDoPaneProps> = (props) => {
-  return <FqaEqidToDo {...props} />;
+  return <EQIDReminder {...props} />;
 };
 
 export default EQIDToDoPane;

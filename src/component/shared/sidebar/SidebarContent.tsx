@@ -20,7 +20,7 @@ import { useHelpTipContext } from '../context/hooks/HelptipHooks'
 import { AlertLog } from './alertlog/AlertLog'
 import { ContactList } from './contactlist/ContactList'
 import { OrderList } from './orderlist/OrderList'
-import { AddToDo } from './todo/AddToDo'
+import { AddReminder } from './reminder/AddReminder'
 import { Email } from './email/Email'
 import { buildPropertyFormDataFromSelectedNode } from './propertyformcontainer/PropertySampleData'
 import { IMenuItem } from '../allinterface/menu/IMainMenu'
@@ -330,10 +330,13 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
                     />
                 );
 
+            case SidebarEnum.Reminder:
             case SidebarEnum.ToDo:
+            case "Reminder":
+            case "ToDo":
                 return (
-                    <AddToDo
-                        uniqueName={`sidebar-todo-${sidebarProps.uniqueName}`}
+                    <AddReminder
+                        uniqueName={`sidebar-reminder-${sidebarProps.uniqueName}`}
                         featureId={sidebarProps.featureId}
                         selectedNode={selectedNode ?? sidebarProps.selectedNode}
                     />
@@ -355,7 +358,10 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
     };
 
 
-    const isRmsEqid = sidebarProps.featureId === RmsEnums.EQID;
+    const isRmsEqid =
+        sidebarProps.featureId === RmsEnums.EQIDByTicket ||
+        sidebarProps.featureId === RmsEnums.EQIDByMfg ||
+        sidebarProps.featureId === '404';
     if (isRmsEqid) {
         return (
             <div className="nz-sidebar-container">

@@ -296,7 +296,7 @@ const AppqaAlerts = (appqaAlertsProps: IAppqaAlerts) => {
 
     if (loading) {
         return (
-            <div className="nz-wh-100 nz-d-flex-hv-left">Loading alert logs...</div>
+            <div className="nz-wh-100 nz-d-flex-hv-left nz-no-data-found">Loading alert logs...</div>
         );
     }
 

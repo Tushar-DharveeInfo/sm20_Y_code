@@ -32,6 +32,7 @@
 
 .nz-request-visio-panes {
     height: 100%;
+    overflow: hidden;
 }
 
 .nz-node-download-cart-icon {

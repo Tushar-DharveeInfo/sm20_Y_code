@@ -470,7 +470,7 @@ const OneToManyFormContainer = (oneToManyFormContainerProps: IOneToManyFormConta
     const gridHeight = useMemo(() => {
         if (isNoData) return 70;
         const rowCount = oneToManyGridData?.length ?? 0;
-        return Math.min(28 + rowCount * 26 + 18, 320);
+        return Math.min(28 + rowCount * 26, 320);
     }, [isNoData, oneToManyGridData?.length]);
 
     if (loading) {

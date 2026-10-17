@@ -3,7 +3,7 @@ import { CardLayout, ICardLayoutField } from '../../../shared/cardlayout/CardLay
 import { FnFormatTicketDate } from '../../../shared/allcommon/tree/FnFormatTicketDate';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { LibraryColor128x128, NetZoom24x24, Visio, Close24x24 } from '@n20a/libicon';
-import type { ITicketDoc, IContactDoc } from '../../../db/IDatasets';
+import type { ITicketDoc, IContactDoc } from '@n20a/libfsdb';
 import './TicketCard.css';
 
 interface ITicketCardProps {
@@ -15,6 +15,7 @@ interface ITicketCardProps {
     onSelect: (ticket: ITicketDoc) => void;
     onSkuClick?: (sku: string, ticket: ITicketDoc) => void;
     onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void | Promise<void>;
+    onSplit?: (ticket: ITicketDoc) => void;
 }
 
 /**
@@ -64,6 +65,7 @@ const TicketCard: React.FC<ITicketCardProps> = ({
     onSelect,
     onSkuClick,
     onStatusChange,
+    onSplit,
 }) => {
     const [localStatus, setLocalStatus] = React.useState<string>(ticket.status ?? '');
 
@@ -163,6 +165,17 @@ const TicketCard: React.FC<ITicketCardProps> = ({
                         })}
                     </div>
                     <div className="nz-ticket-card-actions">
+                        <button
+                            type="button"
+                            className="nz-ticket-action-btn nz-ticket-action-btn-split"
+                            title="Split ticket"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSplit?.(ticket);
+                            }}
+                        >
+                            Split
+                        </button>
                         {actionButton && (
                             <button
                                 type="button"

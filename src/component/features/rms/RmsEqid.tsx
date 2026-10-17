@@ -22,7 +22,7 @@ interface IRmsEqidProps {
 const RmsEqid: React.FC<IRmsEqidProps> = (props) => {
     const {
         uniqueName = 'feature-rms-eqid',
-        featureId = RmsEnums.EQID,
+        featureId = RmsEnums.EQIDByTicket,
         headerText = 'EQID Development',
         libraryMode = 'InProgress',
         selectedNode,

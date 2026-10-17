@@ -30,6 +30,33 @@ function getLastValue(value: string): string {
  * Sanitizes and normalizes row values to conform with INetworkPort, IPowerPort, ISlot, and IInOutPort.
  */
 function sanitizeRow(row: Record<string, unknown>, tableName: string): IPortOrSlotRow {
+  const isUrl = tableName.toLowerCase() === "urls" || tableName.toLowerCase() === "url";
+  if (isUrl) {
+    const urlVal = String(row.URL ?? row.Url ?? row.url ?? row.Name ?? "").trim();
+    const rowId = String(row.RecID || `url_${Date.now()}`);
+    return {
+      RecID: rowId,
+      URL: urlVal,
+      Name: urlVal,
+    } as IPortOrSlotRow;
+  }
+
+  const isEqidRelation =
+    tableName.toLowerCase() === "eqidrelation" ||
+    tableName.toLowerCase() === "eqidrelations" ||
+    tableName.toLowerCase().includes("relation");
+  if (isEqidRelation) {
+    const relVal = String(
+      row.EQIDRelation ?? row.eqidrelation ?? row.EqidRelation ?? row.Name ?? ""
+    ).trim();
+    const rowId = String(row.RecID || `rel_${Date.now()}`);
+    return {
+      RecID: rowId,
+      EQIDRelation: relVal,
+      Name: relVal,
+    } as IPortOrSlotRow;
+  }
+
   const shapeId = String(row.ShapeID || "").trim() || `${tableName.toUpperCase()}_${Date.now()}`;
   const rowId = (row.RecID as string) || shapeId;
 
@@ -283,13 +310,55 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
 
   // 3. Real data: initialize from currentEqidRecord[fieldKey], default to empty list [] (no static dummy fallback)
   const initialRecords = useMemo((): IPortOrSlotRow[] => {
-    const existing = (currentEqidRecord as any)?.[menuConfig.fieldKey];
+    const isRel = menuConfig.fieldKey === "EQIDRelation";
+    const existing =
+      (currentEqidRecord as any)?.[menuConfig.fieldKey] ??
+      (isRel
+        ? (currentEqidRecord as any)?.EQIDRelations ?? (currentEqidRecord as any)?.eqidrelation
+        : undefined);
     if (Array.isArray(existing) && existing.length > 0) {
-      return existing.map((item: any, idx: number) => ({
-        ...item,
-        RecID: String(item.RecID || item.ShapeID || `${menuConfig.tableName.toLowerCase()}_${idx + 1}`),
-        ShapeID: String(item.ShapeID || item.RecID || `${menuConfig.tableName.toUpperCase()}_${idx + 1}`),
-      }));
+      return existing.map((item: any, idx: number) => {
+        if (typeof item === "string") {
+          if (isRel) {
+            return {
+              RecID: `rel_${idx + 1}`,
+              EQIDRelation: item,
+              Name: item,
+            };
+          }
+          return {
+            RecID: `url_${idx + 1}`,
+            URL: item,
+            Name: item,
+          };
+        }
+        if (isRel) {
+          const relVal = String(
+            item.EQIDRelation ?? item.eqidrelation ?? item.EqidRelation ?? item.Name ?? ""
+          ).trim();
+          return {
+            ...item,
+            RecID: String(item.RecID || `rel_${idx + 1}`),
+            EQIDRelation: relVal,
+            Name: relVal,
+          };
+        }
+        const isUrl = menuConfig.fieldKey === "Urls";
+        if (isUrl) {
+          const urlVal = String(item.URL ?? item.Url ?? item.url ?? item.Name ?? "").trim();
+          return {
+            ...item,
+            RecID: String(item.RecID || `url_${idx + 1}`),
+            URL: urlVal,
+            Name: urlVal,
+          };
+        }
+        return {
+          ...item,
+          RecID: String(item.RecID || item.ShapeID || `${menuConfig.tableName.toLowerCase()}_${idx + 1}`),
+          ShapeID: String(item.ShapeID || item.RecID || `${menuConfig.tableName.toUpperCase()}_${idx + 1}`),
+        };
+      });
     }
     return [];
   }, [currentEqidRecord, menuConfig.fieldKey, menuConfig.tableName]);
@@ -312,6 +381,22 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
       }
 
       const cleanList = updatedList.map((row) => {
+        if (menuConfig.fieldKey === "Urls") {
+          const urlVal = String(row.URL ?? row.Url ?? row.url ?? row.Name ?? "").trim();
+          return {
+            RecID: (row.RecID as string) || `url_${Date.now()}`,
+            URL: urlVal,
+          };
+        }
+        if (menuConfig.fieldKey === "EQIDRelation") {
+          const relVal = String(
+            row.EQIDRelation ?? row.eqidrelation ?? row.EqidRelation ?? row.Name ?? ""
+          ).trim();
+          return {
+            RecID: (row.RecID as string) || `rel_${Date.now()}`,
+            EQIDRelation: relVal,
+          };
+        }
         const cleanItem: Record<string, unknown> = { ...row };
         if (!cleanItem.RecID && cleanItem.ShapeID) {
           cleanItem.RecID = cleanItem.ShapeID;
@@ -417,11 +502,15 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
       try {
         const deleteRecId = recordToDelete.RecID as string | undefined;
         const deleteShapeId = recordToDelete.ShapeID as string | undefined;
+        const deleteUrl = recordToDelete.URL as string | undefined;
+        const deleteRelation = (recordToDelete.EQIDRelation ?? recordToDelete.eqidrelation) as string | undefined;
 
         const currentList = tableDataRef.current ?? [];
         const nextList = currentList.filter((r) => {
           if (deleteRecId && r.RecID && r.RecID === deleteRecId) return false;
           if (deleteShapeId && r.ShapeID && r.ShapeID === deleteShapeId) return false;
+          if (deleteUrl && r.URL && r.URL === deleteUrl) return false;
+          if (deleteRelation && r.EQIDRelation && r.EQIDRelation === deleteRelation) return false;
           return r !== recordToDelete;
         });
 

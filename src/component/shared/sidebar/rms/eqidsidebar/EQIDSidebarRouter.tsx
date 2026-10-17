@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { EQIDPropertiesPane } from './EQIDPropertiesPane';
 import { EQIDNotesPane } from './EQIDNotesPane';
-import { FqaEqidToDo } from './FqaEqidToDo';
+import { EQIDReminder } from './EQIDReminder';
 import { EQIDExploreAIPane } from './EQIDExploreAIPane';
 import { useSelectedNodeContext } from '../../../context/hooks/SelectedNodeHooks';
 import { useSmDataContext } from '../../../context/hooks/SmDataHooks';
@@ -10,6 +10,7 @@ import { ITreeNode } from '../../../allinterface/tree/ITreeControl';
 import { IMenuItem } from '../../../allinterface/menu/IMainMenu';
 import { EQIDOneToManyContainer } from './EQIDOneToManyContainer';
 import { EQIDStylesContainer } from './EQIDStylesContainer';
+import { RmsEnums } from '../../../../constants/Feature';
 
 export enum SubMenuKey {
   Property = 'property',
@@ -21,6 +22,10 @@ export enum SubMenuKey {
   Slots = 'slots',
   InOutPort = 'inoutport',
   InOutPorts = 'inoutports',
+  Url = 'url',
+  Urls = 'urls',
+  EqidRelation = 'eqidrelation',
+  EqidRelations = 'eqidrelations',
 }
 
 export type EQIDSubMenuKey = SubMenuKey;
@@ -43,12 +48,89 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
     // Handled if rendered outside RmsProvider
   }
 
+  const isMfgMode = featureId === RmsEnums.EQIDByMfg || featureId === '404';
+
   // Resolve the active ticket:
-  // 1. From selectedNodeContext.selectedTicketCard / rmsContext.selectedTicketCard
-  // 2. Direct from selectedNode if it has ticket properties
-  // 3. From selectedNodeContext.selectedNode
-  // 4. From smDataContext tickets dataset matching the active business/contact
+  // For EQID by Mfg: resolve directly from selectedNode / selectedNodeContext for this EQID
+  // For EQID by Ticket: preserve EXACT existing logic
   const activeTicket = useMemo(() => {
+    if (isMfgMode) {
+      if ((selectedNode as any)?.isNewRecord) {
+        return {
+          ...(selectedNode as any),
+          NodeType: 'EQID',
+          treetype: 'EQID',
+          nodeType: 'EQID',
+          ticketid: '',
+          id: '',
+          eqid: '',
+          EQID: '',
+          Acronym: '',
+          Manufacturer: '',
+          mfg: '',
+          ProdLine: '',
+          prodline: '',
+          EqType: '',
+          eqtype: '',
+          isNewRecord: true,
+        };
+      }
+
+      const rawType = String(
+        (selectedNode as any)?.nodeType ??
+        (selectedNode as any)?.NodeType ??
+        (selectedNode as any)?.treetype ??
+        ''
+      ).toLowerCase();
+
+      const targetEqid = String(
+        (selectedNode as any)?.EQID ||
+        (selectedNode as any)?.eqid ||
+        (selectedNode as any)?.eqidRecord?.EQID ||
+        (selectedNode as any)?.eqidRecord?.eqid ||
+        (rawType === 'eqid' ? selectedNode?.Name : '') ||
+        ''
+      ).trim();
+
+      if (targetEqid) {
+        const cleanTarget = targetEqid.toLowerCase();
+        const existingRecord = (rmsContext?.eqid ?? []).find(
+          (e: any) =>
+            String(e.EQID || e.eqid || e.id || '').trim().toLowerCase() === cleanTarget
+        );
+        const source = existingRecord ?? (selectedNode as any)?.eqidRecord ?? selectedNode;
+        const ticketIdFromEqid = String(source?.ticketid || '').trim();
+        const matchingTicket = ticketIdFromEqid
+          ? (smDataContext?.datasets?.tickets ?? []).find(
+              (t: any) => t.ticketid === ticketIdFromEqid || t.id === ticketIdFromEqid
+            )
+          : null;
+        const bid = String(source?.bid || matchingTicket?.bid || smDataContext?.selection?.bid || '').trim();
+        const cid = String(source?.cid || matchingTicket?.cid || smDataContext?.selection?.cid || '').trim();
+
+        return {
+          ...(source ?? {}),
+          NodeType: 'EQID',
+          treetype: 'EQID',
+          nodeType: 'EQID',
+          ticketid: source?.ticketid || targetEqid,
+          id: targetEqid,
+          eqid: targetEqid,
+          EQID: targetEqid,
+          bid,
+          cid,
+          prodno: source?.prodno || source?.ProdNo || '',
+          mfg: source?.Manufacturer || source?.mfg || '',
+          Manufacturer: source?.Manufacturer || source?.mfg || '',
+          prodline: source?.ProdLine || source?.prodline || '',
+          ProdLine: source?.ProdLine || source?.prodline || '',
+          eqtype: source?.EqType || source?.eqtype || '',
+          EqType: source?.EqType || source?.eqtype || '',
+        };
+      }
+      return selectedNode ?? null;
+    }
+
     const cardFromCtx =
       (selectedNodeContext as any)?.selectedTicketCard ??
       (selectedNodeContext as any)?.SelectedTicketCard ??
@@ -59,12 +141,28 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
       return cardFromCtx;
     }
 
-    if (selectedNode && (selectedNode.ticketid || (selectedNode as any).prodno || selectedNode.NodeType === 'Ticket')) {
+    if (
+      selectedNode &&
+      (selectedNode.ticketid ||
+        (selectedNode as any).prodno ||
+        selectedNode.NodeType === 'Ticket' ||
+        selectedNode.NodeType === 'EQID' ||
+        (selectedNode as any).eqid ||
+        (selectedNode as any).EQID)
+    ) {
       return selectedNode;
     }
 
     const ctxNode = selectedNodeContext?.selectedNode;
-    if (ctxNode && (ctxNode.ticketid || (ctxNode as any).prodno || ctxNode.NodeType === 'Ticket')) {
+    if (
+      ctxNode &&
+      (ctxNode.ticketid ||
+        (ctxNode as any).prodno ||
+        ctxNode.NodeType === 'Ticket' ||
+        ctxNode.NodeType === 'EQID' ||
+        (ctxNode as any).eqid ||
+        (ctxNode as any).EQID)
+    ) {
       return ctxNode;
     }
 
@@ -89,7 +187,16 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
     }
 
     return null;
-  }, [selectedNodeContext?.selectedTicketCard, selectedNode, selectedNodeContext?.selectedNode, smDataContext?.datasets?.tickets, smDataContext?.selection?.bid, smDataContext?.selection?.cid]);
+  }, [
+    isMfgMode,
+    selectedNode,
+    selectedNodeContext?.selectedTicketCard,
+    selectedNodeContext?.selectedNode,
+    rmsContext?.eqid,
+    smDataContext?.datasets?.tickets,
+    smDataContext?.selection?.bid,
+    smDataContext?.selection?.cid,
+  ]);
 
   const eqid = (activeTicket as any)?.eqid || (activeTicket as any)?.EQID || (activeTicket as any)?.eqId || '';
 
@@ -98,7 +205,7 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
   const subMenuKey = (selectedNodeMenu?.Name || selectedNodeMenu?.Label || SubMenuKey.Property).toLowerCase().replace(/[\s()]+/g, '');
 
   switch (true) {
-    case cleanLabel === 'eqid' || cleanLabel.includes('property') || cleanLabel.includes('properties'): {
+    case cleanLabel === 'eqid' || cleanLabel.includes('property') || cleanLabel.includes('properties') || cleanLabel === 'add eqid' || cleanLabel.includes('add eqid'): {
       if (subMenuKey === SubMenuKey.ShapeStyles || subMenuKey === SubMenuKey.HardwareShapes) {
         return <EQIDStylesContainer uniqueName="fqa-eqid-styles" label={selectedNodeMenu?.Label || 'Shape Styles'} />;
       }
@@ -142,6 +249,31 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
           />
         );
       }
+      if (subMenuKey === SubMenuKey.Url || subMenuKey === SubMenuKey.Urls || subMenuKey.includes('url')) {
+        return (
+          <EQIDOneToManyContainer
+            ticket={activeTicket}
+            menuKey={SubMenuKey.Url}
+            selectedNode={selectedNode}
+            featureId={featureId}
+          />
+        );
+      }
+      if (
+        subMenuKey === SubMenuKey.EqidRelation ||
+        subMenuKey === SubMenuKey.EqidRelations ||
+        subMenuKey.includes('eqidrelation') ||
+        subMenuKey.includes('relation')
+      ) {
+        return (
+          <EQIDOneToManyContainer
+            ticket={activeTicket}
+            menuKey={SubMenuKey.EqidRelation}
+            selectedNode={selectedNode}
+            featureId={featureId}
+          />
+        );
+      }
 
       return <EQIDPropertiesPane ticket={activeTicket} />;
     }
@@ -150,6 +282,7 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
       return (
         <EQIDNotesPane
           uniqueName="fqa-eqid-notes"
+          featureId={featureId}
           eqid={eqid}
           ticket={activeTicket}
           selectedNode={selectedNode}
@@ -159,10 +292,11 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
     // case cleanLabel === 'shapes' || cleanLabel.includes('shapes'):
     //   return <EQIDShapesPane ticket={activeTicket} />;
 
-    case cleanLabel === 'todo' || cleanLabel.includes('todo'):
+    case cleanLabel === 'reminder' || cleanLabel.includes('reminder') || cleanLabel === 'todo' || cleanLabel.includes('todo'):
       return (
-        <FqaEqidToDo
-          uniqueName="fqa-eqid-todo"
+        <EQIDReminder
+          uniqueName="fqa-eqid-reminder"
+          featureId={featureId}
           eqid={eqid}
           ticket={activeTicket}
           selectedNode={selectedNode}
