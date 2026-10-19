@@ -203,7 +203,7 @@ function convertToYYYYMMDD(dateStr: string): string {
 
         let part1 = parseInt(parts[0], 10);
         let part2 = parseInt(parts[1], 10);
-        const year = parts[2];
+        const year = parts[2].trim().split(/\s+/)[0];
 
         let day: number;
         let month: number;
@@ -263,7 +263,7 @@ const FnBuildFormElementsFromControls = (
         const TableSections: Record<string, IElementProfile[]> = {};
         const isFormattedDate = (val: any) => {
             return typeof val === "string" &&
-                /^\d{2}\/\d{2}\/\d{4}\s\d{2}:\d{2}\s(AM|PM)$/i.test(val);
+                /^\d{2}\/\d{2}\/\d{4}/.test(val);
         };
         groupNames.forEach((groupName) => {
             const filteredControls = controls.filter(
@@ -328,7 +328,7 @@ const FnBuildFormElementsFromControls = (
                     if (fieldName.includes("lastupdated") && value && !isFormattedDate(value)) {
                         value = FnConvertDateToUtcOrUtcToLocalDate(value, false, true)
                     }
-                    else if ((fieldName.startsWith("date") || fieldName.endsWith("date") || fieldName.endsWith("updated") || fieldName.includes("date")) && value) {
+                    else if (!isFormattedDate(value) && (fieldName.startsWith("date") || fieldName.endsWith("date") || fieldName.endsWith("updated") || fieldName.includes("date")) && value) {
                         const getDateOnly = (value: unknown): string => {
                             if (!value) return "";
 

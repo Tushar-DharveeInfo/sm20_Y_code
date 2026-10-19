@@ -16,6 +16,26 @@ function formatTimestampOrDate(value: unknown): string {
 }
 
 /**
+ * Determines whether a ticket record represents a deleted, discarded, or not accepted ticket.
+ */
+export function isTicketDeleted(t: unknown): boolean {
+    if (!t || typeof t !== 'object') return false;
+    const ticket = t as Record<string, unknown>;
+    const s = String(ticket.status ?? ticket.Status ?? '').trim().toLowerCase().replace(/[-_\s]+/g, '');
+    const isDel = ticket.isdeleted ?? ticket.isDeleted ?? ticket.deleted ?? ticket.isDelete ?? ticket.isdelete;
+    if (isDel === true || isDel === 1 || isDel === '1' || isDel === 'true') {
+        return true;
+    }
+    return (
+        s === 'deleted' ||
+        s === 'tobedeleted' ||
+        s === 'delete' ||
+        s === 'notaccepted' ||
+        s === 'discarded'
+    );
+}
+
+/**
  * Global unscoped in-memory store for all tickets across all businesses.
  * This guarantees the tickets dataset is never wiped when selecting a specific business.
  */
@@ -27,10 +47,10 @@ let isFirestoreLoaded = false;
  */
 export function getFullTicketsCached(): ITicketDoc[] {
     if (cachedFullTickets && cachedFullTickets.length > 0) {
-        return cachedFullTickets;
+        return cachedFullTickets.filter((t) => !isTicketDeleted(t));
     }
     const source = FnGetSourceDataset('tickets') || [];
-    cachedFullTickets = [...source];
+    cachedFullTickets = source.filter((t) => !isTicketDeleted(t));
     return cachedFullTickets;
 }
 
@@ -38,7 +58,7 @@ export function getFullTicketsCached(): ITicketDoc[] {
  * Updates the global cached tickets and syncs SOURCE_DATASETS.tickets.
  */
 export function setFullTicketsCache(tickets: ITicketDoc[]): void {
-    cachedFullTickets = [...tickets];
+    cachedFullTickets = tickets.filter((t) => !isTicketDeleted(t));
     SOURCE_DATASETS.tickets = cachedFullTickets;
 }
 
@@ -51,21 +71,26 @@ export function updateTicketStatusInStore(
     newStatus: string,
     lastupdated?: string
 ): ITicketDoc[] {
+    if (isTicketDeleted({ status: newStatus })) {
+        return removeTicketFromStore(ticketId);
+    }
     const list = getFullTicketsCached();
     const updatedTime = lastupdated || new Date().toISOString();
     const cleanTid = String(ticketId).trim().toLowerCase();
 
-    cachedFullTickets = list.map((t) => {
-        const tId = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
-        if (tId === cleanTid) {
-            return {
-                ...t,
-                status: newStatus,
-                lastupdated: updatedTime,
-            };
-        }
-        return t;
-    });
+    cachedFullTickets = list
+        .filter((t) => !isTicketDeleted(t))
+        .map((t) => {
+            const tId = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
+            if (tId === cleanTid) {
+                return {
+                    ...t,
+                    status: newStatus,
+                    lastupdated: updatedTime,
+                };
+            }
+            return t;
+        });
 
     SOURCE_DATASETS.tickets = cachedFullTickets;
     return cachedFullTickets;
@@ -79,22 +104,27 @@ export function updateTicketInStore(
     ticketId: string,
     updates: Partial<ITicketDoc>
 ): ITicketDoc[] {
+    if (isTicketDeleted(updates)) {
+        return removeTicketFromStore(ticketId);
+    }
     const list = getFullTicketsCached();
     const updatedTime = updates.lastupdated || new Date().toISOString();
     const cleanTid = String(ticketId).trim().toLowerCase();
 
-    cachedFullTickets = list.map((t) => {
-        const tId = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
-        if (tId === cleanTid) {
-            return {
-                ...t,
-                ...updates,
-                status: updates.status || t.status,
-                lastupdated: updatedTime,
-            };
-        }
-        return t;
-    });
+    cachedFullTickets = list
+        .filter((t) => !isTicketDeleted(t))
+        .map((t) => {
+            const tId = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
+            if (tId === cleanTid) {
+                return {
+                    ...t,
+                    ...updates,
+                    status: updates.status || t.status,
+                    lastupdated: updatedTime,
+                };
+            }
+            return t;
+        });
 
     SOURCE_DATASETS.tickets = cachedFullTickets;
     return cachedFullTickets;
@@ -107,6 +137,21 @@ export function updateTicketInStore(
 export function addTicketToStore(newTicket: ITicketDoc): ITicketDoc[] {
     const list = getFullTicketsCached();
     cachedFullTickets = [newTicket, ...list];
+    SOURCE_DATASETS.tickets = cachedFullTickets;
+    return cachedFullTickets;
+}
+
+/**
+ * Removes a ticket from the full tickets cache.
+ * Returns the updated tickets array.
+ */
+export function removeTicketFromStore(ticketId: string): ITicketDoc[] {
+    const list = getFullTicketsCached();
+    const cleanTid = String(ticketId).trim().toLowerCase();
+    cachedFullTickets = list.filter((t) => {
+        const tId = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
+        return tId !== cleanTid;
+    });
     SOURCE_DATASETS.tickets = cachedFullTickets;
     return cachedFullTickets;
 }
@@ -170,7 +215,9 @@ export async function loadFullTickets(
                     : [];
 
             if (rawList.length > 0) {
-                const mapped: ITicketDoc[] = rawList.map((d: any) => {
+                const mapped: ITicketDoc[] = rawList
+                    .filter((d: any) => !isTicketDeleted(d))
+                    .map((d: any) => {
                     let bid = String(d.bid || d.businessid || d.businessId || d.bId || '').trim();
                     let cid = String(d.cid || d.contactid || d.contactId || d.cId || '').trim();
                     const ticketid = String(d.ticketid || d.id || d._id || '').trim();

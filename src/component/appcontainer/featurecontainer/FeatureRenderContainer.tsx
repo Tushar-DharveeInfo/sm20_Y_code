@@ -78,6 +78,7 @@ const FeaturesWithOwnLayout: string[] = [
     RmsEnums.Manufacturer,
     RmsEnums.MfgEqType,
     RmsEnums.EQIDByMfg,
+    RmsEnums.ReviewRMSLibrary,
 ];
 
 const getAuthToken = async (): Promise<string> => {
@@ -365,6 +366,28 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
+        case RmsEnums.ReviewRMSLibrary:
+        case "424":
+            return (
+                <div
+                    className="nz-wh-100 nz-d-flex-hv-center"
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <Label
+                        uniqueName="feature-review-rms-library-info"
+                        label="Y will provide details"
+                        fontSize="16px"
+                        fontWeight="bold"
+                    />
+                </div>
+            );
+
         // case FAQEnums.Services:
         //     return (
         //         <ErrorBoundary>
@@ -441,6 +464,28 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 const label = featureContainerProps.selectedFeatureData?.Label?.toLowerCase();
                 const isClientExceptMcs = (parentName === 'client' || parentName === 'clients') && featureContainerProps.featureId !== ClientEnums.Mcs;
                 const isProspect = parentName === 'prospect' || parentName === 'prospects';
+
+                if (label === 'review rms library' || featureName === 'review rms library') {
+                    return (
+                        <div
+                            className="nz-wh-100 nz-d-flex-hv-center"
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <Label
+                                uniqueName="feature-review-rms-library-info"
+                                label="Y will provide details"
+                                fontSize="16px"
+                                fontWeight="bold"
+                            />
+                        </div>
+                    );
+                }
 
                 if (featureName === 'orders' || featureName === 'order' || label === 'orders' || label === 'order') {
                     return (

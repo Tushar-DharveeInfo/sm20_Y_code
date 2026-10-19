@@ -588,17 +588,33 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
             }
           }
         }
-        if (!targetBid && hintParentBid) {
-          targetBid = String(hintParentBid).trim().toLowerCase();
+        if (hintParentBid) {
+          const cleanHint = String(hintParentBid).trim().toLowerCase();
+          if (cleanHint.startsWith('bid_') || uniqueBusinesses.some((b) => cleanId(b.bid) === cleanHint)) {
+            if (!targetBid) targetBid = cleanHint;
+          } else if (cleanHint.startsWith('cid_')) {
+            if (!targetCid) targetCid = cleanHint;
+          } else if (!targetBid) {
+            targetBid = cleanHint;
+          }
         }
-        if (!targetBid && defaultSelectedNodeInfo?.node) {
-          const prev = defaultSelectedNodeInfo.node;
-          if (prev.NodeType === 'Business' || String(prev.key || '').startsWith('bid_')) {
-            targetBid = String(prev.NodeEntID || prev.key || (prev as any).bid || '').trim().toLowerCase();
-          } else if (prev.NodeType === 'Contact' || String(prev.key || '').startsWith('cid_')) {
-            targetBid = String((prev as any).bid || prev.parentEntID || '').trim().toLowerCase();
+
+        // Retain existing selected node bid and cid from defaultSelectedNodeInfo or smDataContext
+        const prev = defaultSelectedNodeInfo?.node;
+        if (prev) {
+          if (!targetCid && (prev.NodeType === 'Contact' || String(prev.key || '').startsWith('cid_'))) {
             targetCid = String(prev.NodeEntID || prev.key || (prev as any).cid || '').trim().toLowerCase();
           }
+          if (!targetBid) {
+            if (prev.NodeType === 'Business' || String(prev.key || '').startsWith('bid_')) {
+              targetBid = String(prev.NodeEntID || prev.key || (prev as any).bid || '').trim().toLowerCase();
+            } else if (prev.NodeType === 'Contact' || String(prev.key || '').startsWith('cid_')) {
+              targetBid = String((prev as any).bid || prev.parentEntID || '').trim().toLowerCase();
+            }
+          }
+        }
+        if (!targetCid && smDataContext.selection?.cid) {
+          targetCid = String(smDataContext.selection.cid).trim().toLowerCase();
         }
         if (!targetBid && smDataContext.selection?.bid) {
           targetBid = String(smDataContext.selection.bid).trim().toLowerCase();
@@ -692,9 +708,11 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
           let nodeToSelect: ITreeNode | undefined;
           if (targetCid) {
+            const normCid = targetCid.replace(/^cid[_-]?/i, '');
             nodeToSelect = contactNodes.find((cn) => {
               const cKey = String(cn.NodeEntID || cn.key || (cn as any).cid || '').trim().toLowerCase();
-              return cKey === targetCid;
+              const normKey = cKey.replace(/^cid[_-]?/i, '');
+              return cKey === targetCid || (normCid && normKey === normCid);
             });
           }
           if (!nodeToSelect) {

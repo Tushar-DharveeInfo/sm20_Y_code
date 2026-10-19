@@ -5,6 +5,7 @@ import { FnFormatTicketDateOnly } from "../../../shared/allcommon/tree/FnFormatT
 import type { ITicketDoc } from "@n20a/libfsdb";
 import { ITicketFilterValues } from "../../tickets/tickets/ticketexplorercontainer/TicketFilterForm";
 import { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
+import { isTicketDeleted } from "../../tickets/allcommon/TicketsDataStore";
 
 type NodeContext = {
     featureTreeProps?: IFeatureTree;
@@ -36,8 +37,15 @@ function toLeafNodeStatus(status: string): "Released" | "Accepted" | "Received" 
 }
 
 function isClosedLibraryStatus(status: string): boolean {
-    const normalized = status.toLowerCase();
-    return normalized === "InProgress" || normalized === "Open"
+    const normalized = status.toLowerCase().replace(/[-_\s]+/g, "");
+    return (
+        normalized === "inprogress" ||
+        normalized === "accepted" ||
+        normalized === "resolved" ||
+        normalized === "released" ||
+        normalized === "close" ||
+        normalized === "closed"
+    );
 }
 
 function isOpenLibraryStatus(status: string): boolean {
@@ -59,8 +67,9 @@ export function filterTickets(
     tickets: ITicketDoc[],
     filter: ITicketFilterValues
 ): ITicketDoc[] {
-    if (filter.showAll) return [...tickets];
-    return tickets.filter((ticket) => isOpenLibraryStatus(ticketStatus(ticket)));
+    const nonDeleted = tickets.filter((ticket) => !isTicketDeleted(ticket));
+    if (filter.showAll) return nonDeleted;
+    return nonDeleted.filter((ticket) => isOpenLibraryStatus(ticketStatus(ticket)));
 }
 
 /* Library ticket list modes (Received = not Accepted, Approved = Accepted only). */
@@ -80,12 +89,13 @@ export function filterTicketsByLibraryMode(
     tickets: ITicketDoc[],
     mode?: ILibraryTicketMode
 ): ITicketDoc[] {
-    if (!mode || mode === "all" || mode === "mcs") return [...tickets];
+    const nonDeleted = tickets.filter((ticket) => !isTicketDeleted(ticket));
+    if (!mode || mode === "all" || mode === "mcs") return nonDeleted;
     if (mode === "InProgress") {
-        return tickets.filter((ticket) => isClosedLibraryStatus(ticketStatus(ticket)));
+        return nonDeleted.filter((ticket) => isClosedLibraryStatus(ticketStatus(ticket)));
     }
     // received: tickets not yet accepted / resolved
-    return tickets.filter((ticket) => !isClosedLibraryStatus(ticketStatus(ticket)));
+    return nonDeleted.filter((ticket) => !isClosedLibraryStatus(ticketStatus(ticket)));
 }
 
 /**

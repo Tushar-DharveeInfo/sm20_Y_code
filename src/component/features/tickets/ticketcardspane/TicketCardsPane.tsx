@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { Splitter, SplitterPanel } from 'primereact/splitter';
 import { TicketCardList } from './TicketCardList';
 import { TicketNotesList } from './TicketNotesList';
-import { TicketDetailPane } from './TicketDetailPane';
+import { TicketDetailPane } from '../allcommon/TicketDetailPane';
 import { Label } from '../../../shared/basic/label/Label';
 import type { ITicketDoc, IContactDoc, ITicketNoteDoc } from '@n20a/libfsdb';
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl';
@@ -23,7 +23,9 @@ import {
     updateTicketStatusInStore,
     updateTicketInStore,
     addTicketToStore,
+    removeTicketFromStore,
     generateClonedTicketId,
+    isTicketDeleted,
 } from '../allcommon/TicketsDataStore';
 import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer';
 import {
@@ -281,16 +283,17 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     // Sourced tickets: uses full tickets cache (or scoped by business if selected)
     const rawTickets: ITicketDoc[] = useMemo(() => {
         const allTickets = getFullTicketsCached();
+        const nonDeleted = allTickets.filter((t) => !isTicketDeleted(t));
         if (effectiveBid) {
             const cleanBid = effectiveBid.trim().toLowerCase();
             const normBid = normalizeBidKey(cleanBid);
-            return allTickets.filter((t) => {
+            return nonDeleted.filter((t) => {
                 const tBid = String(t.bid || '').trim().toLowerCase();
                 const tNormBid = normalizeBidKey(tBid);
                 return tBid === cleanBid || tNormBid === normBid;
             });
         }
-        return allTickets;
+        return nonDeleted;
     }, [effectiveBid, ticketStoreVersion]);
 
     // Sourced contacts
@@ -388,6 +391,20 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     }>({
         isOpen: false,
         dialogTitle: 'Confirm Split Ticket',
+        message: '',
+        showOkButton: false,
+    });
+
+    // Delete ticket confirmation dialog state
+    const [deleteDialog, setDeleteDialog] = useState<{
+        isOpen: boolean;
+        dialogTitle: string;
+        message: string;
+        showOkButton?: boolean;
+        targetTicket?: ITicketDoc;
+    }>({
+        isOpen: false,
+        dialogTitle: 'Confirm Delete Ticket',
         message: '',
         showOkButton: false,
     });
@@ -816,11 +833,14 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                     smDataContext.updateDataset?.('tickets', updatedList);
                 }
 
-                // 7. Trigger tree reload
+                // 7. Trigger tree reload while strictly remembering the selected node bid and cid
                 const targetFeatureId = String(featureId || TicketsEnums.RequestsReceived);
+                const currentBid = scope.bid ? String(scope.bid).trim() : bid;
+                const currentCid = scope.nodeType === 'Contact' && scope.cid ? String(scope.cid).trim() : undefined;
                 commonVariableContext.setReloadTreeFor({
                     featureId: targetFeatureId,
-                    entId: bid,
+                    entId: currentCid || currentBid,
+                    dropNodeEntId: currentBid,
                     timestamp: Date.now(),
                 });
             } catch (err) {
@@ -926,11 +946,14 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                     rmsContext?.setSelectedTicketCard?.(ticketNode);
                 }
 
-                // 6. Trigger tree reload
+                // 6. Trigger tree reload while strictly remembering the selected node bid and cid
                 const targetFeatureId = String(featureId || TicketsEnums.RequestsReceived);
+                const currentBid = scope.bid ? String(scope.bid).trim() : bid;
+                const currentCid = scope.nodeType === 'Contact' && scope.cid ? String(scope.cid).trim() : undefined;
                 commonVariableContext.setReloadTreeFor({
                     featureId: targetFeatureId,
-                    entId: bid,
+                    entId: currentCid || currentBid,
+                    dropNodeEntId: currentBid,
                     timestamp: Date.now(),
                 });
 
@@ -968,6 +991,173 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             statusBarContext,
         ]
     );
+
+    const handleDeleteTicketClick = useCallback((ticket: ITicketDoc) => {
+        setDeleteDialog({
+            isOpen: true,
+            dialogTitle: 'Confirm Delete Ticket',
+            message: `Are you sure you want to delete ticket "${ticket.ticketid}"?`,
+            showOkButton: false,
+            targetTicket: ticket,
+        });
+    }, []);
+
+    const handlePerformDelete = useCallback(
+        async (ticket: ITicketDoc) => {
+            const ticketId = ticket.ticketid;
+            if (!ticketId) return;
+
+            statusBarContext?.setIsLoading?.(true);
+            statusBarContext?.setLoadingLabel?.('Deleting ticket...');
+            try {
+                let bid = String(ticket.bid || '').trim();
+                if (!bid && ticket.ticketid) {
+                    const m = ticket.ticketid.match(/bid[_-]?\d+/i);
+                    if (m) bid = m[0];
+                }
+                if (bid && /^\d+$/.test(bid)) {
+                    bid = `bid_${bid}`;
+                }
+
+                // 1. Delete document from Firestore if available
+                if (bid && ticketId && firestore) {
+                    try {
+                        await firestore.deleteDocument({
+                            pathSegments: ['businesses', bid, 'tickets', ticketId],
+                        });
+                    } catch (fsErr) {
+                        console.warn('Failed to delete ticket document from Firestore:', fsErr);
+                    }
+                    try {
+                        await firestore.updateDocument({
+                            pathSegments: ['businesses', bid, 'tickets', ticketId],
+                            data: {
+                                status: 'Deleted',
+                                isdeleted: true,
+                                lastupdated: new Date().toISOString(),
+                            },
+                        });
+                    } catch {
+                        // ignore if already deleted
+                    }
+                }
+
+                // 2. Remove from global tickets store
+                removeTicketFromStore(ticketId);
+                setTicketStoreVersion((v) => v + 1);
+
+                // 3. Keep smDataContext.datasets.tickets in sync
+                if (smDataContext.datasets?.tickets) {
+                    const updated = smDataContext.datasets.tickets.filter(
+                        (t) => String(t.ticketid || (t as any).id || '').trim().toLowerCase() !== ticketId.trim().toLowerCase()
+                    );
+                    smDataContext.updateDataset?.('tickets', updated);
+                }
+
+                // 4. Log activity
+                try {
+                    const logCid = ticket.cid || (mainAppContext?.authSession as any)?.cid || 'User';
+                    await mainAppContext?.createActivityLog?.(
+                        `${logCid} of ${bid || 'business'} deleted ticket ${ticketId} successfully.`
+                    );
+                } catch (logErr) {
+                    console.error('TicketCardsPane: createActivityLog failed', logErr);
+                }
+
+                // 5. Update selection if currently selected ticket is the one deleted
+                setSelectedTicket((prev) => {
+                    const prevId = String(prev?.ticketid || (prev as any)?.id || '').trim().toLowerCase();
+                    if (prevId === ticketId.trim().toLowerCase()) {
+                        const remaining = sortedScopedTickets.filter(
+                            (t) => String(t.ticketid || (t as any).id || '').trim().toLowerCase() !== ticketId.trim().toLowerCase()
+                        );
+                        const nextTicket = remaining.length > 0 ? remaining[0] : null;
+                        if (isRmsEqid) {
+                            if (nextTicket) {
+                                const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
+                                    (e: any) => e.ticketid && e.ticketid === nextTicket.ticketid
+                                );
+                                const resolvedEqid = (nextTicket as any).eqid || (nextTicket as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+                                const ticketNode = {
+                                    key: `ticket-${nextTicket.ticketid}`,
+                                    NodeEntID: nextTicket.ticketid,
+                                    Name: `${nextTicket.mfg || 'Device'} ${nextTicket.prodno || nextTicket.ticketid}`,
+                                    Label: `${nextTicket.mfg || 'Device'} ${nextTicket.prodno || nextTicket.ticketid}`,
+                                    NodeType: 'Ticket',
+                                    treetype: 'Ticket',
+                                    ticketid: nextTicket.ticketid,
+                                    eqid: resolvedEqid,
+                                    EQID: resolvedEqid,
+                                    ...nextTicket,
+                                } as unknown as ITreeNode;
+                                selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
+                                rmsContext?.setSelectedTicketCard?.(ticketNode);
+                            } else {
+                                selectedNodeContext?.setSelectedTicketCard?.(null);
+                                rmsContext?.setSelectedTicketCard?.(null);
+                            }
+                        }
+                        return nextTicket;
+                    }
+                    return prev;
+                });
+
+                // 6. Trigger tree reload while strictly remembering the selected node bid and cid
+                const targetFeatureId = String(featureId || TicketsEnums.RequestsReceived);
+                const currentBid = scope.bid ? String(scope.bid).trim() : bid;
+                const currentCid = scope.nodeType === 'Contact' && scope.cid ? String(scope.cid).trim() : undefined;
+                commonVariableContext.setReloadTreeFor({
+                    featureId: targetFeatureId,
+                    entId: currentCid || currentBid,
+                    dropNodeEntId: currentBid,
+                    timestamp: Date.now(),
+                });
+
+                setDeleteDialog((prev) => ({ ...prev, isOpen: false, targetTicket: undefined }));
+            } catch (err) {
+                console.error('TicketCardsPane: Error deleting ticket:', err);
+                setDeleteDialog({
+                    isOpen: true,
+                    dialogTitle: 'Error',
+                    message: 'Failed to delete ticket. Please try again.',
+                    showOkButton: true,
+                    targetTicket: undefined,
+                });
+            } finally {
+                statusBarContext?.setIsLoading?.(false);
+                statusBarContext?.setLoadingLabel?.(undefined);
+            }
+        },
+        [
+            firestore,
+            mainAppContext,
+            isRmsEqid,
+            rmsContext,
+            selectedNodeContext,
+            smDataContext,
+            sortedScopedTickets,
+            featureId,
+            commonVariableContext,
+            statusBarContext,
+        ]
+    );
+
+    const handleDialogDeleteYes = useCallback(() => {
+        const target = deleteDialog.targetTicket;
+        if (target) {
+            void handlePerformDelete(target);
+        } else {
+            setDeleteDialog((prev) => ({ ...prev, isOpen: false }));
+        }
+    }, [deleteDialog.targetTicket, handlePerformDelete]);
+
+    const handleDialogDeleteNo = useCallback(() => {
+        setDeleteDialog((prev) => ({ ...prev, isOpen: false }));
+    }, []);
+
+    const handleDialogDeleteOk = useCallback(() => {
+        setDeleteDialog((prev) => ({ ...prev, isOpen: false }));
+    }, []);
 
     const handleSplitTicketClick = useCallback((ticket: ITicketDoc) => {
         setSplitDialog({
@@ -1015,6 +1205,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                         onSkuClick={onSkuClick}
                         onStatusChange={handleStatusChange}
                         onSplitTicket={handleSplitTicketClick}
+                        onDeleteTicket={handleDeleteTicketClick}
                         activeOverlayTab={activeOverlayTab}
                         onSelectOverlayTab={setActiveOverlayTab}
                     />
@@ -1053,6 +1244,19 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                     handleYesButtonClick={handleDialogYes}
                     handleNoButtonClick={handleDialogNo}
                     handleOkButtonClick={handleDialogOk}
+                />
+            )}
+
+            {deleteDialog.isOpen && (
+                <YesNoFormContainer
+                    uniqueName={`${uniqueName}-delete-dialog`}
+                    isOpen={deleteDialog.isOpen}
+                    dialogTitle={deleteDialog.dialogTitle}
+                    message={deleteDialog.message}
+                    showOkButton={deleteDialog.showOkButton}
+                    handleYesButtonClick={handleDialogDeleteYes}
+                    handleNoButtonClick={handleDialogDeleteNo}
+                    handleOkButtonClick={handleDialogDeleteOk}
                 />
             )}
         </div>

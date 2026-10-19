@@ -39,9 +39,9 @@ const FnGetLoggedInStatusMessage = (
 
     let identity = "You are logged in as a guest";
     if (displayName) {
-        identity = `You are logged in as ${cid} ${isImpersonating ? ` but impersonating as: ${authSession?.ImpersonatedDetails?.cid}` : ''}`;
+        identity = `You are logged in as ${authSession?.email} ${isImpersonating ? ` but impersonating as: ${authSession?.ImpersonatedDetails?.cid}` : ''}`;
     } else if (displayName && subscriberProduct) {
-        identity = `You are logged in as ${cid}`;
+        identity = `You are logged in as ${authSession?.email}`;
     } else if (!authSession) {
         identity = "You are logged in as a guest user";
     }

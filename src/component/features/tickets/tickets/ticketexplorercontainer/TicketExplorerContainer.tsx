@@ -13,10 +13,11 @@ import { FnSearchKeywordInLocalTree } from '../../../../shared/allcommon/tree/Fn
 import { ISelectedNodeInfo, ITreeNode } from '../../../../shared/allinterface/tree/ITreeControl'
 import { SearchControl } from '../../../../shared/searchfilter/searchcontrol/SearchControl'
 import { TreeControl } from '../../../../shared/tree/treecontrol/TreeControl'
-import { TicketDetailPane } from './TicketDetailPane'
+import { TicketDetailPane } from '../../allcommon/TicketDetailPane'
 import { TicketFilterForm, type ITicketFilterValues } from './TicketFilterForm'
 import { Label } from '../../../../shared/basic/label/Label';
 import { useBusinessTickets } from '@n20a/libfsdb';
+import { isTicketDeleted } from '../../allcommon/TicketsDataStore';
 
 export interface ITicketDoc {
     bid: string;
@@ -191,7 +192,9 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
         if (!bid || !Array.isArray(rawTickets)) {
             return []
         }
-        return rawTickets.map((r) => FnMapToTicketDoc(r, bid))
+        return rawTickets
+            .filter((r) => !isTicketDeleted(r))
+            .map((r) => FnMapToTicketDoc(r, bid))
     }, [bid, rawTickets])
 
     useEffect(() => {
@@ -474,6 +477,7 @@ const TicketExplorerContainer = (ticketExplorerContainerProps: ITicketExplorerCo
                         <TicketDetailPane
                             uniqueName={`${ticketExplorerContainerProps.uniqueName}-detail`}
                             ticket={selectedTicket}
+                            emptyMessage="Select a product number to view the ticket."
                         />
                     </SplitterPanel>
                 </Splitter>

@@ -35,7 +35,9 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
     const allowAppQaToRender = Boolean(featureContainerProps.appqaId);
     /* Features listed in FeaturesWithOwnLayout replace the explorer content. */
     const doNotRenderExplorerTree = !allowAppQaToRender
-        && FeaturesWithOwnLayout.includes(featureContainerProps.featureId);
+        && (FeaturesWithOwnLayout.includes(featureContainerProps.featureId)
+            || featureContainerProps.featureId === '424'
+            || featureContainerProps.selectedFeatureData?.Label?.toLowerCase() === 'review rms library');
 
 
     const mainAppContext = useMainAppContext();

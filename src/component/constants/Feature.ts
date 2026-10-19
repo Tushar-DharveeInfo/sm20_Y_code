@@ -79,6 +79,7 @@ enum RmsEnums {
     McsDevelopment = "412",
     ReviewDeviceLibrary = "416",
     ReviewVisioStencils = "420",
+    ReviewRMSLibrary = "424",
 }
 
 // FAQ menu feature ids — match public/smFeatures.json MenuID 600

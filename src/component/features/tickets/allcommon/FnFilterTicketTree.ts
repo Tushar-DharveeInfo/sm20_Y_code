@@ -5,6 +5,7 @@ import { FnMapBusinessesToTreeNodes } from "../../../shared/allcommon/tree/FnMap
 import { FnMapContactsToTreeNodes } from "../../../shared/allcommon/tree/FnMapContactsToTreeNodes";
 import { FnGetSourceDataset } from "../../../shared/allcommon/FnLoadSampleDatasets";
 import { TicketsEnums } from "../../../constants/Feature";
+import { isTicketDeleted } from "./TicketsDataStore";
 
 export interface IFnFilterTicketTreeResult {
     /** The matching ticket records after applying feature status filter */
@@ -87,11 +88,13 @@ export function filterTicketsByFeature(
     const isApproved = isApprovedTicketsFeature(featureId);
     const isRequests = isRequestsReceivedFeature(featureId);
 
+    const nonDeleted = tickets.filter((t) => !isTicketDeleted(t));
+
     if (!isApproved && !isRequests) {
-        return tickets;
+        return nonDeleted;
     }
 
-    return tickets.filter((t) => {
+    return nonDeleted.filter((t) => {
         const s = String(t.status ?? "").trim().toLowerCase().replace(/[-_]/g, " ");
         if (isApproved) {
             return (
@@ -108,7 +111,7 @@ export function filterTicketsByFeature(
                 s === "need info"
             );
         }
-        // Requests received: Open / Received / Not Accepted / Request / New
+        // Requests received: Open / Received / Request / New
         return (
             s === "open" ||
             s === "received" ||
@@ -116,8 +119,6 @@ export function filterTicketsByFeature(
             s === "receive" ||
             s.startsWith("receiv") ||
             s.startsWith("rec") ||
-            s === "not accepted" ||
-            s === "discarded" ||
             s === "request" ||
             s === "requested" ||
             s.startsWith("req") ||

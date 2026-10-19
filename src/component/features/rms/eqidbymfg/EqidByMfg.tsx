@@ -753,10 +753,10 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
                                     uniqueName={`${uniqueName}-active-form`}
                                     featureId={featureId}
                                     id={String(selectedNode.key)}
-                                    headerText={activeFormHeader}
+                                    headerText=""
                                     controls={activeControls}
                                     profileString={activeProfileString}
-                                    allowShowHeader={true}
+                                    allowShowHeader={false}
                                     allowShowSectionHeader={true}
                                     isDisableForm={true}
                                     isAutoSave={false}

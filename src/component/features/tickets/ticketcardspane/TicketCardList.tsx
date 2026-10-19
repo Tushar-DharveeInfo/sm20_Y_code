@@ -6,6 +6,7 @@ import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariab
 import type { IActionLabel } from '../../../shared/allinterface/basic/IActionLabel';
 import { EditTextXControl } from '@n20a/libform';
 import type { ITicketDoc, IContactDoc } from '@n20a/libfsdb';
+import { isTicketDeleted } from '../allcommon/TicketsDataStore';
 import './TicketCardList.css';
 
 interface ITicketCardListProps {
@@ -18,6 +19,7 @@ interface ITicketCardListProps {
     onSkuClick?: (sku: string, ticket: ITicketDoc) => void;
     onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void | Promise<void>;
     onSplitTicket?: (ticket: ITicketDoc) => void;
+    onDeleteTicket?: (ticket: ITicketDoc) => void;
     activeOverlayTab?: 'Ticket Details' | 'Notes';
     onSelectOverlayTab?: (tab: 'Ticket Details' | 'Notes') => void;
 }
@@ -41,6 +43,7 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
     onSkuClick,
     onStatusChange,
     onSplitTicket,
+    onDeleteTicket,
     activeOverlayTab = 'Ticket Details',
     onSelectOverlayTab,
 }) => {
@@ -55,7 +58,8 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
         return map;
     }, [contacts]);
 
-    const sorted = useMemo(() => sortTicketsNewestFirst(tickets), [tickets]);
+    const activeTickets = useMemo(() => (tickets || []).filter((t) => !isTicketDeleted(t)), [tickets]);
+    const sorted = useMemo(() => sortTicketsNewestFirst(activeTickets), [activeTickets]);
 
     const filtered = useMemo(() => {
         if (!filterText.trim()) return sorted;
@@ -187,6 +191,7 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
                                 onSkuClick={onSkuClick}
                                 onStatusChange={onStatusChange}
                                 onSplit={onSplitTicket}
+                                onDelete={onDeleteTicket}
                             />
                         );
                     })

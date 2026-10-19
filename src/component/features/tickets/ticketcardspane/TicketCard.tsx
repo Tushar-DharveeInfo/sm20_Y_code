@@ -16,6 +16,7 @@ interface ITicketCardProps {
     onSkuClick?: (sku: string, ticket: ITicketDoc) => void;
     onStatusChange?: (ticket: ITicketDoc, newStatus: string) => void | Promise<void>;
     onSplit?: (ticket: ITicketDoc) => void;
+    onDelete?: (ticket: ITicketDoc) => void;
 }
 
 /**
@@ -66,6 +67,7 @@ const TicketCard: React.FC<ITicketCardProps> = ({
     onSkuClick,
     onStatusChange,
     onSplit,
+    onDelete,
 }) => {
     const [localStatus, setLocalStatus] = React.useState<string>(ticket.status ?? '');
 
@@ -199,11 +201,15 @@ const TicketCard: React.FC<ITicketCardProps> = ({
                             <button
                                 type="button"
                                 className="nz-ticket-action-btn nz-ticket-action-btn-discard nz-ticket-action-btn-icon"
-                                title="Discard"
-                                aria-label="Discard"
+                                title="Delete Ticket"
+                                aria-label="Delete Ticket"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleStatusUpdate('Not Accepted');
+                                    if (onDelete) {
+                                        onDelete(ticket);
+                                    } else {
+                                        handleStatusUpdate('Deleted');
+                                    }
                                 }}
                             >
                                 <Close24x24

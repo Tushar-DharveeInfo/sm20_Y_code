@@ -6,7 +6,7 @@ import TicketExplorerContainer, {
 } from './ticketexplorercontainer/TicketExplorerContainer'
 import { ITreeNode } from '../../../shared/allinterface/tree/ITreeControl'
 import type { ITicketDoc } from '@n20a/libfsdb'
-import { TicketDetailPane } from './ticketexplorercontainer/TicketDetailPane'
+import { TicketDetailPane } from '../allcommon/TicketDetailPane'
 import './LibraryTickets.css'
 import { IFeatureItem } from '../../../shared/context/allinterface/IMainApp'
 import { IMenuItem } from '../../../shared/allinterface/menu/IMainMenu'
