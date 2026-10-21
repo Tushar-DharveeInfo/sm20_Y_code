@@ -17,28 +17,45 @@ import type { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
 import { useMainAppContext } from "../../../shared/context/hooks/MainAppHooks";
 import { useStatusBarContext } from "../../../shared/context/hooks/StatusBarHooks";
 import { useSmDataContext } from "../../../shared/context/hooks/SmDataHooks";
-import { FnGetSourceDataset } from "../../../shared/allcommon/FnLoadSampleDatasets";
-import type { IBusinessDoc } from "@n20a/libfsdb";
+import type { IBusinessDoc, IContactDoc } from "@n20a/libfsdb";
 import { FnResolvedHtmlVariable } from "../allcommon/FnResolvedHtmlVariable";
 import { FnResolveEmailTemplate } from "../../../shared/allcommon/FnGetEmailVars";
 import { useFileDownload } from "@n20a/libfsdb";
 import { Attach24x24, Close24x24, Send24x24 } from "@n20a/libicon";
-import notifySampleData from "../../../../smsampledata/appqa/NotifySampleData.json";
 import prettier from 'prettier/standalone';
 // @ts-ignore
 import parserHtml from 'prettier/parser-html';
 import { Highlight, themes } from 'prism-react-renderer';
 import parse from 'html-react-parser';
 
-const {
-    sampleNotifyAlertProfiles,
-    sampleNotifyRecordingLimits,
-    sampleNotifySeverityOptions,
-} = notifySampleData as {
-    sampleNotifyAlertProfiles: any[];
-    sampleNotifyRecordingLimits: { maxAudioRecordingTimeSec: number; maxVideoRecordingTimeSec: number };
-    sampleNotifySeverityOptions: IOptionItem[];
-};
+const DEFAULT_SEVERITY_OPTIONS: IOptionItem[] = [
+    { label: "Critical", value: "Critical" },
+    { label: "Warning", value: "Warning" },
+    { label: "Normal", value: "Normal" },
+    { label: "Info", value: "Info" },
+];
+
+const DEFAULT_ALERT_PROFILES: any[] = [
+    {
+        GroupName: "Message",
+        _AlertProfile: "SendMessage",
+        UserName: "Admin",
+        EscalationLevel: 1,
+        AttemptCount: 1,
+        AlertSeverity: "Critical",
+        Duration: "0",
+        HTML: '<div id="messageContent"></div><form id="userList"></form>',
+        Keywords: "",
+        DateCreated: "2026-01-01T00:00:00",
+        LastUpdatedBy: "Admin",
+        Secured: false,
+        IsNZ: true,
+        EntID: "ALERT-PROFILE-SEND-MESSAGE",
+        RecID: "ALERT-PROFILE-SEND-MESSAGE-REC",
+        LastUpdated: "2026-01-01T00:00:00",
+        EntityName: "AlertProfile",
+    },
+];
 
 interface IAppqaNotify {
     uniqueName: string;
@@ -297,9 +314,7 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
     // Calculate unique contacts with valid email addresses from checked tree nodes/keys
     const emailContacts = useMemo(() => {
         const allKnownContacts: IContactDoc[] = (
-            smDataContext?.datasets?.contacts?.length
-                ? smDataContext.datasets.contacts
-                : (FnGetSourceDataset("contacts") || [])
+            smDataContext?.datasets?.contacts ?? []
         ) as IContactDoc[];
 
         const result: Array<{ name: string; email: string; cid?: string }> = [];
@@ -328,7 +343,7 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             if (email) {
                 addContact(name, email, cid);
             } else if (cid) {
-                const found = allKnownContacts.find(
+                const found: any = allKnownContacts.find(
                     (c) => String(c.cid).toLowerCase() === cid.toLowerCase()
                 );
                 if (found?.email) {
@@ -384,11 +399,20 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
     }, [emailContacts.length, selectedTemplateName, htmlContent]);
 
     useEffect(() => {
-        // SAMPLE DATA: replaces FnGetApplicationParameter (AP Configure recording limits).
+        const apAudio =
+            mainAppContext?.getApValue?.("maxAudioRecordingTimeSec") ??
+            mainAppContext?.getApValue?.("maxaudiorecordingtimesec");
+        const apVideo =
+            mainAppContext?.getApValue?.("maxVideoRecordingTimeSec") ??
+            mainAppContext?.getApValue?.("maxvideorecordingtimesec");
+
+        const parsedAudio = apAudio ? parseInt(apAudio, 10) : 60;
+        const parsedVideo = apVideo ? parseInt(apVideo, 10) : 60;
+
         const maxAudioRecordingTime =
-            sampleNotifyRecordingLimits.maxAudioRecordingTimeSec * 1000;
+            (Number.isFinite(parsedAudio) && parsedAudio > 0 ? parsedAudio : 60) * 1000;
         const maxVideoRecordingTime =
-            sampleNotifyRecordingLimits.maxVideoRecordingTimeSec * 1000;
+            (Number.isFinite(parsedVideo) && parsedVideo > 0 ? parsedVideo : 60) * 1000;
 
         setMaxRecordingTime({
             maxAudioRecordingTime,
@@ -405,17 +429,79 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
             notevideo: undefined,
             noteCreatedAt: new Date(),
         });
-    }, []);
+    }, [mainAppContext]);
 
+    // Load alert profiles from cloud storage or fallback to default
     useEffect(() => {
-        // SAMPLE DATA: replaces mainAppContext.alertProfileRecords.
-        setAlertProfiles(sampleNotifyAlertProfiles);
-    }, []);
+        let isMounted = true;
+        const fetchAlertProfiles = async () => {
+            try {
+                const parsed = await FnGetJsonFromStorage("sm/alertprofile/alertprofile.json");
+                if (!isMounted) return;
 
+                const profiles = Array.isArray(parsed)
+                    ? parsed
+                    : Array.isArray((parsed as Record<string, unknown>)?.alertProfiles)
+                        ? (parsed as Record<string, unknown>).alertProfiles
+                        : Array.isArray((parsed as Record<string, unknown>)?.sampleNotifyAlertProfiles)
+                            ? (parsed as Record<string, unknown>).sampleNotifyAlertProfiles
+                            : undefined;
+
+                if (profiles && Array.isArray(profiles) && profiles?.length > 0) {
+                    setAlertProfiles(profiles);
+                    return;
+                }
+            } catch {
+                // Ignore storage failure, use default SendMessage alert profile
+            }
+
+            if (isMounted) {
+                setAlertProfiles(DEFAULT_ALERT_PROFILES);
+            }
+        };
+
+        void fetchAlertProfiles();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [FnGetJsonFromStorage]);
+
+    // Load severity options from cloud storage or fallback to default
     useEffect(() => {
-        // SAMPLE DATA: replaces FnGetRefListForLibControl('refAlertSeverity', ...).
-        setOptionData(sampleNotifySeverityOptions);
-    }, []);
+        let isMounted = true;
+        const fetchSeverityOptions = async () => {
+            try {
+                const parsed = await FnGetJsonFromStorage("sm/ref/refAlertSeverity.json");
+                if (!isMounted) return;
+
+                const options = Array.isArray(parsed)
+                    ? parsed
+                    : Array.isArray((parsed as Record<string, unknown>)?.options)
+                        ? (parsed as Record<string, unknown>).options
+                        : Array.isArray((parsed as Record<string, unknown>)?.sampleNotifySeverityOptions)
+                            ? (parsed as Record<string, unknown>).sampleNotifySeverityOptions
+                            : undefined;
+
+                if (options && Array.isArray(options) && options?.length > 0) {
+                    setOptionData(options as any);
+                    return;
+                }
+            } catch {
+                // Ignore storage failure, use default severity options
+            }
+
+            if (isMounted) {
+                setOptionData(DEFAULT_SEVERITY_OPTIONS);
+            }
+        };
+
+        void fetchSeverityOptions();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [FnGetJsonFromStorage]);
 
     // Load email templates profile using useFileDownload hook
     useEffect(() => {
@@ -764,9 +850,7 @@ const AppqaNotify = (appqaMessageProps: IAppqaNotify) => {
         }
 
         // Retrieve BS and Subscription datasets
-        const allBusinesses: IBusinessDoc[] = smDataContext?.datasets?.businesses?.length
-            ? smDataContext.datasets.businesses
-            : FnGetSourceDataset("businesses");
+        const allBusinesses: IBusinessDoc[] = smDataContext?.datasets?.businesses ?? [];
 
         const primaryContact = checkedContacts[0] || (emailContacts[0] as any) || {};
         const primaryBid = primaryContact.bid || (primaryContact as any).parentEntID || "";

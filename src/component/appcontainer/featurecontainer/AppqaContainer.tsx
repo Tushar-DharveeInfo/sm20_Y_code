@@ -19,7 +19,6 @@ interface IAppqaContainer {
 
 const AppqaSignout = lazy(() => import('../../features/appqa/signout/Signout.tsx'));
 const AppqaLog = lazy(() => import('../../features/appqa/log/Log.tsx'));
-const AppqaAlerts = lazy(() => import('../../features/appqa/alerts/Alerts.tsx'));
 const AppqaNotify = lazy(() => import('../../features/appqa/notify/Notify.tsx'));
 const AppqaReport = lazy(() => import('../../features/appqa/report/Report.tsx'));
 const AppqaLaunch = lazy(() => import('../../features/appqa/launch/Launch.tsx'));
@@ -81,19 +80,6 @@ function AppQaContainer(appQaContainerProps: IAppqaContainer) {
                             uniqueName={'app-qa-log'}
                             featureId={featureContainerProps.appqaId}
                             headerText={featureContainerProps.headerText || 'Log'}
-                            handleShowUserMessage={handleShowUserMessage}
-                        />
-                    </Suspense>
-                </ErrorBoundary>
-            );
-
-        case AppQA.Alerts:
-            return (
-                <ErrorBoundary>
-                    <Suspense fallback={<Loader />}>
-                        <AppqaAlerts
-                            uniqueName={'app-qa-alerts'}
-                            headerText={featureContainerProps.headerText || 'Alerts'}
                             handleShowUserMessage={handleShowUserMessage}
                         />
                     </Suspense>

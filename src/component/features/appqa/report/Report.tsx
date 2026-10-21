@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { updateLayoutWithSessionVars } from "@n20a/libreport";
 import "./Report.css";
 import "@n20a/libreport/style.css";
@@ -11,9 +11,8 @@ import { ICardLayoutField } from "../../../shared/cardlayout/CardLayout";
 import { FnFormatDateWithAppFormat } from "../../../appcontainer/allcommon/FnFormatDateWithAppFormat";
 import { useResourceContext } from "../../../shared/context/hooks/ResourceHooks";
 import { useCommonVariableContext } from "../../../shared/context/hooks/CommonVariableHooks";
+import { useSessionContext } from "../../../shared/context/hooks/SessionHooks";
 import PdfMakerContainer from "./pdfmakercontainer/PdfMakerContainer";
-import reportSampleData from "../../../../smsampledata/appqa/ReportSampleData.json";
-const { sampleReportSessionVars } = reportSampleData;
 interface IReportProfileItem {
     _ReportProfile: string;
     Description: string;
@@ -231,6 +230,7 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
         getQuoteForm,
     } = useResourceContext();
     const commonVariableContext = useCommonVariableContext();
+    const sessionContext = useSessionContext();
     const [reportData, setReportData] = useState<IReportProfileItem[]>([]);
     const [selectedReport, setSelectedReport] = useState<IReportProfileItem | null>(null);
     const [selectedReportId, setSelectedReportId] = useState<string>("");
@@ -256,9 +256,15 @@ const AppqaReport = (appqaReportProps: IAppqaReport) => {
         setSelectedReportId("");
     };
 
-    const getSessionVars = (): Record<string, unknown> => ({
-        ...sampleReportSessionVars,
-    });
+    const getSessionVars = useCallback((): Record<string, unknown> => {
+        const sessionVars: Record<string, unknown> = {};
+        sessionContext?.SessionList?.forEach((item) => {
+            if (item.VariableName && item.SessionValue !== undefined && item.AllowInReport !== false) {
+                sessionVars[item.VariableName] = item.SessionValue ?? "";
+            }
+        });
+        return sessionVars;
+    }, [sessionContext?.SessionList]);
 
     const getReportTemplateJson = async (
         templateFileName?: string

@@ -2,13 +2,8 @@ import type { IMenuItem } from "../../allinterface/menu/IMainMenu";
 import type { IDataset } from "../../allinterface/sidebar/IPropertyFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { DisplayControlEnums } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
-import getTableVsPropertySample from "../../../../smsampledata/sidebar/GetTableVsPropertySample.json";
 
-/*
-* Entity tables returned by EM.GetTableVsProperty for sample node.
-* Source: get_table_vs_property API `data` array.
-*/
-const samplePropertyEntityTables = getTableVsPropertySample.data;
+
 
 /* Property kebab submenu (Sidebar PROPERTY.GetKebabMenu). */
 const samplePropertyKebabMenu: IMenuItem[] = []
@@ -428,7 +423,6 @@ const buildPropertyFormDataFromSelectedNode = (
 };
 
 export {
-    samplePropertyEntityTables,
     samplePropertyKebabMenuResponse,
     sampleBusinessPropertyKebabMenuResponse,
     sampleContactPropertyKebabMenuResponse,

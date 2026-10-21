@@ -22,7 +22,6 @@ import { useCommonVariableContext } from '../../context/hooks/CommonVariableHook
 import { FnParseJsonSafely } from '../../../appcontainer/allcommon/FnParseJsonSafely'
 import { FnCheckPermissionToEditName, IFeaturePermission } from '../../allcommon/FnCheckPermissionToEditName'
 import { handleFormControlsBubbleKeyDown, handleFormControlsKeyDown } from '../../allcommon/basic/FnHandleContainerKeyDown'
-import { samplePropertyEntityTables } from './PropertySampleData'
 import { useActivities, useBusinesses, useContacts } from '@n20a/libfsdb'
 import { useSmDataContext } from '../../context/hooks/SmDataHooks'
 import { useMainAppContext } from '../../context/hooks/MainAppHooks'
@@ -579,7 +578,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
             const tables =
                 propertyFormContainerProps.entityTables?.length
                     ? propertyFormContainerProps.entityTables
-                    : (samplePropertyEntityTables as IEntityTable[]);
+                    : [];
             setEntityTables(tables);
             setEntityTablesEntityName(NodeEntityname);
             setLoading(false);

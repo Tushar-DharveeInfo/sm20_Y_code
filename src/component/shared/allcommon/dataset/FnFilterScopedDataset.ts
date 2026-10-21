@@ -1,6 +1,5 @@
 import type { CollectionName, ICollectionDocMap } from "@n20a/libfsdb";
-import type { IExplorerSelection } from "../../context/allinterface/ISmData";
-import { FnGetSourceDataset } from "../FnLoadSampleDatasets";
+import type { IExplorerSelection, ISmDatasetCache } from "../../context/allinterface/ISmData";
 
 function hasBidCid(row: unknown): row is { bid?: string | number; cid?: string | number } {
     return typeof row === "object" && row !== null;
@@ -19,11 +18,27 @@ function matchesSelection<T>(row: T, selection: IExplorerSelection): boolean {
     return true;
 }
 
+const emptyScopedDatasets = (): Omit<ISmDatasetCache, "businesses"> => ({
+    contacts: [],
+    notes: [],
+    tickets: [],
+    ticketnotes: [],
+    activities: [],
+    orders: [],
+    carts: [],
+    supporthoursused: [],
+    subs: [],
+    downloads: [],
+    todo: [],
+    prospect: [],
+});
+
 function FnFilterSourceBySelection<K extends Exclude<CollectionName, "businesses">>(
     name: K,
-    selection: IExplorerSelection
+    selection: IExplorerSelection,
+    source: ICollectionDocMap[K][] = []
 ): ICollectionDocMap[K][] {
-    const source = FnGetSourceDataset(name);
+    void name;
     // Root / no business-contact selection → all records (ticket tree shows every Mfg).
     if (!selection.bid && !selection.cid) {
         return [...source];
@@ -34,20 +49,8 @@ function FnFilterSourceBySelection<K extends Exclude<CollectionName, "businesses
 function FnLoadScopedDatasets(selection: IExplorerSelection): {
     [K in Exclude<CollectionName, "businesses">]: ICollectionDocMap[K][];
 } {
-    return {
-        contacts: FnFilterSourceBySelection("contacts", selection),
-        notes: FnFilterSourceBySelection("notes", selection),
-        tickets: FnFilterSourceBySelection("tickets", selection),
-        ticketnotes: FnFilterSourceBySelection("ticketnotes", selection),
-        activities: FnFilterSourceBySelection("activities", selection),
-        orders: FnFilterSourceBySelection("orders", selection),
-        carts: FnFilterSourceBySelection("carts", selection),
-        supporthoursused: FnFilterSourceBySelection("supporthoursused", selection),
-        subs: FnFilterSourceBySelection("subs", selection),
-        downloads: FnFilterSourceBySelection("downloads", selection),
-        todo: FnFilterSourceBySelection("todo", selection),
-        prospect: FnFilterSourceBySelection("prospect", selection),
-    };
+    void selection;
+    return emptyScopedDatasets();
 }
 
-export { FnFilterSourceBySelection, FnLoadScopedDatasets, matchesSelection };
+export { emptyScopedDatasets, FnFilterSourceBySelection, FnLoadScopedDatasets, matchesSelection };

@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getRuntimeConfig, signOut } from "@n20a/libauth";
 import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer.tsx';
-import sampleOpenSessions from '../../../../smSampledata/appqa/SignoutSampleData.json';
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
+import { useSessionContext } from '../../../shared/context/hooks/SessionHooks';
 interface ISignout {
   uniqueName: string;//unique identifier for the control
   handleCloseFailed?: (error: Error) => void; // Optional callback for handling close failures
@@ -13,13 +13,36 @@ function Signout(signoutprops: ISignout) {
   const [openSessions, setOpenSessions] = useState<Record<string, any>[]>();
   const { AUTH_TYPE } = getRuntimeConfig();
   const mainAppContext = useMainAppContext();
+  const sessionContext = useSessionContext();
 
   useEffect(() => {
-    // API DISABLED: SESSION.GetOpenSession.
-    // axiosInterceptor({ url: SESSION.GetOpenSession, ... }, statusBarContext);
-    setOpenSessions(sampleOpenSessions);
-    setIsOpen(sampleOpenSessions.length > 0);
-  }, []);
+    const sessionVars: Record<string, any> = {};
+    sessionContext?.SessionList?.forEach((item) => {
+      if (item.VariableName && item.SessionValue !== undefined && item.SessionValue !== null) {
+        sessionVars[item.VariableName] = item.SessionValue;
+      }
+    });
+
+    const userSessionId =
+      sessionVars.UserSessionID ||
+      sessionVars.UserSessionNameID ||
+      sessionVars.SessionID ||
+      '';
+
+    const currentSessions: Record<string, any>[] = userSessionId
+      ? [
+          {
+            UserSessionID: userSessionId,
+            LoginUserName: sessionVars.LoginUserName || sessionVars.LoginUserID || '',
+            LoginShortName: sessionVars.LoginShortName || '',
+            ...sessionVars,
+          },
+        ]
+      : (sessionContext?.SessionList?.length ? [{ ...sessionVars }] : []);
+
+    setOpenSessions(currentSessions);
+    setIsOpen(true);
+  }, [sessionContext?.SessionList]);
 
   const closeSession = async (
     _sessionId: string

@@ -20,7 +20,6 @@ const ORDER_FORM = ORDER_FORM_FILE;
 const PROFORMA_INVOICE = PROFORMA_INVOICE_FILE;
 const QUOTE_FORM = QUOTE_FORM_FILE;
 
-
 const getResourceLoadingLabel = (path: string): string => {
     const lower = path.toLowerCase();
     if (lower.includes('chart')) return 'Loading charts...';
@@ -43,6 +42,8 @@ function ResourceProvider({ children }: IAppContextWrapper) {
 
     // Status Bar loading indicator
     const statusBarContext = useContext(StatusBarContext);
+    const statusBarContextRef = useRef(statusBarContext);
+    statusBarContextRef.current = statusBarContext;
 
     // Common Loading
     const [loading, setLoading] = useState<boolean>(false);
@@ -130,8 +131,8 @@ function ResourceProvider({ children }: IAppContextWrapper) {
         }
 
         setLoading(true);
-        statusBarContext?.setIsLoading?.(true);
-        statusBarContext?.setLoadingLabel?.(getResourceLoadingLabel(filePath));
+        statusBarContextRef.current?.setIsLoading?.(true);
+        statusBarContextRef.current?.setLoadingLabel?.(getResourceLoadingLabel(filePath));
 
         const fetchPromise = (async () => {
             try {
@@ -146,15 +147,15 @@ function ResourceProvider({ children }: IAppContextWrapper) {
                 delete inFlightRequests.current[filePath];
                 if (Object.keys(inFlightRequests.current).length === 0) {
                     setLoading(false);
-                    statusBarContext?.setIsLoading?.(false);
-                    statusBarContext?.setLoadingLabel?.('');
+                    statusBarContextRef.current?.setIsLoading?.(false);
+                    statusBarContextRef.current?.setLoadingLabel?.('');
                 }
             }
         })();
 
         inFlightRequests.current[filePath] = fetchPromise;
         return await fetchPromise;
-    }, [FnGetJsonFromStorage, statusBarContext]);
+    }, [FnGetJsonFromStorage]);
 
     // 1. Chart API function
     const getChartApi = useCallback((refresh?: boolean) => {

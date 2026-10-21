@@ -48,7 +48,6 @@ import {
 } from '../../features/tickets/allcommon/TicketsDataStore.ts'
 import { FnUpdateTreeNodeBasedOnKey } from '../allcommon/tree/FnUpdateTreeNodeBasedOnKey.ts'
 import { FnCopyToClipboard } from '../allcommon/basic/FnCopyToClipboard.ts'
-import { FnGetSourceDataset } from '../allcommon/FnLoadSampleDatasets.ts'
 
 const getTicketsForTree = (): ITicketDoc[] => {
   return getFullTicketsCached();
@@ -548,7 +547,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
           );
         } else {
           // Step 1: First load tickets (fresh from store / firestore)
-          activeTicketsForRefresh = await loadFullTickets(firestore);
+          activeTicketsForRefresh = await loadFullTickets(firestore, false, uniqueBusinesses);
           // Step 2: And then load tree based on tickets
           ticketResult = FnFilterTicketTree(
             uniqueBusinesses,
@@ -643,10 +642,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
             } catch { }
           }
           const apiContacts = FnMapToContactDocs(apiRecords, actualBid);
-          const fallbackContacts = (FnGetSourceDataset('contacts') || []).filter(
-            (c) => String(c.bid).trim().toLowerCase() === actualBid.toLowerCase()
-          );
-          const combined = [...apiContacts, ...fallbackContacts];
+          const combined = apiContacts;
           const seenCids = new Set<string>();
           const mappedContacts: IContactDoc[] = [];
           for (const c of combined) {
@@ -1174,8 +1170,6 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
 
     const isTickets = isTicketsFeature(featureId);
     if (isTickets) {
-      // Step 1: First load full tickets
-      const ticketsData = ticketsSource ?? (await loadFullTickets(firestore));
       let resolvedBusinesses = sourceBusinesses;
       if (!resolvedBusinesses.length) {
         try {
@@ -1186,6 +1180,9 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
           }
         } catch { }
       }
+
+      // Step 1: First load full tickets
+      const ticketsData = ticketsSource ?? (await loadFullTickets(firestore, false, resolvedBusinesses));
 
       const allKnownContacts = contactsSource ?? smDataContext.datasets.contacts ?? [];
 
@@ -1448,9 +1445,6 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               }
             }
 
-            // Step 1b: Load full tickets (cached or from firestore)
-            const ticketsData = await loadFullTickets(firestore);
-
             // 2. Get businesses
             let currentBusinesses = smDataContext.datasets.businesses ?? [];
             if (!currentBusinesses.length) {
@@ -1463,6 +1457,9 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
                 }));
               }
             }
+
+            // Step 1b: Load full tickets (cached or from firestore)
+            const ticketsData = await loadFullTickets(firestore, false, currentBusinesses);
 
             if (prevFeatureIdRef.current !== currentConfigKey) {
               return;
@@ -1527,10 +1524,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
             statusBarContext?.setIsLoading?.(true);
             statusBarContext?.setLoadingLabel?.('Loading Tickets...');
 
-            // Step 1: First load full tickets
-            const ticketsData = await loadFullTickets(firestore);
-
-            // Step 2: Get businesses
+            // Step 1: Get businesses
             let currentBusinesses = smDataContext.datasets.businesses ?? [];
             if (!currentBusinesses.length) {
               const apiBusinesses = await getBusinessesRef.current().catch(() => null);
@@ -1542,6 +1536,9 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
                 }));
               }
             }
+
+            // Step 2: Load full tickets
+            const ticketsData = await loadFullTickets(firestore, false, currentBusinesses);
 
             if (prevFeatureIdRef.current !== currentConfigKey) {
               return;
@@ -1632,11 +1629,7 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
     const contextContacts = (smDataContext.datasets.contacts ?? []).filter(
       (c) => String(c.bid).trim().toLowerCase() === businessId.trim().toLowerCase()
     );
-    const fallbackContacts = (FnGetSourceDataset('contacts') || []).filter(
-      (c) => String(c.bid).trim().toLowerCase() === businessId.trim().toLowerCase()
-    );
-
-    const combined = [...contextContacts, ...apiContacts, ...fallbackContacts];
+    const combined = [...contextContacts, ...apiContacts];
     const seenCids = new Set<string>();
     const mappedContacts: IContactDoc[] = [];
     for (const c of combined) {

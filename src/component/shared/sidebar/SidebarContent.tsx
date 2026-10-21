@@ -17,7 +17,6 @@ import { PropertyFormContainer } from './propertyformcontainer/PropertyFormConta
 import { ProfileAddFormContainer } from './propertyformcontainer/ProfileAddFormContainer'
 import { useHelpTipContext } from '../context/hooks/HelptipHooks'
 // import { Assign } from './assign/Assign'
-import { AlertLog } from './alertlog/AlertLog'
 import { ContactList } from './contactlist/ContactList'
 import { OrderList } from './orderlist/OrderList'
 import { AddReminder } from './reminder/AddReminder'
@@ -281,15 +280,6 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
     // Render sidebar content based on selected sidebar tab.
     const renderSidebarContent = () => {
         switch (Label) {
-            case SidebarEnum.Alerts:
-                return (
-                    <AlertLog
-                        uniqueName="appqa-alerts"
-                        headerText='Alert Log'
-                        selectedNode={selectedNode}
-                    />
-                );
-
             case SidebarEnum.Log:
                 return (
                     <Log

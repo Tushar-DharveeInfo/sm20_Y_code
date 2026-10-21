@@ -5,7 +5,6 @@ import { SendEmailToContact } from '../contactlist/SendEmailToContact';
 import { useContacts } from '@n20a/libfsdb';
 import { useSmDataContext } from '../../context/hooks/SmDataHooks';
 import { useMainAppContext } from '../../context/hooks/MainAppHooks';
-import { FnGetSourceDataset } from '../../allcommon/FnLoadSampleDatasets';
 import { FnIsRootBusinessNode } from '../../allcommon/tree/FnIsRootBusinessNode';
 import { Label } from '../../basic/label/Label';
 import './Email.css';
@@ -125,15 +124,9 @@ const Email = (props: IEmailProps) => {
         if (isRootNode) return [];
         const contextContacts = smDataContext.datasets?.contacts ?? [];
         if (contextContacts.length > 0 && effectiveBid) {
-            const filtered = contextContacts.filter((c) => String(c.bid).toLowerCase() === effectiveBid.toLowerCase());
-            if (filtered.length > 0) return filtered;
+            return contextContacts.filter((c) => String(c.bid).toLowerCase() === effectiveBid.toLowerCase());
         }
-        const list = (FnGetSourceDataset('contacts') || []) as IContactDoc[];
-        if (effectiveBid) {
-            const filtered = list.filter((c) => String(c.bid).toLowerCase() === effectiveBid.toLowerCase());
-            return filtered.length > 0 ? filtered : list;
-        }
-        return list;
+        return contextContacts;
     }, [effectiveBid, isRootNode, smDataContext.datasets?.contacts]);
 
     // 4. Combine available contacts
@@ -216,11 +209,10 @@ const Email = (props: IEmailProps) => {
 
     return (
         <div className="nz-sidebar-email-container">
-            <div className='nz-sub-header'>Send Email</div>
             {/* Render the SendEmailToContact component inline (without isOpen) */}
             <SendEmailToContact
                 uniqueName={props.uniqueName ?? 'sidebar-email'}
-                headerText={props.headerText ?? 'Email'}
+                headerText={props.headerText ?? 'Send Email'}
                 contact={activeContact}
                 contacts={availableContacts}
                 handleShowUserMessage={props.handleShowUserMessage}

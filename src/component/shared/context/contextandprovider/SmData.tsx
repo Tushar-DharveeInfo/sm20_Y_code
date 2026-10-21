@@ -6,11 +6,7 @@ import { IExplorerSelection, ISmData, ISmDatasetCache } from "../allinterface/IS
 import type { CollectionName, ICollectionDocMap, IContactDoc } from "@n20a/libfsdb";
 import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
-import {
-    emptyScopedDatasets,
-    sourceContacts,
-} from "../../allcommon/FnLoadSampleDatasets";
-import { FnLoadScopedDatasets } from "../../allcommon/dataset/FnFilterScopedDataset";
+import { emptyScopedDatasets, FnLoadScopedDatasets } from "../../allcommon/dataset/FnFilterScopedDataset";
 import { FnMapToBusinessDocs } from "../../allcommon/dataset/FnMapToBusinessDoc";
 import { filterContactRecords } from "../../allcommon/searchfilter/FnFilterBusinessContactRecords";
 
@@ -236,7 +232,6 @@ function SmDataProvider({ children }: IAppContextWrapper) {
     const getContactsForTree = useCallback((bid: string, filterJson: IFilterControlValues): IContactDoc[] => {
         const pool = [
             ...(datasets.contacts ?? []),
-            ...sourceContacts,
         ];
         const seen = new Set<string>();
         const uniqueContacts: IContactDoc[] = [];

@@ -11,7 +11,7 @@ import { Label } from '../../../basic/label/Label';
 import { YesNoFormContainer } from '../../../basic/yesnoformcontainer/YesNoFormContainer';
 import { useMfgCollections } from './MfgCollectionsService';
 import { DirtyFlagImage } from '../../../basic/dirtyflagimage/DirtyFlagImage';
-import { IImage } from '../../../allinterface/basic/IActionImageList';
+import { IImage } from '../../../allinterface/basic/IImage';
 import { Save24x24 } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../../../appcontainer/allcommon/FnGetCssVariable';
 
@@ -83,8 +83,26 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket,
   // Priority: prop ticket -> selectedNodeContext.selectedTicketCard -> rmsContext.selectedTicketCard
   const activeTicket = ticket ?? selectedNodeContext?.selectedTicketCard ?? rmsContext?.selectedTicketCard;
   const isNewRecord = Boolean((activeTicket as any)?.isNewRecord);
-  const ticketId = isNewRecord ? '' : String(activeTicket?.ticketid || activeTicket?.id || activeTicket?.EQID || activeTicket?.eqid || '').trim();
-  const targetEqid = isNewRecord ? '' : String(activeTicket?.EQID || activeTicket?.eqid || '').trim().toLowerCase();
+  const ticketId = isNewRecord
+    ? ''
+    : String(
+      activeTicket?.ticketid ||
+      (activeTicket as any)?.TicketId ||
+      (activeTicket as any)?.TicketID ||
+      (activeTicket as any)?.ticketId ||
+      activeTicket?.id ||
+      ''
+    ).trim();
+  const targetEqid = isNewRecord
+    ? ''
+    : String(
+      activeTicket?.EQID ||
+      activeTicket?.eqid ||
+      (activeTicket as any)?.eqId ||
+      (activeTicket as any)?.MfgEQID ||
+      (activeTicket as any)?.selectedMfgEQID ||
+      ''
+    ).trim().toLowerCase();
   const mfg = isNewRecord ? '' : (activeTicket?.mfg || activeTicket?.Manufacturer || '');
 
   // Cloud collections hook for mfg, eqidallocated, mfgvsprodline, mfgvsmfgeqtype
@@ -125,59 +143,152 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket,
       return {
         Acronym: '',
         EQID: '',
+        eqid: '',
         Manufacturer: '',
         mfg: '',
         mfgkey: '',
+        MfgProdLine: '',
         ProdLine: '',
         prodline: '',
         Eqtype: '',
+        EqType: '',
+        eqtype: '',
         MfgEqtype: '',
         MfgProdNo: '',
+        prodno: '',
         MfgDesc: '',
+        description: '',
       } as unknown as IEqidDoc;
     }
 
     const existing = (rmsContext?.eqid ?? []).find(
       (e: any) =>
-        (targetEqid && String(e.EQID || e.eqid || e.id || '').trim().toLowerCase() === targetEqid) ||
+        (targetEqid && (
+          String(e.EQID || '').trim().toLowerCase() === targetEqid ||
+          String(e.eqid || '').trim().toLowerCase() === targetEqid ||
+          String(e.id || '').trim().toLowerCase() === targetEqid
+        )) ||
         (ticketId && e.ticketid && String(e.ticketid).trim().toLowerCase() === ticketId.toLowerCase())
     );
 
+    // Resolve EQID
     const rawTicketEqid = String(
-      (existing as any)?.EQID || (existing as any)?.eqid || activeTicket?.EQID || activeTicket?.eqid || ticketId
+      (existing as any)?.EQID ||
+      (existing as any)?.eqid ||
+      (existing as any)?.id ||
+      activeTicket?.EQID ||
+      activeTicket?.eqid ||
+      (activeTicket as any)?.eqId ||
+      (activeTicket as any)?.MfgEQID ||
+      (activeTicket as any)?.selectedMfgEQID ||
+      ''
     ).trim();
-    const ticketEqid = getLastValue(rawTicketEqid);
+    const resolvedEqid = getLastValue(rawTicketEqid);
 
-    if (existing) {
-      const existingEqid = getLastValue(String((existing as any).EQID || (existing as any).eqid || ticketEqid).trim());
-      const existingAcronym =
-        (existing as any)?.Acronym ||
-        (existing as any)?.mfg ||
-        (existing as any)?.mfgkey ||
-        extractAcronymFromEqid(existingEqid, mfgCollections.mfgKeys);
+    // Resolve Manufacturer
+    const rawMfg =
+      (existing as any)?.Manufacturer ||
+      (existing as any)?.mfg ||
+      activeTicket?.Manufacturer ||
+      activeTicket?.mfg ||
+      mfg ||
+      '';
+    const resolvedMfg = mfgCollections.mfgMap[rawMfg] || rawMfg;
 
-      return {
-        ...existing,
-        Acronym: existingAcronym,
-      } as unknown as IEqidDoc;
-    }
+    // Resolve Acronym / mfgkey
+    const resolvedMfgKey =
+      mfgCollections.resolveMfgKey(resolvedMfg) ||
+      (existing as any)?.mfgkey ||
+      (existing as any)?.mfg ||
+      activeTicket?.mfgkey ||
+      '';
 
-    const resolvedMfgKey = mfgCollections.resolveMfgKey(mfg);
-    const defaultAcronym =
+    const resolvedAcronym =
+      (existing as any)?.Acronym ||
+      (existing as any)?.acronym ||
       activeTicket?.Acronym ||
       resolvedMfgKey ||
-      extractAcronymFromEqid(ticketEqid, mfgCollections.mfgKeys) ||
-      (mfg ? mfg.substring(0, 4).toUpperCase() : '');
+      extractAcronymFromEqid(resolvedEqid, mfgCollections.mfgKeys) ||
+      (resolvedMfg ? resolvedMfg.substring(0, 4).toUpperCase() : '');
+
+    // Resolve ProdLine (form uses MfgProdLine & ProdLine)
+    const resolvedProdLine =
+      (existing as any)?.MfgProdLine ||
+      (existing as any)?.ProdLine ||
+      (existing as any)?.prodline ||
+      activeTicket?.MfgProdLine ||
+      activeTicket?.ProdLine ||
+      activeTicket?.prodline ||
+      '';
+
+    // Resolve Eqtype (form uses Eqtype)
+    const resolvedEqtype =
+      (existing as any)?.Eqtype ||
+      (existing as any)?.EqType ||
+      (existing as any)?.eqtype ||
+      activeTicket?.Eqtype ||
+      activeTicket?.EqType ||
+      activeTicket?.eqtype ||
+      '';
+
+    // Resolve MfgEqtype
+    const resolvedMfgEqtype =
+      (existing as any)?.MfgEqtype ||
+      (existing as any)?.mfgeqtype ||
+      activeTicket?.MfgEqtype ||
+      activeTicket?.mfgeqtype ||
+      '';
+
+    // Resolve ProdNo (form uses MfgProdNo)
+    const resolvedProdNo =
+      (existing as any)?.MfgProdNo ||
+      (existing as any)?.prodno ||
+      (existing as any)?.ProdNo ||
+      activeTicket?.MfgProdNo ||
+      activeTicket?.prodno ||
+      activeTicket?.ProdNo ||
+      '';
+
+    // Resolve Description (form uses MfgDesc)
+    const resolvedDesc =
+      (existing as any)?.MfgDesc ||
+      (existing as any)?.mfgdesc ||
+      (existing as any)?.description ||
+      (existing as any)?.Description ||
+      activeTicket?.MfgDesc ||
+      activeTicket?.description ||
+      activeTicket?.Description ||
+      '';
 
     return {
       ...(activeTicket ?? {}),
-      bid: activeTicket?.bid ?? '',
-      cid: activeTicket?.cid ?? '',
-      ticketid: ticketId,
-      EQID: ticketEqid,
-      eqid: ticketEqid,
-      Acronym: defaultAcronym,
-      shapeid: activeTicket?.shapeid ?? [],
+      ...(existing ?? {}),
+      bid: (existing as any)?.bid || activeTicket?.bid || '',
+      cid: (existing as any)?.cid || activeTicket?.cid || '',
+      ticketid: (existing as any)?.ticketid || ticketId,
+      EQID: resolvedEqid,
+      eqid: resolvedEqid,
+      Acronym: resolvedAcronym,
+      acronym: resolvedAcronym,
+      Manufacturer: resolvedMfg,
+      mfg: resolvedMfgKey || resolvedMfg,
+      mfgkey: resolvedMfgKey,
+      MfgProdLine: resolvedProdLine,
+      ProdLine: resolvedProdLine,
+      prodline: resolvedProdLine,
+      Eqtype: resolvedEqtype,
+      EqType: resolvedEqtype,
+      eqtype: resolvedEqtype,
+      MfgEqtype: resolvedMfgEqtype,
+      mfgeqtype: resolvedMfgEqtype,
+      MfgProdNo: resolvedProdNo,
+      prodno: resolvedProdNo,
+      ProdNo: resolvedProdNo,
+      MfgDesc: resolvedDesc,
+      mfgdesc: resolvedDesc,
+      description: resolvedDesc,
+      Description: resolvedDesc,
+      shapeid: (existing as any)?.shapeid || activeTicket?.shapeid || [],
     } as unknown as IEqidDoc;
   }, [
     rmsContext?.eqid,
@@ -187,6 +298,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket,
     activeTicket,
     mfgCollections.mfgMap,
     mfgCollections.mfgKeys,
+    isNewRecord,
   ]);
 
   const [currentRecord, setCurrentRecord] = useState<IEqidDoc>(initialEQIDRecord);
@@ -198,18 +310,27 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket,
     }
   }, [initialEQIDRecord]);
 
+  const recordSyncKey = useMemo(() => {
+    if (isNewRecord) {
+      return `new-${String((activeTicket as any)?.key || 'record')}`;
+    }
+    const resolvedEqid = String(initialEQIDRecord?.EQID || '');
+    const mfgVal = String(initialEQIDRecord?.Manufacturer || '');
+    const acronymVal = String(initialEQIDRecord?.Acronym || '');
+    const prodNoVal = String((initialEQIDRecord as any)?.MfgProdNo || (initialEQIDRecord as any)?.prodno || '');
+    const prodLineVal = String((initialEQIDRecord as any)?.MfgProdLine || (initialEQIDRecord as any)?.ProdLine || '');
+    return `${ticketId}__${resolvedEqid}__${mfgVal}__${acronymVal}__${prodNoVal}__${prodLineVal}`;
+  }, [isNewRecord, (activeTicket as any)?.key, ticketId, initialEQIDRecord]);
+
   useEffect(() => {
-    const currentKey = isNewRecord
-      ? `new-${String((activeTicket as any)?.key || 'record')}`
-      : String(activeTicket?.EQID || activeTicket?.eqid || ticketId || '');
-    if (currentKey && prevRecordKeyRef.current !== currentKey) {
-      prevRecordKeyRef.current = currentKey;
+    if (recordSyncKey && prevRecordKeyRef.current !== recordSyncKey) {
+      prevRecordKeyRef.current = recordSyncKey;
       setCurrentRecord(initialEQIDRecord);
       initialRecordRef.current = initialEQIDRecord;
       latestEditFormRecordRef.current = {};
       setIsDirty(false);
     }
-  }, [isNewRecord, (activeTicket as any)?.key, ticketId, activeTicket?.EQID, activeTicket?.eqid, initialEQIDRecord]);
+  }, [recordSyncKey, initialEQIDRecord]);
 
   // When cloud mfgMap finishes loading, translate any key (e.g. "0CMS") to name (e.g. "Generic CommScope")
   useEffect(() => {
@@ -246,13 +367,18 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket,
     const allocated = Array.from(
       new Set(mfgCollections.getEQIDAllocated(raw).map((item) => getLastValue(item)).filter(Boolean))
     );
-    const rawCurrentEqid = String(currentRecord?.EQID || (currentRecord as any)?.eqid || ticketId).trim();
+    const rawCurrentEqid = String(
+      currentRecord?.EQID ||
+      (currentRecord as any)?.eqid ||
+      targetEqid ||
+      ''
+    ).trim();
     const currentEqid = getLastValue(rawCurrentEqid);
     if (currentEqid && !allocated.includes(currentEqid)) {
       return [currentEqid, ...allocated];
     }
     return allocated;
-  }, [currentRecord?.Manufacturer, currentRecord?.Acronym, currentRecord?.EQID, (currentRecord as any)?.eqid, mfg, ticketId, mfgCollections]);
+  }, [currentRecord?.Manufacturer, currentRecord?.Acronym, currentRecord?.EQID, (currentRecord as any)?.eqid, mfg, targetEqid, mfgCollections]);
 
   // getEqType(): string[] - valid eqtype options
   const getEqType = useCallback((): string[] => {
@@ -321,7 +447,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket,
       };
 
       const rawEqidKey = String(
-        mergedRecord.EQID || mergedRecord.eqid || mergedRecord.ticketid || ticketId
+        mergedRecord.EQID || mergedRecord.eqid || currentRecord?.EQID || ''
       ).trim();
       const eqidKey = getLastValue(rawEqidKey) || rawEqidKey;
       if (!eqidKey) {
@@ -452,6 +578,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket,
 
   const saveImageData: IImage = useMemo(
     () => ({
+      uniqueName: 'eqid-properties-save-icon',
       source: (
         <Save24x24
           size={FnGetCssVariable('--image-size-1')}
@@ -531,7 +658,7 @@ export const EQIDPropertiesPane: React.FC<IEQIDPropertiesPaneProps> = ({ ticket,
           key={
             isNewRecord
               ? `new_${(activeTicket as any)?.key || 'record'}_${currentRecord?.Acronym || ''}`
-              : `${ticketId}_${targetEqid}_${currentRecord?.Acronym || ''}_${currentRecord?.Manufacturer || ''}`
+              : `${ticketId}_${currentRecord?.EQID || ''}_${currentRecord?.Acronym || ''}_${currentRecord?.Manufacturer || ''}`
           }
           EQIDRecord={currentRecord as unknown as IEqidDoc}
           getAcronym={getAcronym}

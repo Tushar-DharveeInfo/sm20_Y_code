@@ -12,7 +12,6 @@ import '@n20a/libavnotes/style.css';
 import { FilterKeywordControl } from '../../../searchfilter/filterkeywordcontrol/FilterKeywordControl';
 import { FnParseTimestampToISO } from '../../../../appcontainer/allcommon/FnConvertTimestampToDate';
 import { FnFormatDateWithAppFormat } from '../../../../appcontainer/allcommon/FnFormatDateWithAppFormat';
-import { FnGetSourceDataset } from '../../../allcommon/FnLoadSampleDatasets';
 import { FnGetSessionVariableFromStorage } from '../../../allcommon/basic/FnGetSessionVariableFromStorage';
 import { ITreeNode } from '../../../allinterface/tree/ITreeControl';
 import { Label } from '../../../basic/label/Label';
@@ -437,10 +436,7 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
       } else if (Array.isArray(ticketNotes)) {
         sourceNotes = ticketNotes;
       } else {
-        const sampleNotes = (FnGetSourceDataset('ticketnotes') || []).filter(
-          (n: any) => String(n.ticketid ?? '').trim() === selectedTicketId
-        );
-        sourceNotes = sampleNotes;
+        sourceNotes = [];
       }
     }
 

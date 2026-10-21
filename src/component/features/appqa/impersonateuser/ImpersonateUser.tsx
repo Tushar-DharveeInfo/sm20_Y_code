@@ -4,17 +4,27 @@ import { User24x24, Delegate24x24 } from '@n20a/libicon';
 import { EditTextXControl } from '@n20a/libform';
 import { FnGetCssVariable } from '../../../appcontainer/allcommon/FnGetCssVariable';
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 import { CardLayout, ICardLayoutField } from '../../../shared/cardlayout/CardLayout';
-import usersData from '../../../../smsampledata/datasets/users.json';
-import businessesData from '../../../../smsampledata/datasets/businesses.json';
 import './ImpersonateUser.css';
 import type { IUserAuthSession } from '../../../shared/context/allinterface/IMainApp';
-
-interface IUserRecord {
+export interface IUserRecord {
     bid: string;
     cid: string;
     email: string;
 }
+export const FALLBACK_USERS: IUserRecord[] = [
+    { bid: "bid_102", cid: "cid_bid_102_1", email: "chris@netzoom.com" },
+    { bid: "bid_103", cid: "cid_bid_103_1", email: "jayashree@netzoom.com" },
+    { bid: "bid_104", cid: "cid_bid_104_1", email: "jayashri@netzoom.com" },
+    { bid: "bid_105", cid: "cid_bid_105_1", email: "mgsy@netzoom.com" },
+    { bid: "bid_106", cid: "cid_bid_106_1", email: "nk@netzoom.com" },
+    { bid: "bid_107", cid: "cid_bid_107_1", email: "rich@netzoom.com" },
+    { bid: "bid_108", cid: "cid_bid_108_1", email: "sara@netzoom.com" },
+    { bid: "bid_109", cid: "cid_bid_109_1", email: "tu@netzoom.com" },
+    { bid: "bid_110", cid: "cid_bid_110_1", email: "uma@netzoom.com" },
+    { bid: "bid_111", cid: "cid_bid_111_1", email: "uriel@netzoom.com" },
+];
 
 interface IAppqaImpersonateProps {
     uniqueName?: string;
@@ -40,19 +50,19 @@ const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const navigate = useNavigate();
     const mainAppContext = useMainAppContext();
+    const smDataContext = useSmDataContext();
 
-    // Map business IDs to business names from businesses.json
+    // Map business IDs to business names from smDataContext
     const businessMap = useMemo(() => {
         const map = new Map<string, string>();
-        if (Array.isArray(businessesData)) {
-            businessesData.forEach((b: Record<string, unknown>) => {
-                if (b?.bid && b?.bname) {
-                    map.set(String(b.bid).toLowerCase(), String(b.bname));
-                }
-            });
-        }
+        const businesses = smDataContext?.datasets?.businesses ?? [];
+        businesses.forEach((b: Record<string, any>) => {
+            if (b?.bid && b?.bname) {
+                map.set(String(b.bid).toLowerCase(), String(b.bname));
+            }
+        });
         return map;
-    }, []);
+    }, [smDataContext?.datasets?.businesses]);
 
     // Extract logged-in user identifiers to filter out
     const authSession = mainAppContext.authSession;
@@ -60,16 +70,28 @@ const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
     const loginBid = String(authSession?.bid ?? '').toLowerCase().trim();
     const loginCid = String(authSession?.cid ?? '').toLowerCase().trim();
 
+    const effectiveEmail = loginEmail;
+    const effectiveBid = loginBid;
+    const effectiveCid = loginCid;
 
+    // Get candidate users from context contacts, fallback to FALLBACK_USERS
+    const usersSource = useMemo((): IUserRecord[] => {
+        const contacts = smDataContext?.datasets?.contacts ?? [];
+        const fromContacts = contacts
+            .filter((c) => Boolean(c.email && c.bid && c.cid))
+            .map((c) => ({
+                bid: String(c.bid),
+                cid: String(c.cid),
+                email: String(c.email),
+            }));
+        // return fromContacts.length > 0 ? fromContacts : FALLBACK_USERS;
+        return FALLBACK_USERS;
+    }, [smDataContext?.datasets?.contacts]);
 
-    const effectiveEmail = loginEmail
-    const effectiveBid = loginBid
-    const effectiveCid = loginCid
-
-    // Filter out the logged-in user from users.json
+    // Filter out the logged-in user from candidate users
     const { filteredUsers, excludedCount } = useMemo(() => {
         let count = 0;
-        const list = (usersData as IUserRecord[]).filter((user) => {
+        const list = usersSource.filter((user) => {
             const uEmail = String(user.email ?? '').toLowerCase().trim();
             const uBid = String(user.bid ?? '').toLowerCase().trim();
             const uCid = String(user.cid ?? '').toLowerCase().trim();
@@ -85,7 +107,7 @@ const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
             return true;
         });
         return { filteredUsers: list, excludedCount: count };
-    }, [effectiveEmail, effectiveBid, effectiveCid]);
+    }, [usersSource, effectiveEmail, effectiveBid, effectiveCid]);
 
     // Apply search/filter text from LibForm EditTextXControl
     const displayedUsers = useMemo(() => {

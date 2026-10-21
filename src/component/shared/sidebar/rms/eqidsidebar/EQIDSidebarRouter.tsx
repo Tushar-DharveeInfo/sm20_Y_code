@@ -108,6 +108,19 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
         const bid = String(source?.bid || matchingTicket?.bid || smDataContext?.selection?.bid || '').trim();
         const cid = String(source?.cid || matchingTicket?.cid || smDataContext?.selection?.cid || '').trim();
 
+        const shapeId = String(
+          (selectedNode as any)?.ShapeID ||
+          (selectedNode as any)?.shapeId ||
+          (selectedNode as any)?.shapeStyleData?.styleId ||
+          (selectedNode as any)?.styleId ||
+          (selectedNodeContext?.selectedNode as any)?.ShapeID ||
+          (selectedNodeContext?.selectedNode as any)?.shapeId ||
+          (selectedNodeContext?.selectedNode as any)?.shapeStyleData?.styleId ||
+          (selectedNodeContext?.selectedTicketCard as any)?.ShapeID ||
+          (selectedNodeContext?.selectedTicketCard as any)?.shapeId ||
+          ''
+        ).trim();
+
         return {
           ...(source ?? {}),
           NodeType: 'EQID',
@@ -126,6 +139,9 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
           ProdLine: source?.ProdLine || source?.prodline || '',
           eqtype: source?.EqType || source?.eqtype || '',
           EqType: source?.EqType || source?.eqtype || '',
+          ShapeID: shapeId,
+          shapeId: shapeId,
+          shapeStyleData: (selectedNode as any)?.shapeStyleData || (selectedNodeContext?.selectedNode as any)?.shapeStyleData,
         };
       }
       return selectedNode ?? null;
@@ -198,7 +214,15 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
     smDataContext?.selection?.cid,
   ]);
 
-  const eqid = (activeTicket as any)?.eqid || (activeTicket as any)?.EQID || (activeTicket as any)?.eqId || '';
+  const eqid =
+    (activeTicket as any)?.eqid ||
+    (activeTicket as any)?.EQID ||
+    (activeTicket as any)?.eqId ||
+    (selectedNode as any)?.eqid ||
+    (selectedNode as any)?.EQID ||
+    (selectedNode as any)?.parentEqid ||
+    (selectedNode as any)?.shapeStyleData?.eqid ||
+    '';
 
   const cleanLabel = (Label || '').trim().toLowerCase();
 
@@ -207,7 +231,16 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
   switch (true) {
     case cleanLabel === 'eqid' || cleanLabel.includes('property') || cleanLabel.includes('properties') || cleanLabel === 'add eqid' || cleanLabel.includes('add eqid'): {
       if (subMenuKey === SubMenuKey.ShapeStyles || subMenuKey === SubMenuKey.HardwareShapes) {
-        return <EQIDStylesContainer uniqueName="fqa-eqid-styles" label={selectedNodeMenu?.Label || 'Shape Styles'} />;
+        return (
+          <EQIDStylesContainer
+            uniqueName="fqa-eqid-styles"
+            label={selectedNodeMenu?.Label || 'Shape Styles'}
+            eqid={eqid}
+            ticket={activeTicket}
+            selectedNode={selectedNode}
+            featureId={featureId}
+          />
+        );
       }
       if (subMenuKey === SubMenuKey.PowerPorts) {
         return (
@@ -309,6 +342,66 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
           key={`eqid-ai-${(activeTicket as any)?.mfg || (activeTicket as any)?.Manufacturer || ''}-${eqid}`}
           eqid={eqid}
           ticket={activeTicket}
+        />
+      );
+
+    case cleanLabel.includes('power'):
+      return (
+        <EQIDOneToManyContainer
+          ticket={activeTicket}
+          menuKey={SubMenuKey.PowerPorts}
+          selectedNode={selectedNode}
+          featureId={featureId}
+        />
+      );
+
+    case cleanLabel.includes('network'):
+      return (
+        <EQIDOneToManyContainer
+          ticket={activeTicket}
+          menuKey={SubMenuKey.NetworkPorts}
+          selectedNode={selectedNode}
+          featureId={featureId}
+        />
+      );
+
+    case cleanLabel.includes('slot'):
+      return (
+        <EQIDOneToManyContainer
+          ticket={activeTicket}
+          menuKey={SubMenuKey.Slot}
+          selectedNode={selectedNode}
+          featureId={featureId}
+        />
+      );
+
+    case cleanLabel.includes('inout') || cleanLabel.includes('plug'):
+      return (
+        <EQIDOneToManyContainer
+          ticket={activeTicket}
+          menuKey={SubMenuKey.InOutPort}
+          selectedNode={selectedNode}
+          featureId={featureId}
+        />
+      );
+
+    case cleanLabel.includes('url'):
+      return (
+        <EQIDOneToManyContainer
+          ticket={activeTicket}
+          menuKey={SubMenuKey.Url}
+          selectedNode={selectedNode}
+          featureId={featureId}
+        />
+      );
+
+    case cleanLabel.includes('relation'):
+      return (
+        <EQIDOneToManyContainer
+          ticket={activeTicket}
+          menuKey={SubMenuKey.EqidRelation}
+          selectedNode={selectedNode}
+          featureId={featureId}
         />
       );
 

@@ -27,15 +27,18 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
-    background-color: var(--bgtitlebarandstatusbar, #f3f4f6);
+    height: var(--node_height, 30px);
+    line-height: var(--node_height, 30px);
+    padding: 0 8px;
+    background-color: var(--subheaderbg, #f3f4f6);
     border-bottom: 1px solid var(--borderandscrollbar, #e5e7eb);
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .nz-send-email-header-title {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: bold;
     color: var(--textprimary, #111827);
     display: flex;
     align-items: center;
@@ -45,7 +48,28 @@
 .nz-send-email-header-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+}
+
+.nz-send-email-preview-btn {
+    height: 22px;
+    line-height: 20px;
+    padding: 0 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.nz-send-email-preview-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.8;
 }
 
 .nz-send-email-close-btn {

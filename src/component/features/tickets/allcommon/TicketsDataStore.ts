@@ -1,5 +1,4 @@
 import type { ITicketDoc } from '@n20a/libfsdb';
-import { FnGetSourceDataset, SOURCE_DATASETS } from '../../../shared/allcommon/FnLoadSampleDatasets';
 import type { IFirestoreContextValue } from '@n20a/libfsdb';
 
 function formatTimestampOrDate(value: unknown): string {
@@ -49,17 +48,14 @@ export function getFullTicketsCached(): ITicketDoc[] {
     if (cachedFullTickets && cachedFullTickets.length > 0) {
         return cachedFullTickets.filter((t) => !isTicketDeleted(t));
     }
-    const source = FnGetSourceDataset('tickets') || [];
-    cachedFullTickets = source.filter((t) => !isTicketDeleted(t));
-    return cachedFullTickets;
+    return [];
 }
 
 /**
- * Updates the global cached tickets and syncs SOURCE_DATASETS.tickets.
+ * Updates the global cached tickets.
  */
 export function setFullTicketsCache(tickets: ITicketDoc[]): void {
     cachedFullTickets = tickets.filter((t) => !isTicketDeleted(t));
-    SOURCE_DATASETS.tickets = cachedFullTickets;
 }
 
 /**
@@ -92,7 +88,6 @@ export function updateTicketStatusInStore(
             return t;
         });
 
-    SOURCE_DATASETS.tickets = cachedFullTickets;
     return cachedFullTickets;
 }
 
@@ -126,7 +121,6 @@ export function updateTicketInStore(
             return t;
         });
 
-    SOURCE_DATASETS.tickets = cachedFullTickets;
     return cachedFullTickets;
 }
 
@@ -137,7 +131,6 @@ export function updateTicketInStore(
 export function addTicketToStore(newTicket: ITicketDoc): ITicketDoc[] {
     const list = getFullTicketsCached();
     cachedFullTickets = [newTicket, ...list];
-    SOURCE_DATASETS.tickets = cachedFullTickets;
     return cachedFullTickets;
 }
 
@@ -152,7 +145,6 @@ export function removeTicketFromStore(ticketId: string): ITicketDoc[] {
         const tId = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
         return tId !== cleanTid;
     });
-    SOURCE_DATASETS.tickets = cachedFullTickets;
     return cachedFullTickets;
 }
 
@@ -194,114 +186,139 @@ export function generateClonedTicketId(originalId: string, existingTickets: ITic
 /**
  * Step 1: Loads full tickets data across all businesses.
  * 1. Checks if cached in memory from Firestore (unless forceRefresh is true).
- * 2. If firestore is available, queries collectionGroup('tickets').
- * 3. Falls back to sample tickets dataset if firestore query returns empty or fails.
+ * 2. Queries tickets per business via firestore.queryDocuments (matching useBusinessTickets hook path).
+ * 3. Returns empty array if firestore query returns empty or fails.
  */
 export async function loadFullTickets(
     firestore?: IFirestoreContextValue | null,
-    forceRefresh: boolean = false
+    forceRefresh: boolean = false,
+    knownBusinesses?: Array<{ bid?: string; EntID?: string; id?: string }>
 ): Promise<ITicketDoc[]> {
     if (!forceRefresh && isFirestoreLoaded && cachedFullTickets && cachedFullTickets.length > 0) {
         return cachedFullTickets;
     }
 
-    if (firestore && typeof firestore.queryDocumentsGroup === 'function') {
+    if (firestore && typeof firestore.queryDocuments === 'function') {
         try {
-            const res = await firestore.queryDocumentsGroup({ collectionName: 'tickets' });
-            const rawList: Record<string, unknown>[] = Array.isArray(res?.data)
-                ? (res.data as Record<string, unknown>[])
-                : Array.isArray((res?.data as any)?.data)
-                    ? ((res.data as any).data as Record<string, unknown>[])
-                    : [];
+            let businessList = knownBusinesses && knownBusinesses.length > 0 ? knownBusinesses : [];
+            if (businessList.length === 0) {
+                const bRes = await firestore.queryDocuments({ pathSegments: ['businesses'] });
+                businessList = Array.isArray(bRes?.data)
+                    ? (bRes.data as any[])
+                    : Array.isArray((bRes?.data as any)?.data)
+                        ? ((bRes.data as any).data as any[])
+                        : [];
+            }
+            const bids = businessList
+                .map((b: any) => String(b.bid || b.EntID || b.id || '').trim())
+                .filter(Boolean);
 
-            if (rawList.length > 0) {
-                const mapped: ITicketDoc[] = rawList
-                    .filter((d: any) => !isTicketDeleted(d))
-                    .map((d: any) => {
-                    let bid = String(d.bid || d.businessid || d.businessId || d.bId || '').trim();
-                    let cid = String(d.cid || d.contactid || d.contactId || d.cId || '').trim();
-                    const ticketid = String(d.ticketid || d.id || d._id || '').trim();
-
-                    // Extract bid from path if present (e.g. "businesses/bid_104/tickets/ticket_1")
-                    const pathStr = String(d.path || d._path || d.docPath || d.__path || d.ref?.path || '');
-                    if (!bid && pathStr) {
-                        const m = pathStr.match(/businesses\/([^/]+)/i);
-                        if (m) bid = m[1].trim();
+            if (bids.length > 0) {
+                const results = await Promise.allSettled(
+                    bids.map((bid) => firestore.queryDocuments({ pathSegments: ['businesses', bid, 'tickets'] }))
+                );
+                const rawList: Record<string, unknown>[] = [];
+                results.forEach((r, idx) => {
+                    if (r.status === 'fulfilled' && r.value?.data) {
+                        const bid = bids[idx];
+                        const list = Array.isArray(r.value.data)
+                            ? (r.value.data as Record<string, unknown>[])
+                            : Array.isArray((r.value.data as any)?.data)
+                                ? ((r.value.data as any).data as Record<string, unknown>[])
+                                : [];
+                        for (const d of list) {
+                            rawList.push({ ...d, bid: d.bid || bid });
+                        }
                     }
-
-                    // Extract bid from ticketid if missing
-                    if (!bid && ticketid) {
-                        const m = ticketid.match(/bid[_-]?\d+/i);
-                        if (m) bid = m[0].trim();
-                    }
-
-                    // If BID is purely digits like "104", normalize to "bid_104"
-                    if (bid && /^\d+$/.test(bid)) {
-                        bid = `bid_${bid}`;
-                    }
-
-                    // Extract cid from ticketid if missing
-                    if (!cid && ticketid) {
-                        const m = ticketid.match(/cid[_-]?bid[_-]?\d+[_-]?\d+/i);
-                        if (m) cid = m[0].trim();
-                    }
-
-                    return {
-                        bid,
-                        cid,
-                        ticketid,
-                        tickettype: String(d.tickettype || ''),
-                        subscription: String(d.subscription || ''),
-                        mfg: String(d.mfg || ''),
-                        eqtype: String(d.eqtype || ''),
-                        prodno: String(d.prodno || ''),
-                        moreinfo: String(d.moreinfo || ''),
-                        status: String(d.status || ''),
-                        daterequested: formatTimestampOrDate(d.daterequested),
-                        datereleased: formatTimestampOrDate(d.datereleased),
-                        lastupdated: formatTimestampOrDate(d.lastupdated),
-                        eqid: d.eqid ? String(d.eqid) : undefined,
-                        monitor: Boolean(d.monitor),
-                        monitorupdated: formatTimestampOrDate(d.monitorupdated),
-                    };
                 });
 
-                // If we already had local in-memory status overrides, merge them
-                if (cachedFullTickets && cachedFullTickets.length > 0) {
-                    const localStatusMap = new Map<string, { status: string; lastupdated?: string }>();
-                    for (const t of cachedFullTickets) {
-                        const tid = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
-                        if (tid && t.status) {
-                            localStatusMap.set(tid, { status: t.status, lastupdated: t.lastupdated });
-                        }
-                    }
-                    for (let i = 0; i < mapped.length; i++) {
-                        const tid = String(mapped[i].ticketid || (mapped[i] as any).id || '').trim().toLowerCase();
-                        const local = localStatusMap.get(tid);
-                        if (local) {
-                            mapped[i] = {
-                                ...mapped[i],
-                                status: local.status,
-                                lastupdated: local.lastupdated || mapped[i].lastupdated,
-                            };
-                        }
-                    }
-                }
+                if (rawList.length > 0) {
+                    const mapped: ITicketDoc[] = rawList
+                        .filter((d: any) => !isTicketDeleted(d))
+                        .map((d: any) => {
+                            let bid = String(d.bid || d.businessid || d.businessId || d.bId || '').trim();
+                            let cid = String(d.cid || d.contactid || d.contactId || d.cId || '').trim();
+                            const ticketid = String(d.ticketid || d.id || d._id || '').trim();
 
-                isFirestoreLoaded = true;
-                setFullTicketsCache(mapped);
-                return mapped;
+                            // Extract bid from path if present (e.g. "businesses/bid_104/tickets/ticket_1")
+                            const pathStr = String(d.path || d._path || d.docPath || d.__path || d.ref?.path || '');
+                            if (!bid && pathStr) {
+                                const m = pathStr.match(/businesses\/([^/]+)/i);
+                                if (m) bid = m[1].trim();
+                            }
+
+                            // Extract bid from ticketid if missing
+                            if (!bid && ticketid) {
+                                const m = ticketid.match(/bid[_-]?\d+/i);
+                                if (m) bid = m[0].trim();
+                            }
+
+                            // If BID is purely digits like "104", normalize to "bid_104"
+                            if (bid && /^\d+$/.test(bid)) {
+                                bid = `bid_${bid}`;
+                            }
+
+                            // Extract cid from ticketid if missing
+                            if (!cid && ticketid) {
+                                const m = ticketid.match(/cid[_-]?bid[_-]?\d+[_-]?\d+/i);
+                                if (m) cid = m[0].trim();
+                            }
+
+                            return {
+                                bid,
+                                cid,
+                                ticketid,
+                                tickettype: String(d.tickettype || ''),
+                                subscription: String(d.subscription || ''),
+                                mfg: String(d.mfg || ''),
+                                eqtype: String(d.eqtype || ''),
+                                prodno: String(d.prodno || ''),
+                                moreinfo: String(d.moreinfo || ''),
+                                status: String(d.status || ''),
+                                daterequested: formatTimestampOrDate(d.daterequested),
+                                datereleased: formatTimestampOrDate(d.datereleased),
+                                lastupdated: formatTimestampOrDate(d.lastupdated),
+                                eqid: d.eqid ? String(d.eqid) : undefined,
+                                monitor: Boolean(d.monitor),
+                                monitorupdated: formatTimestampOrDate(d.monitorupdated),
+                            };
+                        });
+
+                    // If we already had local in-memory status overrides, merge them
+                    if (cachedFullTickets && cachedFullTickets.length > 0) {
+                        const localStatusMap = new Map<string, { status: string; lastupdated?: string }>();
+                        for (const t of cachedFullTickets) {
+                            const tid = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
+                            if (tid && t.status) {
+                                localStatusMap.set(tid, { status: t.status, lastupdated: t.lastupdated });
+                            }
+                        }
+                        for (let i = 0; i < mapped.length; i++) {
+                            const tid = String(mapped[i].ticketid || (mapped[i] as any).id || '').trim().toLowerCase();
+                            const local = localStatusMap.get(tid);
+                            if (local) {
+                                mapped[i] = {
+                                    ...mapped[i],
+                                    status: local.status,
+                                    lastupdated: local.lastupdated || mapped[i].lastupdated,
+                                };
+                            }
+                        }
+                    }
+
+                    isFirestoreLoaded = true;
+                    setFullTicketsCache(mapped);
+                    return mapped;
+                }
             }
         } catch (err) {
-            console.warn('Failed to query tickets group from Firestore:', err);
+            console.warn('Failed to query tickets per business from Firestore:', err);
         }
     }
 
-    // Fallback to sample dataset
-    const fallback = FnGetSourceDataset('tickets') || [];
     if (!cachedFullTickets || cachedFullTickets.length === 0) {
-        setFullTicketsCache(fallback);
+        setFullTicketsCache([]);
     }
     isFirestoreLoaded = true;
-    return cachedFullTickets ?? fallback;
+    return cachedFullTickets ?? [];
 }

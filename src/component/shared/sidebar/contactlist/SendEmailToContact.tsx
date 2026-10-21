@@ -15,23 +15,46 @@ import parserHtml from "prettier/parser-html";
 import { useMainAppContext } from "../../context/hooks/MainAppHooks";
 import { useStatusBarContext } from "../../context/hooks/StatusBarHooks";
 import { useSmDataContext } from "../../context/hooks/SmDataHooks";
-import { FnGetSourceDataset } from "../../allcommon/FnLoadSampleDatasets";
 import { FnResolvedHtmlVariable } from "../../../features/appqa/allcommon/FnResolvedHtmlVariable";
 import { FnGenerateUID } from "../../allcommon/settingsform/FnGenerateUID";
 import { FnResolveEmailTemplate } from "../../allcommon/FnGetEmailVars";
 import { YesNoFormContainer } from "../../basic/yesnoformcontainer/YesNoFormContainer";
+import { Label } from "../../basic/label/Label";
 import type { IBusinessDoc, IContactDoc } from "@n20a/libfsdb";
-import notifySampleData from "../../../../smsampledata/appqa/NotifySampleData.json";
 import "./SendEmailToContact.css";
 
-const {
-    sampleNotifyAlertProfiles,
-    sampleNotifyRecordingLimits,
-    sampleNotifySeverityOptions,
-} = notifySampleData as {
-    sampleNotifyAlertProfiles: any[];
-    sampleNotifyRecordingLimits: { maxAudioRecordingTimeSec: number; maxVideoRecordingTimeSec: number };
-    sampleNotifySeverityOptions: IOptionItem[];
+const DEFAULT_SEVERITY_OPTIONS: IOptionItem[] = [
+    { label: "Critical", value: "Critical" },
+    { label: "Warning", value: "Warning" },
+    { label: "Normal", value: "Normal" },
+    { label: "Info", value: "Info" },
+];
+
+const DEFAULT_ALERT_PROFILES: any[] = [
+    {
+        GroupName: "Message",
+        _AlertProfile: "SendMessage",
+        UserName: "Admin",
+        EscalationLevel: 1,
+        AttemptCount: 1,
+        AlertSeverity: "Critical",
+        Duration: "0",
+        HTML: '<div id="messageContent"></div><form id="userList"></form>',
+        Keywords: "",
+        DateCreated: "2026-01-01T00:00:00",
+        LastUpdatedBy: "Admin",
+        Secured: false,
+        IsNZ: true,
+        EntID: "ALERT-PROFILE-SEND-MESSAGE",
+        RecID: "ALERT-PROFILE-SEND-MESSAGE-REC",
+        LastUpdated: "2026-01-01T00:00:00",
+        EntityName: "AlertProfile",
+    },
+];
+
+const DEFAULT_RECORDING_LIMITS = {
+    maxAudioRecordingTimeSec: 60,
+    maxVideoRecordingTimeSec: 120,
 };
 
 export interface ISendEmailToContactProps {
@@ -243,8 +266,8 @@ const SendEmailToContact = (props: ISendEmailToContactProps) => {
     }, [downloadSingleFile, bucketName]);
 
     useEffect(() => {
-        const maxAudioRecordingTime = sampleNotifyRecordingLimits.maxAudioRecordingTimeSec * 1000;
-        const maxVideoRecordingTime = sampleNotifyRecordingLimits.maxVideoRecordingTimeSec * 1000;
+        const maxAudioRecordingTime = DEFAULT_RECORDING_LIMITS.maxAudioRecordingTimeSec * 1000;
+        const maxVideoRecordingTime = DEFAULT_RECORDING_LIMITS.maxVideoRecordingTimeSec * 1000;
 
         setNoteDetails({
             maxAudioRecordingTime,
@@ -257,9 +280,79 @@ const SendEmailToContact = (props: ISendEmailToContactProps) => {
             notevideo: undefined,
             noteCreatedAt: new Date(),
         });
-        setAlertProfiles(sampleNotifyAlertProfiles);
-        setOptionData(sampleNotifySeverityOptions);
     }, []);
+
+    // Load alert profiles from cloud storage or fallback to default
+    useEffect(() => {
+        let isMounted = true;
+        const fetchAlertProfiles = async () => {
+            try {
+                const parsed = await FnGetJsonFromStorage("sm/alertprofile/alertprofile.json");
+                if (!isMounted) return;
+
+                const profiles = Array.isArray(parsed)
+                    ? parsed
+                    : Array.isArray((parsed as Record<string, unknown>)?.alertProfiles)
+                        ? (parsed as Record<string, unknown>).alertProfiles
+                        : Array.isArray((parsed as Record<string, unknown>)?.sampleNotifyAlertProfiles)
+                            ? (parsed as Record<string, unknown>).sampleNotifyAlertProfiles
+                            : undefined;
+
+                if (profiles && Array.isArray(profiles) && profiles.length > 0) {
+                    setAlertProfiles(profiles);
+                    return;
+                }
+            } catch {
+                // Ignore storage failure, use default SendMessage alert profile
+            }
+
+            if (isMounted) {
+                setAlertProfiles(DEFAULT_ALERT_PROFILES);
+            }
+        };
+
+        void fetchAlertProfiles();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [FnGetJsonFromStorage]);
+
+    // Load severity options from cloud storage or fallback to default
+    useEffect(() => {
+        let isMounted = true;
+        const fetchSeverityOptions = async () => {
+            try {
+                const parsed = await FnGetJsonFromStorage("sm/ref/refAlertSeverity.json");
+                if (!isMounted) return;
+
+                const options = Array.isArray(parsed)
+                    ? parsed
+                    : Array.isArray((parsed as Record<string, unknown>)?.options)
+                        ? (parsed as Record<string, unknown>).options
+                        : Array.isArray((parsed as Record<string, unknown>)?.sampleNotifySeverityOptions)
+                            ? (parsed as Record<string, unknown>).sampleNotifySeverityOptions
+                            : undefined;
+
+                if (options && Array.isArray(options) && options.length > 0) {
+                    setOptionData(options);
+                    return;
+                }
+            } catch {
+                // Ignore storage failure, use default severity options
+            }
+
+            if (isMounted) {
+                setOptionData(DEFAULT_SEVERITY_OPTIONS);
+            }
+        };
+
+        void fetchSeverityOptions();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [FnGetJsonFromStorage]);
 
     // Load email templates
     useEffect(() => {
@@ -468,9 +561,7 @@ const SendEmailToContact = (props: ISendEmailToContactProps) => {
             return;
         }
 
-        const allBusinesses: IBusinessDoc[] = smDataContext?.datasets?.businesses?.length
-            ? smDataContext.datasets.businesses
-            : FnGetSourceDataset("businesses");
+        const allBusinesses: IBusinessDoc[] = smDataContext?.datasets?.businesses ?? [];
 
         const primaryBid = primaryContact?.bid || "";
         const matchedBusiness = allBusinesses.find(
@@ -535,8 +626,8 @@ const SendEmailToContact = (props: ISendEmailToContactProps) => {
 
     const handleOkButtonClick = () => {
         setIsConfirmOpen(false);
-        const maxAudioRecordingTime = sampleNotifyRecordingLimits.maxAudioRecordingTimeSec * 1000;
-        const maxVideoRecordingTime = sampleNotifyRecordingLimits.maxVideoRecordingTimeSec * 1000;
+        const maxAudioRecordingTime = DEFAULT_RECORDING_LIMITS.maxAudioRecordingTimeSec * 1000;
+        const maxVideoRecordingTime = DEFAULT_RECORDING_LIMITS.maxVideoRecordingTimeSec * 1000;
         setNoteDetails({
             maxAudioRecordingTime,
             maxVideoRecordingTime,
@@ -560,44 +651,27 @@ const SendEmailToContact = (props: ISendEmailToContactProps) => {
             key={props.uniqueName || "send-email-contact"}
         >
             {/* Header */}
-            <div className="nz-send-email-header">
+            <div className="nz-sub-header nz-send-email-header">
                 <div className="nz-send-email-header-title">
-                    {/* <Label
+                    <Label
                         uniqueName={`${props.uniqueName || "send-email"}-header-lbl`}
                         label={props.headerText ?? (primaryContact ? `Send Email: ${primaryContact.cname || primaryContact.email}` : "Send Email")}
-                    /> */}
-                    {primaryContact && (
-                        <div className="nz-send-email-recipient-badge">
-                            <User24x24 size="16px" fill="none" strokeWidth={1} />
-                            <span>
-                                To: <strong>{primaryContact.cname || "Contact"}</strong>
-                                {primaryContact.email ? ` (${primaryContact.email})` : " (No email address specified)"}
-                            </span>
-                        </div>
-                    )}
+                    />
                 </div>
                 <div className="nz-send-email-header-actions">
                     <button
                         type="button"
                         onClick={openModal}
                         disabled={!htmlContent.trim()}
+                        className="nz-send-email-preview-btn"
                         style={{
                             background: htmlContent.trim() ? "#0070f3" : "#a0aec0",
                             color: "white",
-                            border: "none",
-                            padding: "4px 10px",
-                            borderRadius: "4px",
-                            cursor: htmlContent.trim() ? "pointer" : "not-allowed",
-                            fontWeight: "bold",
-                            fontSize: "12px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
                         }}
                     >
                         Preview
                     </button>
-                    {props.onClose && (
+                    {props.isOpen && props.onClose && (
                         <button
                             type="button"
                             className="nz-send-email-close-btn"
@@ -613,6 +687,15 @@ const SendEmailToContact = (props: ISendEmailToContactProps) => {
             {/* Content Body */}
             <div className="nz-send-email-content">
                 {/* Contact Recipient Info */}
+                {primaryContact && (
+                    <div className="nz-send-email-recipient-badge">
+                        <User24x24 size="16px" fill="none" strokeWidth={1} />
+                        <span>
+                            To: <strong>{primaryContact.cname || "Contact"}</strong>
+                            {primaryContact.email ? ` (${primaryContact.email})` : " (No email address specified)"}
+                        </span>
+                    </div>
+                )}
 
 
                 {/* Combobox Controls */}

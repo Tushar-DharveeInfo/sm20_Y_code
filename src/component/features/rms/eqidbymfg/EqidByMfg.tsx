@@ -130,22 +130,36 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
 
     // Filter FQA items for MenuID 404 (with 402 fallback)
     const featureQAData = useMemo(() => {
-        const records = (mainAppContext?.featureRecords ?? []).filter((item) => {
+        const allRecords = mainAppContext?.featureRecords ?? [];
+        let records = allRecords.filter((item) => {
             const featNum = Number(item._Feature ?? item.Feature ?? 0);
             return (
-                (String(item.MenuID) === '404' || String(item.MenuID) === '402') &&
+                String(item.MenuID) === '404' &&
+                Number.isFinite(featNum) &&
                 featNum > FeatureQARange.MIN &&
                 featNum < FeatureQARange.MAX
             );
         });
 
-        // Deduplicate by Feature / _Feature
-        const seen = new Set<string>();
+        if (records.length === 0) {
+            records = allRecords.filter((item) => {
+                const featNum = Number(item._Feature ?? item.Feature ?? 0);
+                return (
+                    String(item.MenuID) === '402' &&
+                    Number.isFinite(featNum) &&
+                    featNum > FeatureQARange.MIN &&
+                    featNum < FeatureQARange.MAX
+                );
+            });
+        }
+
+        // Deduplicate by Label so duplicate QA icons never appear
+        const seenLabels = new Set<string>();
         const uniqueList: IFeatureItem[] = [];
         for (const item of records) {
-            const id = String(item._Feature ?? item.Feature ?? '');
-            if (!seen.has(id)) {
-                seen.add(id);
+            const labelKey = String(item.Label ?? item._Feature ?? item.Feature ?? '').trim().toLowerCase();
+            if (labelKey && !seenLabels.has(labelKey)) {
+                seenLabels.add(labelKey);
                 uniqueList.push(item);
             }
         }
@@ -310,8 +324,22 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
                     (e: any) => String(e.EQID || e.eqid || '').trim().toLowerCase() === parentEqid.toLowerCase()
                 );
                 const resolved = (matchingEqid ?? targetNode) as Record<string, any>;
+                const targetRawType = String(
+                    (targetNode as any)?.nodeType ??
+                    (targetNode as any)?.NodeType ??
+                    (targetNode as any)?.treetype ??
+                    ''
+                ).toLowerCase();
+                const isShapeStyle = targetRawType === 'shapestyle' || targetRawType === 'shapestyles';
+                const shapeId = String(
+                    (targetNode as any)?.shapeId ||
+                    (targetNode as any)?.ShapeID ||
+                    (targetNode as any)?.shapeStyleData?.styleId ||
+                    (targetNode as any)?.styleId ||
+                    ''
+                ).trim();
                 const ticketNode = {
-                    key: `ticket-${parentEqid}`,
+                    key: shapeId ? `ticket-${parentEqid}-${shapeId}` : `ticket-${parentEqid}`,
                     NodeEntID: parentEqid,
                     Name: `${resolved.Manufacturer || resolved.mfg || 'Device'} ${resolved.ProdNo || resolved.prodno || parentEqid}`,
                     Label: `${resolved.Manufacturer || resolved.mfg || 'Device'} ${resolved.ProdNo || resolved.prodno || parentEqid}`,
@@ -328,10 +356,17 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
                     eqtype: resolved.EqType || resolved.eqtype || '',
                     EqType: resolved.EqType || resolved.eqtype || '',
                     ...resolved,
+                    ...(shapeId ? {
+                        shapeId,
+                        ShapeID: shapeId,
+                        shapeStyleData: (targetNode as any)?.shapeStyleData,
+                        selectedShapeStyleNode: targetNode,
+                    } : {}),
                 } as unknown as ITreeNode;
                 setActiveTicketCard(ticketNode);
                 selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
                 rmsContext?.setSelectedTicketCard?.(ticketNode);
+                selectedNodeContext?.setSelectedNode?.(targetNode);
             }
             setSelectedKebabMenu(selectedItem);
             setIsShowSidebar(true);
@@ -348,6 +383,7 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
             const node = info?.node ?? null;
             setSelectedNode(node);
             setSelectedNodeInfo(info);
+            selectedNodeContext?.setSelectedNode?.(node ?? undefined);
             if (newExpandedKeys) {
                 setExpandedKeys(newExpandedKeys);
             }
@@ -394,8 +430,15 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
                         (e: any) => String(e.EQID || e.eqid || '').trim().toLowerCase() === parentEqid.toLowerCase()
                     );
                     const resolved = (matchingEqid ?? node) as Record<string, any>;
+                    const shapeId = String(
+                        (node as any)?.shapeId ||
+                        (node as any)?.ShapeID ||
+                        (node as any)?.shapeStyleData?.styleId ||
+                        (node as any)?.styleId ||
+                        ''
+                    ).trim();
                     const ticketNode = {
-                        key: `ticket-${parentEqid}`,
+                        key: shapeId ? `ticket-${parentEqid}-${shapeId}` : `ticket-${parentEqid}`,
                         NodeEntID: parentEqid,
                         Name: `${resolved.Manufacturer || resolved.mfg || 'Device'} ${resolved.ProdNo || resolved.prodno || parentEqid}`,
                         Label: `${resolved.Manufacturer || resolved.mfg || 'Device'} ${resolved.ProdNo || resolved.prodno || parentEqid}`,
@@ -412,6 +455,10 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
                         eqtype: resolved.EqType || resolved.eqtype || '',
                         EqType: resolved.EqType || resolved.eqtype || '',
                         ...resolved,
+                        shapeId: shapeId,
+                        ShapeID: shapeId,
+                        shapeStyleData: (node as any)?.shapeStyleData,
+                        selectedShapeStyleNode: node,
                     } as unknown as ITreeNode;
                     setActiveTicketCard(ticketNode);
                     selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
@@ -783,15 +830,20 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
                 isShowSidebar &&
                 featureQAData.length > 0 && (
                     <SidebarContainer
-                        key={`sidebar-${activeTicketCard?.key || activeTicketCard?.EQID || activeTicketCard?.eqid || (selectedNode as any)?.eqid || selectedNode?.Name || ''}`}
+                        key={`sidebar-${activeTicketCard?.key || activeTicketCard?.EQID || activeTicketCard?.eqid || (selectedNode as any)?.eqid || selectedNode?.Name || ''}-${activeTicketCard?.ShapeID || (selectedNode as any)?.ShapeID || ''}`}
                         uniqueName={`${uniqueName}-sidebar`}
                         isShowSidebar={isShowSidebar}
                         featureQaList={featureQAData}
                         selectedNode={
-                            activeTicketCard ??
-                            (selectedNodeContext?.selectedTicketCard as ITreeNode) ??
-                            selectedNode ??
-                            undefined
+                            (selectedNode && String((selectedNode as any)?.nodeType || (selectedNode as any)?.NodeType).toLowerCase() === 'shapestyle')
+                                ? {
+                                    ...selectedNode,
+                                    eqid: (selectedNode as any)?.eqid || (activeTicketCard as any)?.eqid || (activeTicketCard as any)?.EQID,
+                                    EQID: (selectedNode as any)?.EQID || (activeTicketCard as any)?.EQID || (activeTicketCard as any)?.eqid,
+                                    ShapeID: (selectedNode as any)?.ShapeID || (selectedNode as any)?.shapeId || (selectedNode as any)?.shapeStyleData?.styleId || (activeTicketCard as any)?.ShapeID,
+                                    shapeId: (selectedNode as any)?.shapeId || (selectedNode as any)?.ShapeID || (selectedNode as any)?.shapeStyleData?.styleId || (activeTicketCard as any)?.shapeId,
+                                }
+                                : (activeTicketCard ?? (selectedNodeContext?.selectedTicketCard as ITreeNode) ?? selectedNode ?? undefined)
                         }
                         featureId={featureId}
                         headerText={

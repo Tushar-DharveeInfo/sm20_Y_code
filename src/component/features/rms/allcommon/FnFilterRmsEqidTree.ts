@@ -8,7 +8,6 @@ import { FnMapBusinessesToTreeNodes } from "../../../shared/allcommon/tree/FnMap
 import { FnMapContactsToTreeNodes } from "../../../shared/allcommon/tree/FnMapContactsToTreeNodes";
 import { RmsEnums } from "../../../constants/Feature";
 import { getFullTicketsCached } from "../../tickets/allcommon/TicketsDataStore";
-import { FnGetSourceDataset } from "../../../shared/allcommon/FnLoadSampleDatasets";
 import { normalizeBidKey } from "../../tickets/allcommon/FnFilterTicketTree";
 
 export interface IFnFilterRmsEqidTreeResult {
@@ -200,7 +199,7 @@ export function FnFilterRmsEqidTree(
 
     const sourceBusinesses = (businesses && businesses.length > 0)
         ? businesses
-        : (FnGetSourceDataset("businesses") || []);
+        : [];
 
     for (const b of sourceBusinesses) {
         const bid = cleanId(b.bid || (b as any).EntID || (b as any).id);

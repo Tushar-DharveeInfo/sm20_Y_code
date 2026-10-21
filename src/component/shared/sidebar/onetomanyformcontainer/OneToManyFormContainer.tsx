@@ -107,7 +107,8 @@ const OneToManyFormContainer = (oneToManyFormContainerProps: IOneToManyFormConta
                 const diagnosticLevel = getDiagnosticLevelData();
                 const columns = Array.isArray(properties) ? properties : FnParseJsonSafely<IPropertyColumn[], IPropertyColumn[]>(properties, { fallback: [] });
                 const defaultColValue: IOneToManyGridRow = {
-                    EntityName: NodeEntityname
+                    EntityName: NodeEntityname,
+                    ...(updatedProfile ?? {})
                 };
                 const myFormElements = FnBuildFormElementsFromDataset(
                     tableLabel ? tableLabel : "Properties",
@@ -366,7 +367,7 @@ const OneToManyFormContainer = (oneToManyFormContainerProps: IOneToManyFormConta
             const parsedPgTable = Array.isArray(properties) ? properties : FnParseJsonSafely<{ PName: string }[], { PName: string }[]>(properties, { fallback: [] });
             const updatedKeys = Object.keys(updatedProperties);
             const pgData = buildPgDataFromUpdatedProperties(parsedPgTable, updatedKeys);
-            const oldRow = selectedRecord ?? {};
+            const oldRow = selectedRecord ?? updatedProfile ?? {};
             const mergedRow = { ...oldRow, ...pgData };
             await saveMergedRow(mergedRow);
         } catch (error) {
@@ -417,7 +418,7 @@ const OneToManyFormContainer = (oneToManyFormContainerProps: IOneToManyFormConta
             const pgTableUpdatedData = formData.TableSections[`${selectedRecord ? 'Edit' : 'Add'} ${tableLabel}`];
             if (!pgTableUpdatedData) return;
             const pgData = buildPgDataFromFormSection(parsedPgTable, pgTableUpdatedData);
-            const oldRow = selectedRecord ?? {};
+            const oldRow = selectedRecord ?? updatedProfile ?? {};
             const mergedRow = { ...oldRow, ...pgData };
             await saveMergedRow(mergedRow);
         } catch (error) {
@@ -493,7 +494,7 @@ const OneToManyFormContainer = (oneToManyFormContainerProps: IOneToManyFormConta
                         </div>
                     )}
                 </div> : <></>}
-                {renderedFormElements && !oneToManyFormContainerProps.hideAddForm ? <FormElementsRenderer key={`${selectedRecord?.RecID ?? 'add'}-${formVersion}`}
+                {renderedFormElements && !oneToManyFormContainerProps.hideAddForm ? <FormElementsRenderer key={`${selectedRecord?.RecID ?? 'add'}-${formVersion}-${String(updatedProfile?.ShapeID ?? '')}`}
                     formElements={renderedFormElements}
                     onValuesChange={handleValueChange} /> : <></>}
             </div>

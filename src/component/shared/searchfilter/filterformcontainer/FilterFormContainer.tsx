@@ -12,7 +12,6 @@ import { IControl } from '../../allinterface/settingsform/ISettingsLibForm'
 import { IFilterFormContainer } from '../../allinterface/searchfilter/IFilterFormContainer'
 import { FnBuildBusinessExplorerFilterControls } from '../../allcommon/searchfilter/FnBuildBusinessExplorerFilterControls'
 import { getAppliedFilterJson, normalizeFilterFieldName } from '../../allcommon/searchfilter/FnFilterBusinessContactRecords'
-import { FnGetSourceDataset } from '../../allcommon/FnLoadSampleDatasets'
 import { useSmDataContext } from '../../context/hooks/SmDataHooks'
 import type { IDCFilterControlValues } from '../../allinterface/searchfilter/IFilterFormContainer'
 
@@ -73,12 +72,8 @@ const FilterFormContainer = (filterFormContainerProps: IFilterFormContainer) => 
                 ? { ...(filterFormContainerProps.controlValues as Record<string, string | undefined>) }
                 : {};
         const values = { ...(smDataContext.selection.filterJson ?? {}), ...propsValues };
-        const businesses = smDataContext.datasets.businesses.length
-            ? smDataContext.datasets.businesses
-            : FnGetSourceDataset("businesses");
-        const contacts = smDataContext.datasets.contacts.length
-            ? smDataContext.datasets.contacts
-            : FnGetSourceDataset("contacts");
+        const businesses = smDataContext.datasets.businesses ?? [];
+        const contacts = smDataContext.datasets.contacts ?? [];
         const sourceControls =
             filterFormContainerProps.controls && filterFormContainerProps.controls.length > 0
                 ? filterFormContainerProps.controls

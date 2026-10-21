@@ -283,13 +283,25 @@ const Sidebar = (sidebarProps: ISidebar) => {
         []
     );
 
+    const prevNodeKeyRef = useRef<string | undefined>(undefined);
     // Sync selected node information and reset selected submenu when node changes.
     useEffect(() => {
         if (sidebarProps.selectedNode) {
-            setSelctedNodeInfo(sidebarProps.selectedNode)
-            setSelectedNodeMenu(undefined)
+            setSelctedNodeInfo(sidebarProps.selectedNode);
+            const currentEqid = String(
+                (sidebarProps.selectedNode as any)?.EQID ||
+                (sidebarProps.selectedNode as any)?.eqid ||
+                sidebarProps.selectedNode?.ticketid ||
+                sidebarProps.selectedNode?.key ||
+                ''
+            ).trim();
+            // Reset submenu if switching to a different EQID or node type, but preserve if staying within the same EQID (e.g. switching ShapeStyles)
+            if (prevNodeKeyRef.current && prevNodeKeyRef.current !== currentEqid) {
+                setSelectedNodeMenu(undefined);
+            }
+            prevNodeKeyRef.current = currentEqid;
         }
-    }, [sidebarProps.selectedNode, sidebarProps.selectedFeatureQa, sidebarProps.showPopupSidebar])
+    }, [sidebarProps.selectedNode, sidebarProps.selectedFeatureQa, sidebarProps.showPopupSidebar]);
 
     // Adjust sidebar visibility and width based on current viewport size.
     useEffect(() => {

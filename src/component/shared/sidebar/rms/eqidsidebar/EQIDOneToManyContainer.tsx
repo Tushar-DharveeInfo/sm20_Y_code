@@ -29,11 +29,11 @@ function getLastValue(value: string): string {
 /**
  * Sanitizes and normalizes row values to conform with INetworkPort, IPowerPort, ISlot, and IInOutPort.
  */
-function sanitizeRow(row: Record<string, unknown>, tableName: string): IPortOrSlotRow {
+function sanitizeRow(row: Record<string, unknown>, tableName: string, defaultShapeId?: string): IPortOrSlotRow {
   const isUrl = tableName.toLowerCase() === "urls" || tableName.toLowerCase() === "url";
   if (isUrl) {
     const urlVal = String(row.URL ?? row.Url ?? row.url ?? row.Name ?? "").trim();
-    const rowId = String(row.RecID || `url_${Date.now()}`);
+    const rowId = String(row.RecID || `url_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`);
     return {
       RecID: rowId,
       URL: urlVal,
@@ -49,7 +49,7 @@ function sanitizeRow(row: Record<string, unknown>, tableName: string): IPortOrSl
     const relVal = String(
       row.EQIDRelation ?? row.eqidrelation ?? row.EqidRelation ?? row.Name ?? ""
     ).trim();
-    const rowId = String(row.RecID || `rel_${Date.now()}`);
+    const rowId = String(row.RecID || `rel_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`);
     return {
       RecID: rowId,
       EQIDRelation: relVal,
@@ -57,8 +57,8 @@ function sanitizeRow(row: Record<string, unknown>, tableName: string): IPortOrSl
     } as IPortOrSlotRow;
   }
 
-  const shapeId = String(row.ShapeID || "").trim() || `${tableName.toUpperCase()}_${Date.now()}`;
-  const rowId = (row.RecID as string) || shapeId;
+  const shapeId = String(row.ShapeID || "").trim() || defaultShapeId || `${tableName.toUpperCase()}_${Date.now()}`;
+  const rowId = String(row.RecID || `${tableName.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`);
 
   const sanitized: Record<string, unknown> = {
     ...row,
@@ -452,23 +452,54 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
     [effectiveEqid, currentEqidRecord, ticketId, activeTicket, menuConfig, firestore, rmsContext]
   );
 
+  // Resolve the selected ShapeStyle's ShapeID
+  const selectedShapeId = useMemo(() => {
+    return String(
+      (selectedNode as any)?.ShapeID ||
+      (selectedNode as any)?.shapeId ||
+      (selectedNode as any)?.shapeStyleData?.styleId ||
+      (selectedNode as any)?.styleId ||
+      (activeTicket as any)?.ShapeID ||
+      (activeTicket as any)?.shapeId ||
+      (activeTicket as any)?.shapeStyleData?.styleId ||
+      (activeTicket as any)?.styleId ||
+      (selectedNodeContext?.selectedNode as any)?.ShapeID ||
+      (selectedNodeContext?.selectedNode as any)?.shapeId ||
+      (selectedNodeContext?.selectedNode as any)?.shapeStyleData?.styleId ||
+      (selectedNodeContext?.selectedTicketCard as any)?.ShapeID ||
+      (selectedNodeContext?.selectedTicketCard as any)?.shapeId ||
+      ""
+    ).trim();
+  }, [selectedNode, activeTicket, selectedNodeContext?.selectedNode, selectedNodeContext?.selectedTicketCard]);
+
+  const hasShapeIdColumn = useMemo(() => {
+    return menuConfig.properties?.some((col) => col.PName === "ShapeID");
+  }, [menuConfig.properties]);
+
+  const updatedProfile = useMemo(() => {
+    if (!hasShapeIdColumn || !selectedShapeId) {
+      return undefined;
+    }
+    return {
+      ShapeID: selectedShapeId,
+      shapeId: selectedShapeId,
+    };
+  }, [hasShapeIdColumn, selectedShapeId]);
+
   // 5. Add / Update handler invoked by OneToManyFormContainer
   const handleSaveRecords = useCallback(
     async (recordToSave: Record<string, unknown>): Promise<Record<string, unknown>> => {
       statusBarContext?.setIsLoading?.(true);
       statusBarContext?.setLoadingLabel?.("Loading...");
       try {
-        const sanitized = sanitizeRow(recordToSave, menuConfig.tableName);
-        const rowId = sanitized.RecID as string;
-        const shapeId = sanitized.ShapeID as string;
+        const sanitized = sanitizeRow(recordToSave, menuConfig.tableName, selectedShapeId);
+        const existingRecId = String(recordToSave.RecID || sanitized.RecID || "").trim();
 
         const currentList = tableDataRef.current ?? [];
         const nextList = [...currentList];
-        const matchIndex = nextList.findIndex(
-          (r) =>
-            (r.RecID && r.RecID === rowId) ||
-            (r.ShapeID && shapeId && r.ShapeID === shapeId)
-        );
+        const matchIndex = recordToSave.RecID
+          ? nextList.findIndex((r) => r.RecID && r.RecID === existingRecId)
+          : -1;
 
         const isUpdate = matchIndex >= 0;
 
@@ -491,7 +522,7 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
         statusBarContext?.setLoadingLabel?.(undefined);
       }
     },
-    [menuConfig.tableName, persistRecords, logOperation, statusBarContext]
+    [menuConfig.tableName, selectedShapeId, persistRecords, logOperation, statusBarContext]
   );
 
   // 6. Delete handler invoked by OneToManyFormContainer
@@ -501,14 +532,12 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
       statusBarContext?.setLoadingLabel?.("Loading...");
       try {
         const deleteRecId = recordToDelete.RecID as string | undefined;
-        const deleteShapeId = recordToDelete.ShapeID as string | undefined;
         const deleteUrl = recordToDelete.URL as string | undefined;
         const deleteRelation = (recordToDelete.EQIDRelation ?? recordToDelete.eqidrelation) as string | undefined;
 
         const currentList = tableDataRef.current ?? [];
         const nextList = currentList.filter((r) => {
           if (deleteRecId && r.RecID && r.RecID === deleteRecId) return false;
-          if (deleteShapeId && r.ShapeID && r.ShapeID === deleteShapeId) return false;
           if (deleteUrl && r.URL && r.URL === deleteUrl) return false;
           if (deleteRelation && r.EQIDRelation && r.EQIDRelation === deleteRelation) return false;
           return r !== recordToDelete;
@@ -557,12 +586,13 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
       }}
     >
       <OneToManyFormContainer
-        key={`${menuConfig.tableName}-${effectiveEqid}`}
+        key={`${menuConfig.tableName}-${effectiveEqid}-${selectedShapeId || "default"}`}
         uniqueName={`eqid-${menuConfig.tableName.toLowerCase()}-${effectiveEqid}`}
         containerName="EQIDSidebar"
         tableDefinition={tableDefinition}
         tableData={tableData}
         selectedNode={selectedNode}
+        updatedProfile={updatedProfile}
         isAllowCustomHeader={false}
         hideHeaderSaveButton={true}
         hideSaveButton={true}

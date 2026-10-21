@@ -17,9 +17,9 @@ import { FnGetAppDateFormat } from '../../shared/allcommon/basic/FnGetAppDateFor
 import { FnSortStatusBarCards } from '../allcommon/FnSortStatusBarCards';
 import { FnParseJsonSafely } from '../allcommon/FnParseJsonSafely';
 import { FnGetLoggedInStatusMessage } from '../allcommon/FnGetLoggedInStatusMessage';
-import usersData from '../../../smsampledata/datasets/users.json';
 import { IUserAuthSession } from '../../shared/context/allinterface/IMainApp';
 import { IStatusBarContainer } from '../componentswrappercontainer/ComponentsWrapperContainer';
+import { FALLBACK_USERS } from '../../features/appqa/impersonateuser/ImpersonateUser';
 
 // Builds markdown content for error and log sections in status bar cards.
 const generateErrorMarkdown = (errors: IErrorData[]): string => {
@@ -126,8 +126,8 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
 
         let loginBid = authSession.bid;
         let loginCid = authSession.cid;
-        if (authSession.email && Array.isArray(usersData)) {
-            const match = (usersData as { bid: string; cid: string; email: string }[]).find(
+        if (authSession.email && Array.isArray(FALLBACK_USERS)) {
+            const match = FALLBACK_USERS.find(
                 (u) => u.email.toLowerCase() === authSession.email?.toLowerCase()
             );
             if (match) {

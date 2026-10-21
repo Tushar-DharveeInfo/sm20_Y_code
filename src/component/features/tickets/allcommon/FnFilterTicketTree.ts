@@ -3,7 +3,6 @@ import type { ITreeNode } from "../../../shared/allinterface/tree/ITreeControl";
 import type { IFeatureTree } from "../../../shared/allinterface/tree/ITreeForFlatDataContainer";
 import { FnMapBusinessesToTreeNodes } from "../../../shared/allcommon/tree/FnMapBusinessesToTreeNodes";
 import { FnMapContactsToTreeNodes } from "../../../shared/allcommon/tree/FnMapContactsToTreeNodes";
-import { FnGetSourceDataset } from "../../../shared/allcommon/FnLoadSampleDatasets";
 import { TicketsEnums } from "../../../constants/Feature";
 import { isTicketDeleted } from "./TicketsDataStore";
 
@@ -213,7 +212,7 @@ export function FnFilterTicketTree(
 
     const sourceBusinesses = (businesses && businesses.length > 0)
         ? businesses
-        : (FnGetSourceDataset('businesses') || []);
+        : [];
 
     for (const b of sourceBusinesses) {
         const bid = cleanId(b.bid || (b as any).EntID || (b as any).id);
@@ -228,7 +227,7 @@ export function FnFilterTicketTree(
     }
 
     // Ensure all matching BIDs have a business entry even if missing from sourceBusinesses
-    const fallbackAllBs = FnGetSourceDataset('businesses') || [];
+    const fallbackAllBs: IBusinessDoc[] = [];
     for (const bid of matchingBids) {
         const norm = normalizeBidKey(bid);
         if (!seenBids.has(bid) && !seenBids.has(norm)) {
@@ -246,10 +245,9 @@ export function FnFilterTicketTree(
         }
     }
 
-    const sampleContacts = FnGetSourceDataset('contacts') || [];
     const allFallbackContacts = (contacts && contacts.length > 0)
-        ? [...contacts, ...sampleContacts.filter((sc: any) => !contacts.some((c) => cleanId(c.cid) === cleanId(sc.cid)))]
-        : sampleContacts;
+        ? [...contacts]
+        : [];
 
     // 4. Helper to filter contacts for a specific business
     const filterContactsForBid = (contactsToFilter: IContactDoc[], targetBid?: string): IContactDoc[] => {
@@ -260,10 +258,7 @@ export function FnFilterTicketTree(
 
         const sourceContactsList = (contactsToFilter && contactsToFilter.length > 0)
             ? contactsToFilter
-            : allFallbackContacts.filter((c) => {
-                const cb = cleanId(c.bid);
-                return cb === fallbackBid || normalizeBidKey(cb) === fallbackNormBid;
-            });
+            : []
 
         for (const c of sourceContactsList) {
             const b = cleanId(c.bid) || fallbackBid;

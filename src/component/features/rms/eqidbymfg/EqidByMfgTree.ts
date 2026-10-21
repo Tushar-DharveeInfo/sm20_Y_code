@@ -278,6 +278,9 @@ export function buildEqidByMfgTree(
                             mfgName: mfg,
                             prodline: prodline,
                             eqtype: eqtype,
+                            shapeId: style.id,
+                            ShapeID: style.id,
+                            styleId: style.id,
                             shapeStyleData: {
                                 eqid,
                                 styleName: style.name,
