@@ -181,7 +181,7 @@ const TicketCardList: React.FC<ITicketCardListProps> = ({
                         );
                         return (
                             <TicketCard
-                                key={ticket.ticketid || `${uniqueName}-card-${index}`}
+                                key={ticket.ticketid + index || `${uniqueName}-card-${index}`}
                                 uniqueName={`${uniqueName}-ticket-card-${ticket.ticketid || index}`}
                                 ticket={ticket}
                                 contact={contact}

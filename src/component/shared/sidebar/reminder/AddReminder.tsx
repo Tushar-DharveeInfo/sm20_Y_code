@@ -15,8 +15,8 @@ import { YesNoFormContainer } from '../../basic/yesnoformcontainer/YesNoFormCont
 import { useMainAppContext } from '../../context/hooks/MainAppHooks';
 import { useStatusBarContext } from '../../context/hooks/StatusBarHooks';
 import { useSmDataContext } from '../../context/hooks/SmDataHooks';
-import { useTodos, useFileDownload, useFileDelete } from '@n20a/libfsdb';
-import type { ITodoDoc } from '@n20a/libfsdb';
+import { useReminders, useFileDownload, useFileDelete, type IReminderDoc } from '@n20a/libfsdb';
+type ITodoDoc = IReminderDoc;
 import { useUploadRemoteFile } from '../../allcommon/UploadRemoteFileHooks';
 import { ITreeNode } from '../../allinterface/tree/ITreeControl';
 import { ClientEnums } from '../../../constants/Feature';
@@ -299,7 +299,7 @@ const AddReminder = (props: IAddReminder) => {
 		return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
 	}, [bucketName, baseFolder]);
 
-	const { loading, error, getTodos, todos, createTodo, updateTodo, deleteTodo } = useTodos();
+	const { loading, error, getReminders: getTodos, reminders: todos, createReminder: createTodo, updateReminder: updateTodo, deleteReminder: deleteTodo } = useReminders();
 	const { upload: uploadRemoteFile, uploading: remoteUploading } = useUploadRemoteFile();
 	const { downloadSingleFile, downloading } = useFileDownload();
 	const { deleteFiles, deleting } = useFileDelete();
@@ -883,7 +883,7 @@ const AddReminder = (props: IAddReminder) => {
 					<div className="nz-sub-header">
 						<Label
 							uniqueName={`${props.uniqueName}-header`}
-							label="Add to ToDo"
+							label="Add to Reminders"
 						/>
 					</div>
 

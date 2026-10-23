@@ -98,7 +98,13 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     const statusBarContext = useStatusBarContext();
     const firestore = useFirestore();
 
-    const isRmsEqid = explorerContainerProps.featureId === RmsEnums.EQIDByTicket || explorerContainerProps.featureId === '404';
+    const isRmsEqid =
+        explorerContainerProps.featureId === RmsEnums.EQIDByTicket ||
+        explorerContainerProps.featureId === '404' ||
+        String(explorerContainerProps.featureId).trim() === '402' ||
+        String(explorerContainerProps.featureId).toLowerCase().trim() === 'eqid' ||
+        Boolean(explorerContainerProps.headerText?.toLowerCase().includes("eqid")) ||
+        Boolean(explorerContainerProps.selectedFeatureData?.Label?.toLowerCase().includes("eqid"));
 
     const saasCompanyItems: IActionLabelItem[] = useMemo(() => {
         const businesses = smDataContext.datasets?.businesses ?? [];
@@ -1108,7 +1114,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
     // Business node selected -> + btn with label "Add New Contact for <selected business name>"
     // Contact node selected -> hide + button
     // Sidebar QA not found -> hide + button completely
-    const allowTreeAdd = hasSidebarQa && !isContactNode;
+    const allowTreeAdd = hasSidebarQa && !isContactNode && !isRmsEqid;
     const addLabel = isRootNode
         ? "Add New Business"
         : selectedBusinessName

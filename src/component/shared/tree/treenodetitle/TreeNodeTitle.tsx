@@ -17,7 +17,7 @@ const TreeNodeTitle = (
     showKebabIcon?: boolean,
     showCopyIcon?: boolean,
     selectedNodeExplorer?: ISelectedNodeInfo,
-    handleKebabMenuSelect?: (selectedItem: any) => void,
+    handleKebabMenuSelect?: (selectedItem: any, treeData: any) => void,
     featureData?: IFeatureItem[]
 ) => {
     const clonedNode = { ...treeNode, title: "", icon: null, children: [] };
@@ -103,21 +103,6 @@ const TreeNodeTitle = (
         return (
             <span className="nz-tree-node-icons-wrapper" key={`node-icons-${treeNode.key}`}>
 
-                {allowKebab && (
-                    <span key={`node-icons-kebabmenu-${treeNode.key}`} className="nz-tree-node-nz-icon-div nz-node-kebab-copy-icon">
-                        <NodeMenu
-                            showIcon={true}
-                            uniqueName={`kebab-${treeNode.key}`}
-                            handleSelect={(item: any) => handleKebabMenuSelect(item, treeNode)}
-                            featureId={featureId}
-                            selectedNode={treeNode}
-                            container="explorer_tree"
-                            featureData={featureData || getfeaturesData() || []}
-                            allowAddCopyIconInOverlay={true}
-                        />
-                    </span>
-                )}
-
                 {StatusIcon && statusIconConfig && (
                     <span
                         key={`node-icons-status-${treeNode.key}`}
@@ -166,6 +151,21 @@ const TreeNodeTitle = (
                 )}
 
                 {renderVerifiedIcon()}
+
+                {allowKebab && (
+                    <span key={`node-icons-kebabmenu-${treeNode.key}`} className="nz-tree-node-nz-icon-div nz-node-kebab-copy-icon">
+                        <NodeMenu
+                            showIcon={true}
+                            uniqueName={`kebab-${treeNode.key}`}
+                            handleSelect={(item: any) => handleKebabMenuSelect && handleKebabMenuSelect(item, treeNode)}
+                            featureId={featureId}
+                            selectedNode={treeNode}
+                            container="explorer_tree"
+                            featureData={featureData || getfeaturesData() || []}
+                            allowAddCopyIconInOverlay={true}
+                        />
+                    </span>
+                )}
             </span>
         );
     };

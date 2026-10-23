@@ -1,3 +1,5 @@
+import { useSmDataContext } from '../context/hooks/SmDataHooks';
+import { FnGetUniqueBusinessTypeOptions } from '../allcommon/sidebar/FnBuildPropertyFormDataFromSelectedNode';
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMainAppContext } from '../context/hooks/MainAppHooks'
@@ -53,6 +55,11 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
     const commonVariableContext = useCommonVariableContext();
     const statusBarContext = useStatusBarContext();
     const helpTipsContext = useHelpTipContext();
+    const smDataContext = useSmDataContext();
+
+    const availableBusinessTypes = useMemo(() => {
+        return FnGetUniqueBusinessTypeOptions(smDataContext.datasets?.businesses);
+    }, [smDataContext.datasets?.businesses]);
 
     const lastSelectedNodeKeyRef = useRef<Key>(undefined);
 
@@ -137,7 +144,7 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
         if (!selectedNode) {
             return undefined;
         }
-        return buildPropertyFormDataFromSelectedNode(selectedNode);
+        return buildPropertyFormDataFromSelectedNode(selectedNode, availableBusinessTypes);
     }, [
         selectedNode?.key,
         selectedNode?.NodeEntID,
@@ -169,6 +176,7 @@ const SidebarContent = (sidebarProps: ISidebarContent) => {
         selectedNode?.address_country,
         selectedNode?.dateCreated,
         selectedNode?.dateUpdated,
+        availableBusinessTypes,
     ]);
 
     const isProfileTab = Label === SidebarEnum.Profile || Label === "Profile";

@@ -20,17 +20,39 @@ function formatTimestampOrDate(value: unknown): string {
 export function isTicketDeleted(t: unknown): boolean {
     if (!t || typeof t !== 'object') return false;
     const ticket = t as Record<string, unknown>;
-    const s = String(ticket.status ?? ticket.Status ?? '').trim().toLowerCase().replace(/[-_\s]+/g, '');
-    const isDel = ticket.isdeleted ?? ticket.isDeleted ?? ticket.deleted ?? ticket.isDelete ?? ticket.isdelete;
+    const s = String(
+        ticket.status ??
+        ticket.Status ??
+        ticket.nodestate ??
+        ticket.NodeState ??
+        ticket.state ??
+        ticket.State ??
+        ''
+    ).trim().toLowerCase().replace(/[-_\s]+/g, '');
+
+    const isDel =
+        ticket.isdeleted ??
+        ticket.isDeleted ??
+        ticket.deleted ??
+        ticket.isDelete ??
+        ticket.isdelete ??
+        (ticket as any).is_deleted ??
+        (ticket as any).is_delete;
+
     if (isDel === true || isDel === 1 || isDel === '1' || isDel === 'true') {
         return true;
     }
+
     return (
         s === 'deleted' ||
         s === 'tobedeleted' ||
         s === 'delete' ||
         s === 'notaccepted' ||
-        s === 'discarded'
+        s === 'discarded' ||
+        s === 'inactive' ||
+        s === 'trash' ||
+        s === 'removed' ||
+        s.includes('delete')
     );
 }
 
@@ -40,6 +62,7 @@ export function isTicketDeleted(t: unknown): boolean {
  */
 let cachedFullTickets: ITicketDoc[] | null = null;
 let isFirestoreLoaded = false;
+let inFlightLoadPromise: Promise<ITicketDoc[]> | null = null;
 
 /**
  * Returns the currently cached full tickets array, or falls back to sample dataset.
@@ -198,39 +221,95 @@ export async function loadFullTickets(
         return cachedFullTickets;
     }
 
-    if (firestore && typeof firestore.queryDocuments === 'function') {
-        try {
-            let businessList = knownBusinesses && knownBusinesses.length > 0 ? knownBusinesses : [];
-            if (businessList.length === 0) {
-                const bRes = await firestore.queryDocuments({ pathSegments: ['businesses'] });
-                businessList = Array.isArray(bRes?.data)
-                    ? (bRes.data as any[])
-                    : Array.isArray((bRes?.data as any)?.data)
-                        ? ((bRes.data as any).data as any[])
-                        : [];
-            }
-            const bids = businessList
-                .map((b: any) => String(b.bid || b.EntID || b.id || '').trim())
-                .filter(Boolean);
+    if (!forceRefresh && inFlightLoadPromise) {
+        return inFlightLoadPromise;
+    }
 
-            if (bids.length > 0) {
-                const results = await Promise.allSettled(
-                    bids.map((bid) => firestore.queryDocuments({ pathSegments: ['businesses', bid, 'tickets'] }))
-                );
-                const rawList: Record<string, unknown>[] = [];
-                results.forEach((r, idx) => {
-                    if (r.status === 'fulfilled' && r.value?.data) {
-                        const bid = bids[idx];
-                        const list = Array.isArray(r.value.data)
-                            ? (r.value.data as Record<string, unknown>[])
-                            : Array.isArray((r.value.data as any)?.data)
-                                ? ((r.value.data as any).data as Record<string, unknown>[])
-                                : [];
-                        for (const d of list) {
-                            rawList.push({ ...d, bid: d.bid || bid });
-                        }
+    const doLoad = async (): Promise<ITicketDoc[]> => {
+        try {
+            if (firestore && typeof firestore.queryDocuments === 'function') {
+        try {
+            let rawList: Record<string, unknown>[] = [];
+
+            // 1. Try Collection Group query to fetch all tickets across businesses in 1 single call
+            if (typeof firestore.queryDocumentsGroup === 'function') {
+                try {
+                    const groupRes = await firestore.queryDocumentsGroup({
+                        collectionName: 'tickets',
+                        selectKeys: [
+                            'ticketid',
+                            'bid',
+                            'cid',
+                            'status',
+                            'tickettype',
+                            'subscription',
+                            'eqid',
+                            'mfg',
+                            'eqtype',
+                            'prodno',
+                            'moreinfo',
+                            'daterequested',
+                            'datereleased',
+                            'lastupdated',
+                            'monitor',
+                            'monitorupdated',
+                            'email',
+                            'phone',
+                            'isdeleted',
+                            'isDeleted',
+                            'deleted',
+                            'isDelete',
+                            'isdelete',
+                            'is_deleted',
+                        ],
+                    });
+                    const groupItems = Array.isArray(groupRes?.data)
+                        ? (groupRes.data as Record<string, unknown>[])
+                        : Array.isArray((groupRes?.data as any)?.data)
+                            ? ((groupRes.data as any).data as Record<string, unknown>[])
+                            : [];
+                    if (groupItems && groupItems.length > 0) {
+                        rawList = groupItems;
                     }
-                });
+                } catch (groupErr) {
+                    console.warn('[loadFullTickets] queryDocumentsGroup fallback:', groupErr);
+                }
+            }
+
+            // 2. Fallback to querying per-business if group query returned no items
+            if (rawList.length === 0) {
+                let businessList = knownBusinesses && knownBusinesses.length > 0 ? knownBusinesses : [];
+                if (businessList.length === 0) {
+                    const bRes = await firestore.queryDocuments({ pathSegments: ['businesses'] });
+                    businessList = Array.isArray(bRes?.data)
+                        ? (bRes.data as any[])
+                        : Array.isArray((bRes?.data as any)?.data)
+                            ? ((bRes.data as any).data as any[])
+                            : [];
+                }
+                const bids = businessList
+                    .map((b: any) => String(b.bid || b.EntID || b.id || '').trim())
+                    .filter(Boolean);
+
+                if (bids.length > 0) {
+                    const results = await Promise.allSettled(
+                        bids.map((bid) => firestore.queryDocuments({ pathSegments: ['businesses', bid, 'tickets'] }))
+                    );
+                    results.forEach((r, idx) => {
+                        if (r.status === 'fulfilled' && r.value?.data) {
+                            const bid = bids[idx];
+                            const list = Array.isArray(r.value.data)
+                                ? (r.value.data as Record<string, unknown>[])
+                                : Array.isArray((r.value.data as any)?.data)
+                                    ? ((r.value.data as any).data as Record<string, unknown>[])
+                                    : [];
+                            for (const d of list) {
+                                rawList.push({ ...d, bid: d.bid || bid });
+                            }
+                        }
+                    });
+                }
+            }
 
                 if (rawList.length > 0) {
                     const mapped: ITicketDoc[] = rawList
@@ -281,7 +360,8 @@ export async function loadFullTickets(
                                 eqid: d.eqid ? String(d.eqid) : undefined,
                                 monitor: Boolean(d.monitor),
                                 monitorupdated: formatTimestampOrDate(d.monitorupdated),
-                            };
+                                isdeleted: Boolean(d.isdeleted ?? d.isDeleted ?? d.deleted ?? d.isDelete ?? d.isdelete ?? d.is_deleted),
+                            } as unknown as ITicketDoc;
                         });
 
                     // If we already had local in-memory status overrides, merge them
@@ -310,15 +390,21 @@ export async function loadFullTickets(
                     setFullTicketsCache(mapped);
                     return mapped;
                 }
-            }
         } catch (err) {
             console.warn('Failed to query tickets per business from Firestore:', err);
         }
     }
 
-    if (!cachedFullTickets || cachedFullTickets.length === 0) {
-        setFullTicketsCache([]);
-    }
-    isFirestoreLoaded = true;
-    return cachedFullTickets ?? [];
+            if (!cachedFullTickets || cachedFullTickets.length === 0) {
+                setFullTicketsCache([]);
+            }
+            isFirestoreLoaded = true;
+            return cachedFullTickets ?? [];
+        } finally {
+            inFlightLoadPromise = null;
+        }
+    };
+
+    inFlightLoadPromise = doLoad();
+    return inFlightLoadPromise;
 }

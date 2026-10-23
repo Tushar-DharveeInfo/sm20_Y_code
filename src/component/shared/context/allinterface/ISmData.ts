@@ -12,7 +12,8 @@ import type {
     ISubDoc,
     ITicketDoc,
     ITicketNoteDoc,
-    ITodoDoc,
+    IReminderDoc,
+    IReminderDoc as ITodoDoc,
 } from "@n20a/libfsdb";
 import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
@@ -71,5 +72,6 @@ export type {
     ISubDoc,
     ITicketDoc,
     ITicketNoteDoc,
+    IReminderDoc,
     ITodoDoc,
 };

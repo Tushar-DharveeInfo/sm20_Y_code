@@ -20,6 +20,7 @@ import {
 } from "./FnGetDistinctDatasetValues";
 import { FnIsClientMenuFeature, FnIsProspectFilterFeature } from "./FnGetClientExplorerAutoFilter";
 import { RmsEnums } from "../../../constants/Feature";
+import { FnGetUniqueBusinessTypeOptions } from "../sidebar/FnBuildPropertyFormDataFromSelectedNode";
 
 const NOTICE_PERIOD_VALUES = ["15", "30", "45", "60", "90", "120", "180"]; // fallback notice-period values
 const FIN_YEAR_QUARTERS = ["Q1", "Q2", "Q3", "Q4"]; // fallback fiscal-quarter values
@@ -79,6 +80,18 @@ function comboValue(applied: IDCFilterControlValues, name: string): string {
         return FILTER_ANY;
     }
     return String(value);
+}
+
+// Restore a saved btype combo value (empty when not set; drops ANY/null/undefined).
+function comboValueForBtype(applied: IDCFilterControlValues): string {
+    const value = applied["btype"];
+    if (value === undefined || value === null || value === "") return "";
+    const str = String(value).trim();
+    const lower = str.toLowerCase();
+    if (lower === "any" || lower === "null" || lower === "undefined" || lower === "none") {
+        return "";
+    }
+    return str;
 }
 
 function makeControl(partial: {
@@ -225,8 +238,8 @@ function FnBuildBusinessExplorerFilterControls(
                 group: businessGroup,
                 sortOrder: 1,
                 displayControl: DisplayControlEnums.ComboBoxControl,
-                value: comboValue(applied, "btype"),
-                options: FnWithAnyOption(FnGetDistinctBusinessType(businesses)),
+                value: comboValueForBtype(applied),
+                options: FnGetUniqueBusinessTypeOptions(businesses),
             }),
             makeControl({
                 name: "salesexec",
@@ -407,8 +420,8 @@ function FnBuildBusinessExplorerFilterControls(
             group: businessGroup,
             sortOrder: 4,
             displayControl: DisplayControlEnums.ComboBoxControl,
-            value: comboValue(applied, "btype"),
-            options: FnWithAnyOption(FnGetDistinctBusinessType(businesses)),
+            value: comboValueForBtype(applied),
+            options: FnGetUniqueBusinessTypeOptions(businesses),
         }),
         makeControl({
             name: "tag",

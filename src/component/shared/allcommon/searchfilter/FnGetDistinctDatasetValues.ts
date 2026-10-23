@@ -34,6 +34,7 @@ function FnGetDistinctValues(
         for (const part of parts) {
             if (!part) continue;
             const key = part.toLowerCase();
+            if (key === "null" || key === "undefined" || key === "none") continue;
             if (!unique.has(key)) {
                 unique.set(key, part);
             }
@@ -128,7 +129,18 @@ function FnGetDistinctBusinessFiscalQuarter(businesses: IBusinessDoc[]): string[
 
 export const getDistinctCountries = (dataArray: unknown[]): string[] => {
     if (!Array.isArray(dataArray)) return [];
-    return [...new Set(dataArray.map((item: any) => item?.country).filter(Boolean).map((v) => String(v).trim()))].sort((a, b) => a.localeCompare(b));
+    return [
+        ...new Set(
+            dataArray
+                .map((item: any) => item?.country)
+                .filter(Boolean)
+                .map((v) => String(v).trim())
+                .filter((v) => {
+                    const k = v.toLowerCase();
+                    return k !== "null" && k !== "undefined" && k !== "none";
+                })
+        ),
+    ].sort((a, b) => a.localeCompare(b));
 };
 
 export const getDistinctPropertyValues = (dataArray: unknown[], property: string, splitTags = false): string[] => {

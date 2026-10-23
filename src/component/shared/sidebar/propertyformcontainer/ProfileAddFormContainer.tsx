@@ -11,7 +11,7 @@ import type { IBusinessDoc, IContactDoc } from '@n20a/libfsdb';
 import type { ITreeNode } from '../../allinterface/tree/ITreeControl';
 import { FnHideShowSaveIconForForm } from '../../allcommon/basic/FnHideShowSaveIconForForm';
 import './ProfileAddFormContainer.css';
-
+import { FnGetUniqueBusinessTypeOptions } from '../../allcommon/sidebar/FnBuildPropertyFormDataFromSelectedNode';
 interface IProfileAddFormContainerProps {
     uniqueName?: string;
     initialMode?: 'business' | 'contact';
@@ -383,6 +383,11 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         }));
     }, [smDataContext.datasets?.businesses]);
 
+    // Available business types extracted from stored business data in smDataContext
+    const availableBusinessTypes = useMemo(() => {
+        return FnGetUniqueBusinessTypeOptions(smDataContext.datasets?.businesses);
+    }, [smDataContext.datasets?.businesses]);
+
     // Preselected parent bid
     const defaultParentBid = useMemo(() => {
         if (props.selectedNode?.bid) {
@@ -484,7 +489,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         first_contact_cname: '',
         first_contact_email: '',
         first_contact_phone: '',
-        first_contact_type: 'primary',
+        first_contact_type: 'contact',
     });
 
     const contactValuesRef = useRef<Record<string, unknown>>({
@@ -641,12 +646,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 group: groupCompany,
                 sortOrder: 3,
                 displayControl: DisplayControlEnums.ComboBoxControl,
-                options: [
-                    { label: 'Consultant', value: 'consultant' },
-                    { label: 'End User', value: 'enduser' },
-                    { label: 'Partner', value: 'partner' },
-                    { label: 'Vendor', value: 'vendor' },
-                ],
+                options: availableBusinessTypes,
                 value: String(businessValuesRef.current.btype ?? 'consultant'),
             }),
             makeControl({
@@ -746,7 +746,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                         { label: 'Billing', value: 'billing' },
                         { label: 'Technical', value: 'technical' },
                     ],
-                    value: String(businessValuesRef.current.first_contact_type ?? 'primary'),
+                    value: String(businessValuesRef.current.first_contact_type ?? 'contact'),
                 })
             );
         }
@@ -806,7 +806,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
         );
 
         return controls;
-    }, [isUpdate, businessId]);
+    }, [isUpdate, businessId, availableBusinessTypes]);
 
     // Contact Controls for SettingsLibForm:
     // Requires 5 fields when adding/updating contact: business (bid), name (cname), email, phone, country
@@ -1202,7 +1202,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
             if (!isUpdate) {
                 const primaryCid = generateAutoCid(effectiveBid, smDataContext.datasets?.contacts ?? []);
                 const firstContactType = String(
-                    parsedData.first_contact_type ?? businessValuesRef.current.first_contact_type ?? 'primary'
+                    parsedData.first_contact_type ?? businessValuesRef.current.first_contact_type ?? 'contact'
                 ).trim();
 
                 const firstContactDoc: IContactDoc & { verified?: boolean } = {
@@ -1310,7 +1310,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                     first_contact_cname: '',
                     first_contact_email: '',
                     first_contact_phone: '',
-                    first_contact_type: 'primary',
+                    first_contact_type: 'contact',
                 };
             }
 

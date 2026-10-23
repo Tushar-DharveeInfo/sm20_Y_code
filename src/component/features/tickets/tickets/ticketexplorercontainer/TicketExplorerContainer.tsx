@@ -52,6 +52,7 @@ function formatTimestampOrDate(value: unknown): string {
 }
 
 function FnMapToTicketDoc(record: Record<string, unknown>, fallbackBid: string): ITicketDoc {
+    const isDel = record.isdeleted ?? record.isDeleted ?? record.deleted ?? record.isDelete ?? record.isdelete ?? (record as any).is_deleted;
     return {
         bid: String(record.bid || fallbackBid || ''),
         cid: String(record.cid || ''),
@@ -64,12 +65,13 @@ function FnMapToTicketDoc(record: Record<string, unknown>, fallbackBid: string):
         eqtype: String(record.eqtype || ''),
         prodno: String(record.prodno || ''),
         moreinfo: String(record.moreinfo || ''),
-        status: String(record.status || ''),
+        status: String(record.status || (record as any).Status || ''),
         daterequested: formatTimestampOrDate(record.daterequested),
         datereleased: formatTimestampOrDate(record.datereleased),
         lastupdated: formatTimestampOrDate(record.lastupdated),
         eqid: record.eqid ? String(record.eqid) : ((record as any).EQID ? String((record as any).EQID) : undefined),
-    };
+        isdeleted: isDel === true || isDel === 1 || isDel === '1' || isDel === 'true',
+    } as unknown as ITicketDoc;
 }
 
 interface IFeatureTree {

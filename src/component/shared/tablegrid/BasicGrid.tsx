@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AgGridReact } from 'ag-grid-react';
 import { IconButton } from '@mui/material';
-import { CellClickedEvent, CellEditingStartedEvent, CellMouseDownEvent, CellValueChangedEvent, ColDef, Column, ColumnResizedEvent, GridOptions, GridReadyEvent, ICellRendererParams, PaginationChangedEvent, RowClickedEvent, RowNode, SelectionChangedEvent, ValueGetterParams } from 'ag-grid-community';
+import { CellClickedEvent, CellEditingStartedEvent, CellMouseDownEvent, CellValueChangedEvent, ColDef, Column, ColumnResizedEvent, GridOptions, GridReadyEvent, ICellRendererParams, PaginationChangedEvent, RowClickedEvent, RowNode, RowSelectionOptions, SelectionChangedEvent, ValueGetterParams } from 'ag-grid-community';
 import "./BasicGrid.css"
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -185,8 +185,31 @@ const BasicGrid = (gridProps: IBasicGrid) => {
         },
     };
 
+        const agRowSelection = useMemo<RowSelectionOptions>(() => {
+        if (typeof gridProps.rowSelection === 'object' && gridProps.rowSelection !== null) {
+            return {
+                checkboxes: false,
+                enableClickSelection: false,
+                ...gridProps.rowSelection,
+            };
+        }
+        const isMultiple = gridProps.rowSelection === 'multiple';
+        return {
+            mode: isMultiple ? 'multiRow' : 'singleRow',
+            enableClickSelection: false,
+            checkboxes: false,
+        };
+    }, [gridProps.rowSelection]);
+
+    const resolvedGridOptions = useMemo<GridOptions>(() => {
+        const baseOptions = gridProps?.gridOptions || gridOptions;
+        if (!baseOptions) return baseOptions;
+        const { suppressRowClickSelection: _deprecatedSuppress, rowSelection: _deprecatedRowSel, ...rest } = baseOptions as any;
+        return rest;
+    }, [gridProps?.gridOptions, gridOptions]);
+
     useEffect(() => {
-        // Add event listener on component mount
+    // Add event listener on component mount
         window.addEventListener("resize", () => {
             handleResize(gridProps);
         });
@@ -528,7 +551,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                 columns.push({
                     headerName: "",
                     suppressSizeToFit: true,
-                    headerCheckboxSelection: gridProps.rowSelection === "single" ? false : true,
+                    headerCheckboxSelection: (gridProps.rowSelection === "single" || (typeof gridProps.rowSelection === "object" && (gridProps.rowSelection as any)?.mode === "singleRow")) ? false : true,
                     showDisabledCheckboxes: true,
                     colId: "index-cell",
                     field: "id5",
@@ -1218,7 +1241,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                                 suppressFieldDotNotation={true}
                                 suppressAutoSize={false}
                                 gridOptions={
-                                    gridProps?.gridOptions || gridOptions
+                                    resolvedGridOptions
                                 }
                                 singleClickEdit={true}
                                 enableCellTextSelection={true}
@@ -1250,7 +1273,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                                 paginationAutoPageSize={
                                     gridProps.paginationAutoPageSize || false
                                 }
-                                rowSelection={gridProps.rowSelection || 'single'}
+                                rowSelection={agRowSelection}
                                 onCellClicked={(event: CellClickedEvent) => {
                                     if (event.data?.isNoData) return;
                                     if (event.column.getColId() !== "checkbox-column") {
@@ -1273,7 +1296,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
                                     event.node.setSelected(event.node.isSelected() as boolean, false);
                                     handleMouseEvent(event, gridRef, gridProps)
                                 }}
-                                suppressRowClickSelection={true}
+
                                 onPaginationChanged={(event: PaginationChangedEvent) => {
                                     onPaginationChanged(event, gridProps, rowData)?.then((row: unknown) => {
                                         if (Array.isArray(row)) {

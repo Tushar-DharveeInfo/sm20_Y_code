@@ -41,27 +41,6 @@ const featureTreeProps: IFeatureTree = {
     instanceName: 'nz-eqid-by-mfg-tree',
 };
 
-function findNodeByEqid(nodes: ITreeNode[], targetEqid: string): ITreeNode | null {
-    const cleanTarget = (targetEqid || '').trim().toLowerCase();
-    if (!cleanTarget) return null;
-    for (const node of nodes) {
-        const raw = String(
-            node.nodeType ?? node.NodeType ?? node.treetype ?? node.NodeEntityname ?? ''
-        ).toLowerCase();
-        if (raw === 'eqid') {
-            const eqid = String((node as any).eqid || (node as any).EQID || node.Name || '').trim().toLowerCase();
-            if (eqid === cleanTarget) {
-                return node;
-            }
-        }
-        if (node.children && node.children.length > 0) {
-            const found = findNodeByEqid(node.children, cleanTarget);
-            if (found) return found;
-        }
-    }
-    return null;
-}
-
 export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
     const {
         uniqueName = 'feature-rms-eqid-by-mfg',
@@ -421,8 +400,6 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
                     (f) => f.Label === 'EQID' || String(f.Feature) === '4040' || String(f._Feature) === '4040'
                 ) ?? null;
                 setSelectedKebabMenu(eqidFqaItem);
-                setIsShowSidebar(true);
-                setIsSidebar('sidebarOpen');
             } else if (raw === 'shapestyle' || raw === 'shapestyles') {
                 const parentEqid = String((node as any)?.eqid || '').trim();
                 if (parentEqid) {
@@ -661,26 +638,6 @@ export const EqidByMfg: React.FC<IEqidByMfgProps> = (props) => {
         }
     }, [selectedNode, activeNodeType]);
 
-    // Active form header
-    const activeFormHeader = useMemo(() => {
-        if (!selectedNode) return 'Properties';
-        switch (activeNodeType) {
-            case 'Root':
-                return '';
-            case 'Mfg':
-                return `Manufacturer (${selectedNode.Name})`;
-            case 'ProdLine':
-                return `Product Line (${selectedNode.Name})`;
-            case 'EqType':
-                return `Equipment Type (${selectedNode.Name})`;
-            case 'EQID':
-                return `EQID (${selectedNode.Name})`;
-            case 'ShapeStyle':
-                return `Shape Style (${selectedNode.Name})`;
-            default:
-                return `Properties (${selectedNode.Name})`;
-        }
-    }, [selectedNode, activeNodeType]);
 
     // Right-pane selection header
     const rightPaneHeader = useMemo(() => {

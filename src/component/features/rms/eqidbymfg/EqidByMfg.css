@@ -3,7 +3,7 @@
     width: 100%;
     height: 100%;
     min-height: 0;
-    background: var(--bg-color, #fff);
+    /* background: var(--bg-color, #fff); */
 }
 
 .nz-eqid-by-mfg-splitter {
@@ -18,12 +18,12 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    background: var(--bg-color, #fff);
+    /* background: var(--bg-color, #fff); */
 }
 
-.nz-eqid-by-mfg-search {
+/* .nz-eqid-by-mfg-search {
     padding: 8px;
-}
+} */
 
 .nz-eqid-by-mfg-search input {
     width: 100%;
@@ -31,14 +31,15 @@
     height: 28px;
     padding: 0 8px;
     border: 1px solid var(--border-color, #d9d9d9);
-    background: var(--bg-color, #fff);
     color: inherit;
 }
 
 .nz-eqid-by-mfg-tree-body {
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .nz-eqid-by-mfg-tree-body-loading {
@@ -55,7 +56,6 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--bg-color, #fff);
 }
 
 .nz-eqid-by-mfg-detail-body {

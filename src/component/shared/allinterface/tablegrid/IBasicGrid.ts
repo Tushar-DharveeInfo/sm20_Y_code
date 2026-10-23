@@ -1,5 +1,5 @@
 
-import { CellClickedEvent, CellMouseDownEvent, ColDef, FirstDataRenderedEvent, GridOptions, GridReadyEvent, ICellRendererParams, RowClassRules, RowClickedEvent, RowDataUpdatedEvent } from "ag-grid-community";
+import { CellClickedEvent, CellMouseDownEvent, ColDef, FirstDataRenderedEvent, GridOptions, GridReadyEvent, ICellRendererParams, RowClassRules, RowClickedEvent, RowDataUpdatedEvent, RowSelectionOptions } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { IFeatureItem } from "../menu/INodeMenu";
 import { IActionImageForSubMenu } from "../basic/IActionImageList";
@@ -87,7 +87,7 @@ interface IBasicGrid {
     paginationPageSize?: number; //sets the number of rows displayed per page when pagination is enabled.
     gridOptions?: GridOptions | any; // grid options
     paginationAutoPageSize?: boolean; //automatically adjusts the number of rows per page based on the grid's height
-    rowSelection?: 'single' | 'multiple'; // sets the type of row selection
+    rowSelection?: 'single' | 'multiple' | RowSelectionOptions; // sets the type of row selection
     hideCopyIcon?: boolean; // hide or shows copy icon
     id?: string | ""; // grid id
     isReadOnly?: boolean; // sets readonly grid.

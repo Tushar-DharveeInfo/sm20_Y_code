@@ -60,6 +60,7 @@ function formatTimestampOrDate(value: unknown): string {
 }
 
 function FnMapToTicketDoc(record: Record<string, unknown>, fallbackBid: string): ITicketDoc {
+    const isDel = record.isdeleted ?? record.isDeleted ?? record.deleted ?? record.isDelete ?? record.isdelete ?? (record as any).is_deleted;
     return {
         bid: String(record.bid || fallbackBid || ''),
         cid: String(record.cid || record.contactid || ''),
@@ -72,12 +73,13 @@ function FnMapToTicketDoc(record: Record<string, unknown>, fallbackBid: string):
         eqtype: String(record.eqtype || ''),
         prodno: String(record.prodno || ''),
         moreinfo: String(record.moreinfo || ''),
-        status: String(record.status || ''),
+        status: String(record.status || (record as any).Status || ''),
         daterequested: formatTimestampOrDate(record.daterequested),
         datereleased: formatTimestampOrDate(record.datereleased),
         lastupdated: formatTimestampOrDate(record.lastupdated),
         eqid: record.eqid ? String(record.eqid) : ((record as any).EQID ? String((record as any).EQID) : undefined),
-    };
+        isdeleted: isDel === true || isDel === 1 || isDel === '1' || isDel === 'true',
+    } as unknown as ITicketDoc;
 }
 
 function FnMapToTicketNoteDoc(
@@ -252,6 +254,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     const {
         tickets: apiTickets,
         getTickets,
+        deleteTicket,
     } = useBusinessTickets(effectiveBid);
 
     useEffect(() => {
@@ -298,25 +301,40 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
 
     // Store version counter to trigger rawTickets recomputation on ticket updates
     const [ticketStoreVersion, setTicketStoreVersion] = useState(0);
+    const [deletedTicketIds, setDeletedTicketIds] = useState<Set<string>>(new Set());
 
     // Sourced tickets: uses full tickets cache (or scoped by business if selected)
     const rawTickets: ITicketDoc[] = useMemo(() => {
+        const isNotDeleted = (t: ITicketDoc) => {
+            const tid = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
+            if (deletedTicketIds.has(tid)) return false;
+            return !isTicketDeleted(t);
+        };
+
+        let baseTickets: ITicketDoc[] = [];
         if (effectiveBid && mappedApiTickets && mappedApiTickets.length > 0) {
-            return mappedApiTickets.filter((t) => !isTicketDeleted(t));
+            const apiNonDeleted = mappedApiTickets.filter(isNotDeleted);
+            if (apiNonDeleted.length > 0) {
+                baseTickets = apiNonDeleted;
+            } else {
+                baseTickets = [];
+            }
+        } else {
+            const allTickets = getFullTicketsCached();
+            baseTickets = allTickets.filter(isNotDeleted);
         }
-        const allTickets = getFullTicketsCached();
-        const nonDeleted = allTickets.filter((t) => !isTicketDeleted(t));
+
         if (effectiveBid) {
             const cleanBid = effectiveBid.trim().toLowerCase();
             const normBid = normalizeBidKey(cleanBid);
-            return nonDeleted.filter((t) => {
+            return baseTickets.filter((t) => {
                 const tBid = String(t.bid || '').trim().toLowerCase();
                 const tNormBid = normalizeBidKey(tBid);
                 return tBid === cleanBid || tNormBid === normBid;
             });
         }
-        return nonDeleted;
-    }, [effectiveBid, ticketStoreVersion, mappedApiTickets]);
+        return baseTickets;
+    }, [effectiveBid, ticketStoreVersion, mappedApiTickets, deletedTicketIds]);
 
     // Sourced contacts
     const contacts: IContactDoc[] = useMemo(() => {
@@ -359,11 +377,18 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
     // Business -> all contacts of selected business
     // Contact -> selected contact of selected business
     const scopedTickets = useMemo(() => {
+        const isNotDeleted = (t: ITicketDoc) => {
+            const tid = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
+            if (deletedTicketIds.has(tid)) return false;
+            return !isTicketDeleted(t);
+        };
+        const nonDeletedModeTickets = modeFilteredTickets.filter(isNotDeleted);
+
         if (scope.nodeType === 'Contact') {
             const cleanBid = (scope.bid || '').trim().toLowerCase();
             const normBid = normalizeBidKey(cleanBid);
             const cleanCid = (scope.cid || '').trim().toLowerCase();
-            return modeFilteredTickets.filter((t) => {
+            return nonDeletedModeTickets.filter((t) => {
                 const tBid = (t.bid || '').trim().toLowerCase();
                 const tNormBid = normalizeBidKey(tBid);
                 const tCid = (t.cid || '').trim().toLowerCase();
@@ -375,19 +400,24 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         if (scope.nodeType === 'Business' && scope.bid) {
             const cleanBid = (scope.bid || '').trim().toLowerCase();
             const normBid = normalizeBidKey(cleanBid);
-            return modeFilteredTickets.filter((t) => {
+            return nonDeletedModeTickets.filter((t) => {
                 const tBid = (t.bid || '').trim().toLowerCase();
                 const tNormBid = normalizeBidKey(tBid);
                 return tBid === cleanBid || tNormBid === normBid;
             });
         }
         // Root: all tickets across all businesses
-        return modeFilteredTickets;
-    }, [modeFilteredTickets, scope.nodeType, scope.bid, scope.cid]);
+        return nonDeletedModeTickets;
+    }, [modeFilteredTickets, scope.nodeType, scope.bid, scope.cid, deletedTicketIds]);
 
     const sortedScopedTickets = useMemo(() => {
-        return sortTicketsNewestFirst(scopedTickets);
-    }, [scopedTickets]);
+        const isNotDeleted = (t: ITicketDoc) => {
+            const tid = String(t.ticketid || (t as any).id || '').trim().toLowerCase();
+            if (deletedTicketIds.has(tid)) return false;
+            return !isTicketDeleted(t);
+        };
+        return sortTicketsNewestFirst(scopedTickets.filter(isNotDeleted));
+    }, [scopedTickets, deletedTicketIds]);
 
     // Selected ticket state
     const [selectedTicket, setSelectedTicket] = useState<ITicketDoc | null>(() => {
@@ -506,7 +536,6 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             (selectedTicket as any)?.EQID ||
             (selectedTicket as any)?.eqId ||
             matchingEqidRecord?.EQID ||
-            matchingEqidRecord?.eqid ||
             '';
 
         const syncKey = selectedTicket ? `${selectedTicket.ticketid}__${resolvedEqid}` : null;
@@ -635,7 +664,6 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                 (ticket as any)?.EQID ||
                 (ticket as any)?.eqId ||
                 matchingEqidRecord?.EQID ||
-                matchingEqidRecord?.eqid ||
                 '';
             const ticketNode = {
                 ...ticket,
@@ -666,7 +694,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                 const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
                     (e: any) => e.ticketid && e.ticketid === ticket.ticketid
                 );
-                const resolvedEqid = (ticket as any).eqid || (ticket as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+                const resolvedEqid = (ticket as any).eqid || (ticket as any).EQID || matchingEqidRecord?.EQID || '';
                 const ticketNode = {
                     key: `ticket-${ticket.ticketid}`,
                     NodeEntID: ticket.ticketid,
@@ -674,10 +702,9 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                     Label: `${ticket.mfg || 'Device'} ${ticket.prodno || ticket.ticketid}`,
                     NodeType: 'Ticket',
                     treetype: 'Ticket',
-                    ticketid: ticket.ticketid,
-                    eqid: resolvedEqid,
                     EQID: resolvedEqid,
                     ...updated,
+                    ticketid: ticket.ticketid,
                 } as unknown as ITreeNode;
                 selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
                 rmsContext?.setSelectedTicketCard?.(ticketNode);
@@ -831,7 +858,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                             const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
                                 (e: any) => e.ticketid && e.ticketid === ticketId
                             );
-                            const resolvedEqid = (updated as any).eqid || (updated as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+                            const resolvedEqid = (updated as any).eqid || (updated as any).EQID || matchingEqidRecord?.EQID || '';
                             const ticketNode = {
                                 key: `ticket-${ticketId}`,
                                 NodeEntID: ticketId,
@@ -839,10 +866,9 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                                 Label: `${updated.mfg || 'Device'} ${updated.prodno || ticketId}`,
                                 NodeType: 'Ticket',
                                 treetype: 'Ticket',
-                                ticketid: ticketId,
-                                eqid: resolvedEqid,
                                 EQID: resolvedEqid,
                                 ...updated,
+                                ticketid: ticketId,
                                 status: preservedStatus || updated.status,
                             } as unknown as ITreeNode;
                             selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
@@ -965,7 +991,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                     const matchingEqidRecord = (rmsContext?.eqid ?? []).find(
                         (e: any) => e.ticketid && e.ticketid === ticket.ticketid
                     );
-                    const resolvedEqid = (clonedTicket as any).eqid || (clonedTicket as any).EQID || matchingEqidRecord?.EQID || matchingEqidRecord?.eqid || '';
+                    const resolvedEqid = (clonedTicket as any).eqid || (clonedTicket as any).EQID || matchingEqidRecord?.EQID || '';
                     const ticketNode = {
                         key: `ticket-${newTicketId}`,
                         NodeEntID: newTicketId,
@@ -973,10 +999,9 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                         Label: `${clonedTicket.mfg || 'Device'} ${clonedTicket.prodno || newTicketId}`,
                         NodeType: 'Ticket',
                         treetype: 'Ticket',
-                        ticketid: newTicketId,
-                        eqid: resolvedEqid,
                         EQID: resolvedEqid,
                         ...clonedTicket,
+                        ticketid: newTicketId,
                         status: clonedTicket.status,
                     } as unknown as ITreeNode;
                     selectedNodeContext?.setSelectedTicketCard?.(ticketNode);
@@ -1044,6 +1069,13 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
             const ticketId = ticket.ticketid;
             if (!ticketId) return;
 
+            // Immediately mark as deleted locally
+            setDeletedTicketIds((prev) => {
+                const next = new Set(prev);
+                next.add(ticketId.trim().toLowerCase());
+                return next;
+            });
+
             statusBarContext?.setIsLoading?.(true);
             statusBarContext?.setLoadingLabel?.('Deleting ticket...');
             try {
@@ -1089,6 +1121,13 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                         (t) => String(t.ticketid || (t as any).id || '').trim().toLowerCase() !== ticketId.trim().toLowerCase()
                     );
                     smDataContext.updateDataset?.('tickets', updated);
+                }
+
+                // 4. Also call deleteTicket from useBusinessTickets hook if available
+                if (typeof deleteTicket === 'function') {
+                    try {
+                        await deleteTicket(ticketId);
+                    } catch { }
                 }
 
                 // 4. Log activity

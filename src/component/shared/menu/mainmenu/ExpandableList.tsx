@@ -1,5 +1,5 @@
 
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Collapse, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material'
 import { isEqual } from 'lodash'
 import './ExpandableList.css'
@@ -11,6 +11,11 @@ import { handleExpandableMenuKeyDown } from '../../allcommon/basic/FnHandleConta
 import { IMenuItem } from '../../allinterface/menu/IMainMenu'
 import { Image } from '../../basic/image/Image'
 import { FilterKeywordControl } from '../../searchfilter/filterkeywordcontrol/FilterKeywordControl'
+
+// These receive scalar props or cached icon elements, so focus changes can reuse them.
+const MenuImage = memo(Image);
+const MenuItemText = memo(ListItemText);
+const mainItemTextStyle = { opacity: 1 };
 
 interface IExpandableList {
     uniqueName: string; // uniqueName for the control and required
@@ -201,7 +206,7 @@ const ExpandableList = (props: IExpandableList) => {
             }
         }
     }, [])
-    const handleSubListItemClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>,
+    const handleSubListItemClick = useCallback((event: React.MouseEvent<HTMLDivElement, MouseEvent>,
         index: number,
         item: IMenuItem) => {
         if (!mainMenu) {
@@ -237,7 +242,11 @@ const ExpandableList = (props: IExpandableList) => {
             });
             setMainMenu([...mainMenu]);
 
-            props.handleMouseEvent(event, "expandleList", item)
+            // Keep selection/collapse urgent while React renders the selected feature.
+            // The callback still runs immediately; only its React updates get lower priority.
+            startTransition(() => {
+                props.handleMouseEvent(event, "expandleList", item);
+            });
             setSelectedMenuIndex(-1)
 
             for (let mainIndex = 0; mainIndex < mainMenu.length; mainIndex++) {
@@ -256,8 +265,8 @@ const ExpandableList = (props: IExpandableList) => {
             console.error("Error in handleSubListItemClick:", e);
         }
 
-    }
-    const handleListItemClick = (
+    }, [mainMenu, props]);
+    const handleListItemClick = useCallback((
         event: React.MouseEvent<HTMLDivElement, MouseEvent>,
         index: number,
         item: IMenuItem) => {
@@ -326,10 +335,13 @@ const ExpandableList = (props: IExpandableList) => {
         } catch (error) {
             console.error("Error in handleListItemClick:", error);
         }
-    }
+    }, [mainMenu, isGroupActive, handleSubListItemClick, props]);
     const searchValueChange = (value: string) => {
 
         if (originalMenuMenu && originalMenuMenu.length > 0 && !value) {
+            const hasAnyGroupSelectedSub = originalMenuMenu.some((m: IMenuItem) =>
+                m.subMenu?.some((s: IMenuItem) => s.EntID === selectedEntId)
+            );
             const restored = originalMenuMenu.map((ele: IMenuItem) => {
                 const subMenu = ele.subMenu?.map((sub: IMenuItem) => ({
                     ...sub,
@@ -342,9 +354,6 @@ const ExpandableList = (props: IExpandableList) => {
                     (m.EntID && ele.EntID && String(m.EntID) === String(ele.EntID)) ||
                     (m._Feature != null && ele._Feature != null && String(m._Feature) === String(ele._Feature)) ||
                     (m.Label && ele.Label && m.Label === ele.Label)
-                );
-                const hasAnyGroupSelectedSub = originalMenuMenu.some((m: IMenuItem) =>
-                    m.subMenu?.some((s: IMenuItem) => s.EntID === selectedEntId)
                 );
                 const isOpen = hasAnyGroupSelectedSub ? isAnySubSelected : (existing?.isOpen ?? false);
 
@@ -372,25 +381,26 @@ const ExpandableList = (props: IExpandableList) => {
 
         let filterData: IMenuItem[] = [];
         if (originalMenuMenu && originalMenuMenu.length > 0 && searchValue) {
+            const normalizedSearchValue = searchValue.toLowerCase();
             if (props.uniqueName === "Menu") {
                 const filteredData = originalMenuMenu.map((element: IMenuItem) => {
                     return {
                         ...element,
                         subMenu: (element.subMenu ?? []).filter(
                             (subElement: IMenuItem) =>
-                                subElement.Label?.toLowerCase().includes(searchValue?.toLowerCase()) ===
+                                subElement.Label?.toLowerCase().includes(normalizedSearchValue) ===
                                 true ||
                                 subElement.Tooltip?.toLowerCase().includes(
-                                    searchValue?.toLowerCase()
+                                    normalizedSearchValue
                                 ) === true
                         ),
                     };
                 });
                 filterData = filteredData.filter((element: IMenuItem) => {
                     return (
-                        element.Label?.toLowerCase().includes(searchValue?.toLowerCase()) ===
+                        element.Label?.toLowerCase().includes(normalizedSearchValue) ===
                         true ||
-                        element.Tooltip?.toLowerCase().includes(searchValue?.toLowerCase()) ===
+                        element.Tooltip?.toLowerCase().includes(normalizedSearchValue) ===
                         true ||
                         // Keep parent rows when any child matched the filter above.
                         (element.subMenu?.length ?? 0) > 0
@@ -406,7 +416,7 @@ const ExpandableList = (props: IExpandableList) => {
                 });
                 filterData = filteredData.filter((element: IMenuItem) => {
                     return (
-                        element.Label?.toLowerCase().includes(searchValue?.toLowerCase()) === true
+                        element.Label?.toLowerCase().includes(normalizedSearchValue) === true
                     );
                 });
                 setMainMenu([...filterData]);
@@ -419,12 +429,12 @@ const ExpandableList = (props: IExpandableList) => {
             setMainMenu([...filterData]);
         }
     };
-    const handleDrag = (event: React.DragEvent<HTMLDivElement>, actionCode?: ExpandableListDragAction, payload?: IMenuItem) => {
+    const handleDrag = useCallback((event: React.DragEvent<HTMLDivElement>, actionCode?: ExpandableListDragAction, payload?: IMenuItem) => {
         props.handleDrag && props.handleDrag(event, actionCode, payload);
-    };
+    }, [props]);
 
 
-    const handleEndDrag = (event: React.DragEvent<HTMLDivElement>, actionCode?: ExpandableListDragAction, payload?: IMenuItem) => {
+    const handleEndDrag = useCallback((event: React.DragEvent<HTMLDivElement>, actionCode?: ExpandableListDragAction, payload?: IMenuItem) => {
         const clientX: number = event.clientX;
         const clientY: number = event.clientY;
         const DropDiv: HTMLElement | null = document.elementFromPoint(clientX, clientY) as HTMLElement;
@@ -435,11 +445,11 @@ const ExpandableList = (props: IExpandableList) => {
         if (attrib) {
             props.handleEndDrag && props.handleEndDrag(event, actionCode, payload);
         }
-    }
+    }, [props]);
 
-    const handleDragStart = (event: React.DragEvent<HTMLDivElement>, actionCode?: ExpandableListDragAction, payload?: IMenuItem) => {
+    const handleDragStart = useCallback((event: React.DragEvent<HTMLDivElement>, actionCode?: ExpandableListDragAction, payload?: IMenuItem) => {
         props.handleStartDrag && props.handleStartDrag(event, actionCode, payload)
-    };
+    }, [props]);
 
     const openMainMenuGroup = (index: number) => {
         if (!mainMenu) {
@@ -594,7 +604,7 @@ const ExpandableList = (props: IExpandableList) => {
 
     const iconCacheRef = useRef<Map<string, React.ReactNode>>(new Map());
 
-    const handleIconForMenu = (
+    const handleIconForMenu = useCallback((
         label: string,
     ) => {
         if (iconCacheRef.current.has(label)) {
@@ -620,7 +630,7 @@ const ExpandableList = (props: IExpandableList) => {
         );
         iconCacheRef.current.set(label, iconEl);
         return iconEl;
-    };
+    }, []);
     useEffect(() => {
         const id = setTimeout(() => {
             if (activeMainIndex == null) {
@@ -646,6 +656,104 @@ const ExpandableList = (props: IExpandableList) => {
         }, 0);
         return () => clearTimeout(id);
     }, [activeMainIndex, activeSubIndex, mainMenu]);
+
+    // Search input state does not change rows until the filter is applied.
+    const menuList = useMemo(() => (
+                <List className='nz-nav-ul-main'>
+                    {
+                        mainMenu && mainMenu.map((element: IMenuItem, index: number) => {
+                            return (
+                                <Fragment key={index}>
+                                    <li key={index}
+                                        className='nz-nav-link' id={element.isOpen ? `nz-nav-open` : "nz-nav-close"}>
+                                        {/* Menu Item */}
+                                        <ListItemButton
+                                            ref={(el) => {
+                                                mainRefs.current[index] = el;
+                                            }}
+                                            tabIndex={-1}
+                                            key={element.EntID + "_" + index.toString()}
+                                            selected={activeSubIndex === null && activeMainIndex === index}
+                                            className={`nz-nav-li-button nz-nav-li-menu  ${selectedMenuIndex === index ? ' nz-nav-li-button-selected' : ''}`}
+                                            title={element.Tooltip}
+                                            onClick={(event) => {
+                                                handleListItemClick(event, index, element)
+
+                                            }}>
+
+                                            {!props.hideIcon && <ListItemIcon className='nz-nav-li-icon'>
+                                                <div className="nz-feature-icon">
+                                                    <MenuImage uniqueName='menu-image' source={
+                                                        handleIconForMenu(element.Alias ? element.Alias : (element.Name || element.name || element.Label || ''))}
+                                                        type='svg' w='var(--image-size-2)' />
+
+                                                </div>
+
+                                            </ListItemIcon>}
+                                            <MenuItemText className={`nz-nav-menu-text ${props.hideIcon ? 'nz-only-show-label' : ""}`} primary={element.Label} style={mainItemTextStyle} />
+                                            {element.subMenu && element.subMenu.length > 0 && (<>
+                                                <div
+                                                    className={`nz-nav-i-arrow ${element.isOpen ? '' : 'closed'}`}
+                                                >
+                                                    <MenuImage uniqueName='up-down' source={<Up24x24 size={FnGetCssVariable('--image-size-2')}
+                                                        fill='none'
+                                                        strokeWidth={1} />}
+                                                        type='svg' w='var(--image-size-1)' />
+                                                </div>
+
+                                            </>)}
+                                        </ListItemButton>
+                                    </li>
+                                    <Collapse key={"Clps_" + index.toString()} in={Boolean(element.isOpen)} timeout={200} mountOnEnter>
+                                        {/*submenu Items*/}
+                                        <List component="div" key={"Cli_" + index.toString()} disablePadding>
+                                            {element.subMenu && element.subMenu.map((subEle: IMenuItem, subIndex: number) => {
+
+                                                return (
+                                                    <li key={subIndex}
+                                                        className='nz-nav-link'>
+                                                        <div className='nz-image-list-data'
+                                                            style={{ width: "100%", height: '100%' }}
+                                                            key={props.uniqueName + index}
+                                                            draggable={props.allowDND}
+                                                            onDrag={(e: React.DragEvent<HTMLDivElement>) => handleDrag(e, props, subEle)}
+                                                            onDragEnd={(e: React.DragEvent<HTMLDivElement>) => handleEndDrag(e, props, subEle)}
+                                                            onDragStart={handleDragStart}
+                                                        >
+                                                            <ListItemButton
+                                                                ref={(el) => {
+                                                                    if (!subRefs.current[index]) subRefs.current[index] = [];
+                                                                    subRefs.current[index][subIndex] = el;
+                                                                }}
+                                                                tabIndex={-1}
+                                                                key={subEle.EntID + "_" + subIndex.toString()} sx={{ pl: 4 }}
+                                                                selected={(props.uniqueName === "Menu" ? props.selectedFeature && props.selectedFeature?._Feature && props.selectedFeature._Feature.toString() === subEle._Feature?.toString() ? true : false : subEle.isSelected) || activeMainIndex === index && activeSubIndex === subIndex}
+                                                                title={subEle.Tooltip}
+                                                                className='nz-nav-li-button nz-nav-sub-menu'
+                                                                onClick={(event) => handleSubListItemClick(event, subIndex, subEle)}>
+                                                                {!props.hideIcon && <ListItemIcon className='nz-nav-li-icon'>
+                                                                    <MenuImage uniqueName='menu-image' source={handleIconForMenu(subEle.Alias ? subEle.Alias : (subEle.Name || subEle.name || subEle.Label || ''))}
+                                                                        type='svg' w='var(--image-size-2)' />
+                                                                </ListItemIcon>}
+                                                                <MenuItemText primary={subEle.Label} className='nz-nav-sub-menu-text' />
+                                                            </ListItemButton>
+                                                        </div>
+                                                        {subEle.NodeType && subEle.NodeType?.toLowerCase().includes('separator') &&
+                                                            <hr className='nz-image-list-separator' />
+                                                        }
+                                                    </li>)
+
+                                            })}
+                                        </List>
+                                    </Collapse>
+                                    {element.separator && <hr className='nz-image-list-separator' />}
+                                </Fragment>)
+                        })
+                    }
+                </List>
+    ), [mainMenu, props, activeMainIndex, activeSubIndex, selectedMenuIndex,
+        handleListItemClick, handleSubListItemClick, handleDrag, handleEndDrag,
+        handleDragStart, handleIconForMenu]);
 
     return (
         <div
@@ -685,98 +793,7 @@ const ExpandableList = (props: IExpandableList) => {
 
                 }}
             >
-                <List className='nz-nav-ul-main'>
-                    {
-                        mainMenu && mainMenu.map((element: IMenuItem, index: number) => {
-                            return (
-                                <Fragment key={index}>
-                                    <li key={index}
-                                        className='nz-nav-link' id={element.isOpen ? `nz-nav-open` : "nz-nav-close"}>
-                                        {/* Menu Item */}
-                                        <ListItemButton
-                                            ref={(el) => {
-                                                mainRefs.current[index] = el;
-                                            }}
-                                            tabIndex={-1}
-                                            key={element.EntID + "_" + index.toString()}
-                                            selected={activeSubIndex === null && activeMainIndex === index}
-                                            className={`nz-nav-li-button nz-nav-li-menu  ${selectedMenuIndex === index ? ' nz-nav-li-button-selected' : ''}`}
-                                            title={element.Tooltip}
-                                            onClick={(event) => {
-                                                handleListItemClick(event, index, element)
-
-                                            }}>
-
-                                            {!props.hideIcon && <ListItemIcon className='nz-nav-li-icon'>
-                                                <div className="nz-feature-icon">
-                                                    <Image uniqueName='menu-image' source={
-                                                        handleIconForMenu(element.Alias ? element.Alias : (element.Name || element.name || element.Label || ''))}
-                                                        type='svg' w='var(--image-size-2)' />
-
-                                                </div>
-
-                                            </ListItemIcon>}
-                                            <ListItemText className={`nz-nav-menu-text ${props.hideIcon ? 'nz-only-show-label' : ""}`} primary={element.Label} style={{ opacity: 1 }} />
-                                            {element.subMenu && element.subMenu.length > 0 && (<>
-                                                <div
-                                                    className={`nz-nav-i-arrow ${element.isOpen ? '' : 'closed'}`}
-                                                >
-                                                    <Image uniqueName='up-down' source={<Up24x24 size={FnGetCssVariable('--image-size-2')}
-                                                        fill='none'
-                                                        strokeWidth={1} />}
-                                                        type='svg' w='var(--image-size-1)' />
-                                                </div>
-
-                                            </>)}
-                                        </ListItemButton>
-                                    </li>
-                                    <Collapse key={"Clps_" + index.toString()} in={Boolean(element.isOpen)} timeout={200} mountOnEnter>
-                                        {/*submenu Items*/}
-                                        <List component="div" key={"Cli_" + index.toString()} disablePadding>
-                                            {element.subMenu && element.subMenu.map((subEle: IMenuItem, subIndex: number) => {
-
-                                                return (
-                                                    <li key={subIndex}
-                                                        className='nz-nav-link'>
-                                                        <div className='nz-image-list-data'
-                                                            style={{ width: "100%", height: '100%' }}
-                                                            key={props.uniqueName + index}
-                                                            draggable={props.allowDND}
-                                                            onDrag={(e: React.DragEvent<HTMLDivElement>) => handleDrag(e, props, subEle)}
-                                                            onDragEnd={(e: React.DragEvent<HTMLDivElement>) => handleEndDrag(e, props, subEle)}
-                                                            onDragStart={handleDragStart}
-                                                        >
-                                                            <ListItemButton
-                                                                ref={(el) => {
-                                                                    if (!subRefs.current[index]) subRefs.current[index] = [];
-                                                                    subRefs.current[index][subIndex] = el;
-                                                                }}
-                                                                tabIndex={-1}
-                                                                key={subEle.EntID + "_" + subIndex.toString()} sx={{ pl: 4 }}
-                                                                selected={(props.uniqueName === "Menu" ? props.selectedFeature && props.selectedFeature?._Feature && props.selectedFeature._Feature.toString() === subEle._Feature?.toString() ? true : false : subEle.isSelected) || activeMainIndex === index && activeSubIndex === subIndex}
-                                                                title={subEle.Tooltip}
-                                                                className='nz-nav-li-button nz-nav-sub-menu'
-                                                                onClick={(event) => handleSubListItemClick(event, subIndex, subEle)}>
-                                                                {!props.hideIcon && <ListItemIcon className='nz-nav-li-icon'>
-                                                                    <Image uniqueName='menu-image' source={handleIconForMenu(subEle.Alias ? subEle.Alias : (subEle.Name || subEle.name || subEle.Label || ''))}
-                                                                        type='svg' w='var(--image-size-2)' />
-                                                                </ListItemIcon>}
-                                                                <ListItemText primary={subEle.Label} className='nz-nav-sub-menu-text' />
-                                                            </ListItemButton>
-                                                        </div>
-                                                        {subEle.NodeType && subEle.NodeType?.toLowerCase().includes('separator') &&
-                                                            <hr className='nz-image-list-separator' />
-                                                        }
-                                                    </li>)
-
-                                            })}
-                                        </List>
-                                    </Collapse>
-                                    {element.separator && <hr className='nz-image-list-separator' />}
-                                </Fragment>)
-                        })
-                    }
-                </List>
+                {menuList}
             </Box>
         </div>
     )

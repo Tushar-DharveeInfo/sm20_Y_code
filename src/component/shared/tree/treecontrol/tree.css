@@ -28,6 +28,7 @@ html {
     cursor: pointer;
     flex: 1 1 auto;
     overflow: hidden;
+    min-width: 0;
 }
 
 .rc-tree-iconEle {
@@ -87,6 +88,7 @@ html {
 .rc-tree .rc-tree-treenode .rc-tree-node-content-wrapper {
     display: flex !important;
     align-items: center !important;
+    min-width: 0;
 }
 
 .rc-tree-contextmenu {
@@ -123,9 +125,11 @@ html {
 }
 
 .rc-tree .rc-tree-treenode .rc-tree-node-content-wrapper {
-    width: 100%;
+    width: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    max-width: 100%;
     margin-left: 2px;
-    /* line-height: 12px; */
 }
 
 .rc-tree-treenode-switcher-open.ng-red-check.rc-tree-treenode-checkbox-indeterminate .rc-tree-checkbox.rc-tree-checkbox-indeterminate:after,
@@ -224,19 +228,23 @@ html {
 
 .rc-tree-list-holder-inner .rc-tree-title {
     /* padding-right: 8px; */
-    line-height: 25px;
+    /* line-height: 25px; */
 }
 
 .rc-tree-title {
-    width: calc(100% - 1px);
+    width: 100%;
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
 .rc-tree-title .nz-tree-node-title {
     width: 100%;
     overflow: hidden;
+    min-width: 0;
+    display: block;
 }
 
 .rc-tree-title .nz-tree-node-title .nz-tree-node-content {
@@ -244,13 +252,26 @@ html {
     overflow: hidden;
     display: flex;
     flex-direction: row;
+    align-items: center;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-right: 4px;
 }
 
 .rc-tree-title .nz-tree-node-title .nz-tree-node-content>span:first-child {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: inline-block;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+    min-width: 0 !important;
+}
+
+.rc-tree-title .nz-tree-node-title .nz-tree-node-content>span:first-child span,
+.rc-tree-title .nz-tree-node-title .nz-tree-node-content>span:first-child>span {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
 }
 
 .nz-tree-node-blocked,
@@ -268,8 +289,11 @@ html {
 }
 
 .rc-tree-title .nz-tree-node-title .nz-tree-node-content .nz-tree-node-icons-wrapper {
-    min-width: 50px;
+    min-width: 20px;
     width: auto;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
 }
 
 .rc-tree-title span {

@@ -1,3 +1,4 @@
+import { FnGetUniqueBusinessTypeOptions } from "../../allcommon/sidebar/FnBuildPropertyFormDataFromSelectedNode";
 import type { IMenuItem } from "../../allinterface/menu/IMainMenu";
 import type { IDataset } from "../../allinterface/sidebar/IPropertyFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
@@ -238,6 +239,7 @@ const buildEditTextPropertyFormFromRecord = (
         tableName?: string;
         tableLabel?: string;
         entityName?: string;
+        businessTypeOptions?: Array<{ label: string; value: string }>;
     }
 ): IPropertyFormPackage => {
     const entityName = options?.entityName || "Business";
@@ -263,12 +265,9 @@ const buildEditTextPropertyFormFromRecord = (
 
         if (lowerKey === "btype") {
             displayControl = DisplayControlEnums.ComboBoxControl;
-            options = [
-                { label: "Consultant", value: "consultant" },
-                { label: "End User", value: "enduser" },
-                { label: "Partner", value: "partner" },
-                { label: "Vendor", value: "vendor" },
-            ];
+            options = options?.businessTypeOptions && options.businessTypeOptions.length > 0
+                ? options.businessTypeOptions
+                : FnGetUniqueBusinessTypeOptions();
         } else if (lowerKey === "status") {
             displayControl = DisplayControlEnums.ComboBoxControl;
             options = [
@@ -411,7 +410,8 @@ const resolvePropertyRecordFromSelectedNode = (
  * Builds static EditTextControl property form package for the selected node.
  */
 const buildPropertyFormDataFromSelectedNode = (
-    node: ITreeNode
+    node: ITreeNode,
+    businessTypeOptions?: Array<{ label: string; value: string }>
 ): IPropertyFormPackage => {
     const entityName = String(node.NodeEntityname || node.NodeType || "Business");
     const record = resolvePropertyRecordFromSelectedNode(node);
@@ -419,6 +419,7 @@ const buildPropertyFormDataFromSelectedNode = (
         entityName,
         tableName: `_${entityName}`,
         tableLabel: entityName,
+        businessTypeOptions,
     });
 };
 

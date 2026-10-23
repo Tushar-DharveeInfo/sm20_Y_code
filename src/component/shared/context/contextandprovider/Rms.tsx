@@ -264,7 +264,7 @@ function RmsProvider({ children }: IAppContextWrapper) {
             await Promise.all([
                 loadEqid(refresh),
                 loadMfgEqType(refresh),
-                loadEQIDAllocated(refresh),
+                // loadEQIDAllocated(refresh),
             ]);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to load RMS datasets";

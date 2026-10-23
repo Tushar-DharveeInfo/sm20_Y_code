@@ -11,6 +11,7 @@ import {
 } from '../allcommon/searchfilter/FnFilterBusinessContactRecords.ts'
 import { FnMapToBusinessDocs } from '../allcommon/dataset/FnMapToBusinessDoc.ts'
 import { FnMapToContactDocs } from '../allcommon/dataset/FnMapToContactDoc.ts'
+import { loadAllContacts, mergeContactsIntoDataset } from '../allcommon/dataset/ContactsDataStore.ts'
 import type { IBusinessDoc, IContactDoc, ITicketDoc } from '@n20a/libfsdb'
 import { useSmDataContext } from '../context/hooks/SmDataHooks.ts'
 import {
@@ -633,35 +634,41 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
           const actualBid = String(targetBusinessNode.NodeEntID || targetBusinessNode.key || (targetBusinessNode as any).bid || targetBid);
           setExpandedBusinessId(actualBid);
 
-          // Fetch contacts for the target business via API/hook
-          let apiRecords = await fetchContactsFromApi(actualBid);
-          if (!apiRecords?.length && getContactsRef.current) {
-            try {
-              const hookRecs = await getContactsRef.current();
-              if (hookRecs?.length) apiRecords = hookRecs;
-            } catch { }
-          }
-          const apiContacts = FnMapToContactDocs(apiRecords, actualBid);
-          const combined = apiContacts;
-          const seenCids = new Set<string>();
-          const mappedContacts: IContactDoc[] = [];
-          for (const c of combined) {
-            const cid = String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase();
-            if (cid && !seenCids.has(cid)) {
-              seenCids.add(cid);
-              mappedContacts.push(c);
-            }
-          }
+          // Check if contacts for this business are already in memory, else fetch
+          const inMemoryForBid = (smDataContext.datasets.contacts ?? []).filter(
+            (c) => String(c.bid).trim().toLowerCase() === actualBid.toLowerCase()
+          );
 
-          smDataContext.setDatasets((prev) => ({
-            ...prev,
-            contacts: [
-              ...(prev.contacts ?? []).filter(
-                (c) => String(c.bid).trim().toLowerCase() !== actualBid.toLowerCase()
-              ),
-              ...mappedContacts,
-            ],
-          }));
+          let mappedContacts: IContactDoc[] = inMemoryForBid;
+          if (!mappedContacts.length) {
+            let apiRecords = await fetchContactsFromApi(actualBid);
+            if (!apiRecords?.length && getContactsRef.current) {
+              try {
+                const hookRecs = await getContactsRef.current();
+                if (hookRecs?.length) apiRecords = hookRecs;
+              } catch { }
+            }
+            const apiContacts = FnMapToContactDocs(apiRecords, actualBid);
+            const seenCids = new Set<string>();
+            mappedContacts = [];
+            for (const c of apiContacts) {
+              const cid = String(c.cid || (c as any).EntID || (c as any).id || '').trim().toLowerCase();
+              if (cid && !seenCids.has(cid)) {
+                seenCids.add(cid);
+                mappedContacts.push(c);
+              }
+            }
+
+            smDataContext.setDatasets((prev) => ({
+              ...prev,
+              contacts: [
+                ...(prev.contacts ?? []).filter(
+                  (c) => String(c.bid).trim().toLowerCase() !== actualBid.toLowerCase()
+                ),
+                ...mappedContacts,
+              ],
+            }));
+          }
 
           const filteredContactsForBid = isRmsEqid && rmsResult
             ? rmsResult.filterContactsForBid(mappedContacts, actualBid)
@@ -742,34 +749,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
         const isReviewDeleted = isReviewDeletedFeature(treeExplorerContainerProps.featureId);
 
         if (isReviewDeleted) {
-          const contactPromises = uniqueBusinesses.map(async (b) => {
-            const bid = String(b.bid || (b as any).EntID || (b as any).id || '').trim();
-            if (!bid) return [];
-            return fetchContactsFromApi(bid);
-          });
-          const allResults = await Promise.all(contactPromises);
-          const allFetchedContacts: IContactDoc[] = [];
-          allResults.forEach((records, idx) => {
-            const bid = String(uniqueBusinesses[idx].bid || (uniqueBusinesses[idx] as any).EntID || (uniqueBusinesses[idx] as any).id || '').trim();
-            const docs = FnMapToContactDocs(records, bid);
-            allFetchedContacts.push(...docs);
-          });
+          const fallbackBids = uniqueBusinesses.map((b) => String(b.bid || (b as any).EntID || (b as any).id || '').trim()).filter(Boolean);
+          const allFetchedContacts = await loadAllContacts(firestore, false, fallbackBids);
 
-          smDataContext.setDatasets((prev) => {
-            const existing = prev.contacts ?? [];
-            const merged = [...existing];
-            for (const doc of allFetchedContacts) {
-              const idx = merged.findIndex(
-                (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase()
-              );
-              if (idx >= 0) {
-                merged[idx] = { ...merged[idx], ...doc };
-              } else {
-                merged.push(doc);
-              }
-            }
-            return { ...prev, contacts: merged };
-          });
+          smDataContext.setDatasets((prev) => ({
+            ...prev,
+            contacts: mergeContactsIntoDataset(prev.contacts ?? [], allFetchedContacts),
+          }));
 
           const deletedBids = new Set(
             allFetchedContacts
@@ -1064,31 +1050,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
       let allKnownContacts = contactsSource ?? existingContacts;
       if (bidsMissingContacts.length > 0) {
         try {
-          const contactArrays = await Promise.all(
-            bidsMissingContacts.map(async (bid) => {
-              const recs = await fetchContactsFromApi(bid);
-              return FnMapToContactDocs(recs, bid);
-            })
-          );
-          const newlyFetched = contactArrays.flat();
+          const newlyFetched = await loadAllContacts(firestore, false, bidsMissingContacts);
           if (newlyFetched.length > 0) {
-            smDataContext.setDatasets((prev) => {
-              const existing = prev.contacts ?? [];
-              const merged = [...existing];
-              for (const doc of newlyFetched) {
-                const idx = merged.findIndex(
-                  (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase() &&
-                    String(c.bid).toLowerCase() === String(doc.bid).toLowerCase()
-                );
-                if (idx >= 0) {
-                  merged[idx] = { ...merged[idx], ...doc };
-                } else {
-                  merged.push(doc);
-                }
-              }
-              return { ...prev, contacts: merged };
-            });
-            allKnownContacts = [...allKnownContacts, ...newlyFetched];
+            smDataContext.setDatasets((prev) => ({
+              ...prev,
+              contacts: mergeContactsIntoDataset(prev.contacts ?? [], newlyFetched),
+            }));
+            allKnownContacts = mergeContactsIntoDataset(allKnownContacts, newlyFetched);
           }
         } catch (e) {
           console.warn('Error fetching missing contacts for RMS EQID:', e);
@@ -1345,34 +1313,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
               }
             }
 
-            const contactPromises = currentBusinesses.map(async (b) => {
-              const bid = String(b.bid || (b as any).EntID || (b as any).id || '').trim();
-              if (!bid) return [];
-              return fetchContactsFromApi(bid);
-            });
-            const allResults = await Promise.all(contactPromises);
-            const allFetchedContacts: IContactDoc[] = [];
-            allResults.forEach((records, idx) => {
-              const bid = String(currentBusinesses[idx].bid || (currentBusinesses[idx] as any).EntID || (currentBusinesses[idx] as any).id || '').trim();
-              const docs = FnMapToContactDocs(records, bid);
-              allFetchedContacts.push(...docs);
-            });
+            const fallbackBids = currentBusinesses.map((b) => String(b.bid || (b as any).EntID || (b as any).id || '').trim()).filter(Boolean);
+            const allFetchedContacts = await loadAllContacts(firestore, false, fallbackBids);
 
-            smDataContext.setDatasets((prev) => {
-              const existing = prev.contacts ?? [];
-              const merged = [...existing];
-              for (const doc of allFetchedContacts) {
-                const idx = merged.findIndex(
-                  (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase()
-                );
-                if (idx >= 0) {
-                  merged[idx] = { ...merged[idx], ...doc };
-                } else {
-                  merged.push(doc);
-                }
-              }
-              return { ...prev, contacts: merged };
-            });
+            smDataContext.setDatasets((prev) => ({
+              ...prev,
+              contacts: mergeContactsIntoDataset(prev.contacts ?? [], allFetchedContacts),
+            }));
 
             const deletedBids = new Set(
               allFetchedContacts
@@ -1475,36 +1422,19 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
             );
             const matchingBids = Array.from(rmsFilterResult.matchingBids);
 
-            // Fetch contacts for matching businesses
-            const contactPromises = matchingBids.map(async (bid) => {
-              const records = await fetchContactsFromApi(bid);
-              return FnMapToContactDocs(records, bid);
-            });
-            const fetchedContactArrays = await Promise.all(contactPromises);
-            const allFetchedContacts = fetchedContactArrays.flat();
+            // Fetch contacts via 1 single collection-group query across businesses (with fallback)
+            const allFetchedContacts = await loadAllContacts(firestore, false, matchingBids);
 
             // Merge contacts into smDataContext
-            smDataContext.setDatasets((prev) => {
-              const existing = prev.contacts ?? [];
-              const merged = [...existing];
-              for (const doc of allFetchedContacts) {
-                const idx = merged.findIndex(
-                  (c) => String(c.cid).toLowerCase() === String(doc.cid).toLowerCase() &&
-                    String(c.bid).toLowerCase() === String(doc.bid).toLowerCase()
-                );
-                if (idx >= 0) {
-                  merged[idx] = { ...merged[idx], ...doc };
-                } else {
-                  merged.push(doc);
-                }
-              }
-              return { ...prev, contacts: merged };
-            });
+            smDataContext.setDatasets((prev) => ({
+              ...prev,
+              contacts: mergeContactsIntoDataset(prev.contacts ?? [], allFetchedContacts),
+            }));
 
-            const combinedContacts = [
-              ...(smDataContext.datasets.contacts ?? []),
-              ...allFetchedContacts,
-            ];
+            const combinedContacts = mergeContactsIntoDataset(
+              smDataContext.datasets.contacts ?? [],
+              allFetchedContacts
+            );
 
             // 4. Build and apply BS tree
             await applyBusinessTreeFromFilter(
@@ -1999,13 +1929,13 @@ const TreeExplorerContainer = (treeExplorerContainerProps: ITreeExplorerContaine
                 allowCheckStrictly={false}
                 allowIcon={false}
                 allowInternalDrag={false}
-                allowAdd={treeExplorerContainerProps.allowAdd ?? false}
+                allowAdd={isRmsEqidFeature(treeExplorerContainerProps.featureId) ? false : (treeExplorerContainerProps.allowAdd ?? false)}
                 addLabel={treeExplorerContainerProps.addLabel}
                 addTooltip={treeExplorerContainerProps.addTooltip}
                 addActionCode={treeExplorerContainerProps.addActionCode}
                 disableAdd={treeExplorerContainerProps.disableAdd}
-                allowAddBusiness={treeExplorerContainerProps.allowAddBusiness}
-                allowAddContact={treeExplorerContainerProps.allowAddContact}
+                allowAddBusiness={isRmsEqidFeature(treeExplorerContainerProps.featureId) ? false : treeExplorerContainerProps.allowAddBusiness}
+                allowAddContact={isRmsEqidFeature(treeExplorerContainerProps.featureId) ? false : treeExplorerContainerProps.allowAddContact}
                 allowMultiple={false}
                 className="nz-dce-tree-for-flat-data"
                 allowAPICallOnExpand={true}

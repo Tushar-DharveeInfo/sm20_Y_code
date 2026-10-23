@@ -30,7 +30,8 @@ export type {
   ISupportHoursUsedDoc,
   ISubDoc,
   IVssDownloadDoc,
-  ITodoDoc,
+  IReminderDoc,
+  IReminderDoc as ITodoDoc,
   IProspectDoc,
   ICollectionDocMap,
 } from '@n20a/libfsdb';
@@ -45,7 +46,8 @@ export type {
 export {
   // Root collection hooks
   useBusinesses,
-  useTodos,
+  useReminders,
+  useReminders as useTodos,
   useProspects,
 
   // Business-scoped subcollection hooks

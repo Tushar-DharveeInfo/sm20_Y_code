@@ -14,8 +14,8 @@ import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
 import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks';
 import '../../../shared/sidebar/notes/FqaNotes.css';
 import './Reminder.css';
-import { useTodos, useFileDownload, useFileDelete } from '@n20a/libfsdb';
-import type { ITodoDoc } from '@n20a/libfsdb';
+import { useReminders, useFileDownload, useFileDelete, type IReminderDoc } from '@n20a/libfsdb';
+type ITodoDoc = IReminderDoc;
 import { useUploadRemoteFile } from '../../../shared/allcommon/UploadRemoteFileHooks';
 import { ClientEnums } from '../../../constants/Feature';
 import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
@@ -247,7 +247,7 @@ const Reminder = (todoProps: IToDo) => {
 		return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
 	}, [bucketName, baseFolder]);
 
-	const { loading, error, getTodos, todos, createTodo, updateTodo, deleteTodo } = useTodos();
+	const { loading, error, getReminders: getTodos, reminders: todos, createReminder: createTodo, updateReminder: updateTodo, deleteReminder: deleteTodo } = useReminders();
 	const { upload: uploadRemoteFile, uploading: remoteUploading, progress: uploadProgress, error: remoteUploadError } = useUploadRemoteFile();
 	const { downloadSingleFile, downloading } = useFileDownload();
 	const { deleteFiles, deleting } = useFileDelete();

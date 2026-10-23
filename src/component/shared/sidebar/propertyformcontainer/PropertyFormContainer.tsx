@@ -1,4 +1,5 @@
 
+import { FnGetUniqueBusinessTypeOptions } from '../../allcommon/sidebar/FnBuildPropertyFormDataFromSelectedNode'
 import { FormElementsRenderer, IFormData, IFormElements } from '@n20a/libform'
 import { AddressForm, IAddress } from '@n20a/libcountry'
 import '@n20a/libform/style.css'
@@ -289,8 +290,13 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
     const selectedNodeContext = useSelectedNodeContext();
     const sessionContext = useSessionContext();
     const smDataContext = useSmDataContext();
+
+    const availableBusinessTypes = useMemo(() => {
+        return FnGetUniqueBusinessTypeOptions(smDataContext.datasets?.businesses);
+    }, [smDataContext.datasets?.businesses]);
     const mainAppContext = useMainAppContext();
     const { NodeEntityname } = propertyFormContainerProps.selectedNode;
+
     const {
         selectedNode,
         selectedNodeMenu,
@@ -712,12 +718,27 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
             const isBusinessOrContact = entityType.includes("business") || entityType.includes("contact");
             const hasAddressControls = allAddressControls.length > 0 || isBusinessOrContact;
 
+            const applyBusinessTypeOptions = (cols: IPropertyColumn[]) =>
+                cols.map((col) => {
+                    if (col.PName?.toLowerCase() === "btype") {
+                        return {
+                            ...col,
+                            options: availableBusinessTypes,
+                        };
+                    }
+                    return col;
+                });
+
             // Remove address controls from normal controls so they render in AddressForm instead of textboxes
-            const columnsForForm = columns.filter(control =>
-                !addressFieldNames.has(control.PName?.toLowerCase() ?? "")
+            const columnsForForm = applyBusinessTypeOptions(
+                columns.filter(control =>
+                    !addressFieldNames.has(control.PName?.toLowerCase() ?? "")
+                )
             );
-            const pgControlsForForm = pgColumns.filter(control =>
-                !addressFieldNames.has(control.PName?.toLowerCase() ?? "")
+            const pgControlsForForm = applyBusinessTypeOptions(
+                pgColumns.filter(control =>
+                    !addressFieldNames.has(control.PName?.toLowerCase() ?? "")
+                )
             );
             const isOneToMany = pgTable?.isOneToManyRelation ? true : false;
             const nodeEntID = selectedNodeKey.mountedId ?? selectedNodeKey.entId;
@@ -886,7 +907,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
             requestIdRef.current++;
         };
     }, [entityTables, entityTablesEntityName, NodeEntityname, selectedNodeKey.entId, pgClassTable, pgTable, featureId, isEditAllowedForFeature,
-        propertyFormContainerProps.kebabMenuData]);
+        propertyFormContainerProps.kebabMenuData, availableBusinessTypes]);
 
     // Builds pg class data from updated property keys for a given table name.
     const buildPgClassDataFromKeys = (
@@ -1162,6 +1183,10 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                         selectedNode.IsAuthorized = Boolean(mergedRecord.verified);
                     }
                     if (mergedRecord.status) selectedNode.status = String(mergedRecord.status);
+                    if (mergedRecord.btype) {
+                        selectedNode.btype = String(mergedRecord.btype);
+                        selectedNode.Type = String(mergedRecord.btype);
+                    }
                 }
 
                 // 5. Update local kebabMenuData state
@@ -1252,6 +1277,10 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                         selectedNode.IsAuthorized = Boolean(mergedRecord.verified);
                     }
                     if (mergedRecord.status) selectedNode.status = String(mergedRecord.status);
+                    if (mergedRecord.btype) {
+                        selectedNode.btype = String(mergedRecord.btype);
+                        selectedNode.Type = String(mergedRecord.btype);
+                    }
                 }
 
                 // 5. Update local kebabMenuData state
@@ -1330,22 +1359,22 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
         }
     };
 
-    // Auto-saves property changes after 2 seconds of inactivity when the form is dirty.
-    useEffect(() => {
-        if (isDirty) {
-            if (autoSaveTimerRef.current) {
-                clearTimeout(autoSaveTimerRef.current);
-            }
-            autoSaveTimerRef.current = setTimeout(() => {
-                void saveEntityProperties();
-            }, 2000);
-        }
-        return () => {
-            if (autoSaveTimerRef.current) {
-                clearTimeout(autoSaveTimerRef.current);
-            }
-        };
-    }, [isDirty, updatedProperties, updatedAddress]);
+    // // Auto-saves property changes after 2 seconds of inactivity when the form is dirty.
+    // useEffect(() => {
+    //     if (isDirty) {
+    //         if (autoSaveTimerRef.current) {
+    //             clearTimeout(autoSaveTimerRef.current);
+    //         }
+    //         // autoSaveTimerRef.current = setTimeout(() => {
+    //         //     void saveEntityProperties();
+    //         // }, 2000);
+    //     }
+    //     return () => {
+    //         if (autoSaveTimerRef.current) {
+    //             clearTimeout(autoSaveTimerRef.current);
+    //         }
+    //     };
+    // }, [isDirty, updatedProperties, updatedAddress]);
 
     // Injects close handler into form elements for the renderer; onSave is omitted to use top header save button.
     const renderedFormElements = useMemo(() => {

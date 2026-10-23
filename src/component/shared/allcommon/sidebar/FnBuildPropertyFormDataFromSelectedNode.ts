@@ -1,8 +1,87 @@
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { FnIsRootBusinessNode } from "../tree/FnIsRootBusinessNode";
 import { DisplayControlEnums } from "../../alldefaultprops/basic/DefaultPropsFormContainer";
+import { IBusinessDoc } from '@n20a/libfsdb';
 
 type IDataset = Record<string, Record<string, unknown>[]>;
+
+export const DEFAULT_BUSINESS_TYPES: Array<{ label: string; value: string }> = [
+    { label: "MCS", value: "mcs" },
+    { label: "NetZoom", value: "netzoom" },
+    { label: "Reseller", value: "reseller" },
+    { label: "SSI", value: "ssi" },
+    { label: "VisioStencils", value: "visiostencils" },
+];
+
+/**
+ * Formats a raw business type string into a human-readable label.
+ */
+export function FnFormatBusinessTypeLabel(raw: string): string {
+    const clean = String(raw ?? "").trim();
+    const lower = clean.toLowerCase();
+    if (lower === "consultant") return "Consultant";
+    if (lower === "enduser" || lower === "end user") return "End User";
+    if (lower === "partner") return "Partner";
+    if (lower === "vendor") return "Vendor";
+    if (lower === "netzoom") return "NetZoom";
+    if (lower === "visiostencils") return "VisioStencils";
+    if (lower === "ssi") return "SSI";
+    if (lower === "reseller") return "Reseller";
+    if (lower === "mcs") return "MCS";
+    if (lower === "licensee") return "Licensee";
+    if (lower === "other") return "Other";
+    return clean
+        .replace(/_/g, " ")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Extracts unique business types from stored business dataset records in SmData,
+ * ensuring baseline types are always available,
+ * and filtering out "null", "undefined", "any", or invalid entries.
+ */
+export function FnGetUniqueBusinessTypeOptions(
+    businesses?: Array<IBusinessDoc | Record<string, unknown>>
+): Array<{ label: string; value: string }> {
+    const typeMap = new Map<string, { label: string; value: string }>();
+
+    // 1. Extract unique btype from stored businesses data if available
+    if (Array.isArray(businesses) && businesses.length > 0) {
+        for (const b of businesses) {
+            const raw = String(b.btype ?? (b as any).Type ?? "").trim();
+            if (!raw) continue;
+            const key = raw.toLowerCase();
+            // Filter out null, undefined, none, any, select, etc.
+            if (key === "null" || key === "undefined" || key === "none" || key === "any" || key === "select...") {
+                continue;
+            }
+            if (!typeMap.has(key)) {
+                const matched = DEFAULT_BUSINESS_TYPES.find(
+                    (d) => d.value.toLowerCase() === key || d.label.toLowerCase() === key
+                );
+                if (matched) {
+                    typeMap.set(key, matched);
+                } else {
+                    typeMap.set(key, {
+                        label: FnFormatBusinessTypeLabel(raw),
+                        value: raw,
+                    });
+                }
+            }
+        }
+    }
+
+    // 2. Ensure baseline options are always present
+    for (const def of DEFAULT_BUSINESS_TYPES) {
+        const key = def.value.toLowerCase();
+        if (!typeMap.has(key)) {
+            typeMap.set(key, def);
+        }
+    }
+
+    return Array.from(typeMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+}
 
 interface IPropertyFormPackage {
     entityTables: Record<string, unknown>[];
@@ -44,6 +123,7 @@ const buildEditTextPropertyFormFromRecord = (
         tableName?: string;
         tableLabel?: string;
         entityName?: string;
+        businessTypeOptions?: Array<{ label: string; value: string }>;
     }
 ): IPropertyFormPackage => {
     const entityName = options?.entityName || "Business";
@@ -69,12 +149,9 @@ const buildEditTextPropertyFormFromRecord = (
 
         if (lowerKey === "btype") {
             displayControl = DisplayControlEnums.ComboBoxControl;
-            options = [
-                { label: "Consultant", value: "consultant" },
-                { label: "End User", value: "enduser" },
-                { label: "Partner", value: "partner" },
-                { label: "Vendor", value: "vendor" },
-            ];
+            options = options?.businessTypeOptions && options.businessTypeOptions.length > 0
+                ? options.businessTypeOptions
+                : FnGetUniqueBusinessTypeOptions();
         } else if (lowerKey === "status") {
             displayControl = DisplayControlEnums.ComboBoxControl;
             options = [

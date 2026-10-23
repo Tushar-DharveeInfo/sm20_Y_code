@@ -143,7 +143,8 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
     SaveEQID?.(localRecord);
   };
 
-  const renderField = (def: IEqidFieldDef) => {
+  const renderField = (def: IEqidFieldDef, index: number) => {
+    const uniqueKey = `${def.section}_${def.Field}_${index}`;
     const field = def.Field;
     const value = (localRecord as unknown as Record<string, unknown>)[field];
     const controlType = def.Formcontrol.toLowerCase();
@@ -152,7 +153,7 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
       case 'edittext':
         return (
           <EditTextControl
-            key={field}
+            key={uniqueKey}
             id={field}
             name={field}
             label={field}
@@ -164,7 +165,7 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
       case 'text':
         return (
           <TextControl
-            key={field}
+            key={uniqueKey}
             id={field}
             name={field}
             label={field}
@@ -208,7 +209,7 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
 
         return (
           <ComboBoxControl
-            key={field}
+            key={uniqueKey}
             id={field}
             name={field}
             label={field}
@@ -223,7 +224,7 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
         const options = toOptions(getComboOptions(field));
         return (
           <CheckedListBoxControl
-            key={field}
+            key={uniqueKey}
             id={field}
             name={field}
             label={field}
@@ -237,7 +238,7 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
       case 'checkbox':
         return (
           <TrueFalseControl
-            key={field}
+            key={uniqueKey}
             id={field}
             name={field}
             label={field}
@@ -250,7 +251,7 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
         const { start, end, step } = parseInputMask(def[INPUTMASK_KEY]);
         return (
           <SpinControl
-            key={field}
+            key={uniqueKey}
             id={field}
             name={field}
             label={field}
@@ -266,7 +267,7 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
       case 'autodate':
         return (
           <DateControl
-            key={field}
+            key={uniqueKey}
             id={field}
             name={field}
             label={field}
@@ -278,7 +279,7 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
       default:
         return (
           <EditTextControl
-            key={field}
+            key={uniqueKey}
             id={field}
             name={field}
             label={field}
@@ -295,7 +296,10 @@ export function EQIDEditForm({ EQIDRecord, getAcronym, getMfg, getEQIDAllocated,
         <fieldset key={section} className={styles.section}>
           <legend className={styles.legend}>{section}</legend>
           <div className={styles.fields}>
-            {fieldDefs.filter((def) => def.section === section).map(renderField)}
+            {fieldDefs
+              .filter((def) => def.section === section)
+              .filter((def, idx, arr) => arr.findIndex((d) => d.Field === def.Field) === idx)
+              .map((def, index) => renderField(def, index))}
           </div>
         </fieldset>
       ))}
