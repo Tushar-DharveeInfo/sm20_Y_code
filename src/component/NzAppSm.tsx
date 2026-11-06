@@ -9,15 +9,14 @@ import { useMainAppContext } from './shared/context/hooks/MainAppHooks';
 import { AppContextWrapper } from './shared/context/AppContextWrapper';
 import { NodeHeight, SubMenuHeight } from './appcontainer/alldefaultprops/DefaultPropsAppContainer';
 import { GlobalStyles } from './features/appqa/theme/GlobalStyles';
-import { IDeploymentEnv } from './shared/allinterface/IApiResponse';
 import { AppContainer } from './appcontainer/AppContainer';
 import { FnSetSessionStorageItem } from './appcontainer/allcommon/FnSetSessionStorageItem';
-import type { IFeatureItem, IUserAuthSession } from './shared/context/allinterface/IMainApp';
 import { AuthSession, getFirebaseServices } from '@n20a/libauth';
 import { FirebaseStorageProvider, FirestoreProvider, IFirebaseStorageDeps } from '@n20a/libfsdb';
 import { IAxiosInterceptorDeps } from '@n20a/libaxios';
 import { useSmDataContext } from './shared/context/hooks/SmDataHooks';
 import { fnFilterPermittedFeatures } from './shared/allcommon/menu/FnFeatureNodeType';
+import { createAuthSession, loadFeatureRecords, loadRuntimeConfig, parseApStringArray, toDeploymentEnv } from './shared/allcommon/NzAppBootstrap';
 
 GridModuleRegistry.registerModules([GridAllCommunityModule]);
 interface INzAppSm {
@@ -27,43 +26,9 @@ interface INzAppSm {
     onError: (error: string) => void;
 }
 
-const fnFormatFeature = (record: Record<string, any>) => {
-
-    const toFeatureId = (value: string | number | undefined): string =>
-        value === undefined || value === null ? "" : String(value);
-    const toBool = (value: string | boolean | undefined, defaultValue = false): boolean => {
-        if (typeof value === "boolean") return value;
-        if (value === "1" || value === "true") return true;
-        if (value === "0" || value === "false") return false;
-        return defaultValue;
-    };
-    const featureId = toFeatureId(record._Feature ?? record.Feature);
-    const menuId = toFeatureId(record.MenuID ?? featureId);
-
-    return {
-        ...record,
-        EntityName: record.EntityName ?? "Feature",
-        MenuID: menuId,
-        _Feature: featureId,
-        Label: record.Label ?? "",
-        Tooltip: record.Tooltip ?? "",
-        SortOrder: record.SortOrder,
-        DefaultQA: toBool(record.DefaultQA),
-        Secured: toBool(record.Secured),
-        NodeType: record.NodeType ?? "",
-        FeatureTag: record.FeatureTag ?? "",
-        FilterForm: record.FilterForm ?? "",
-        SearchPrompt: record.SearchPrompt ?? null,
-        IsNZ: toBool(record.IsNZ, true),
-        // feature.json often omits EntID; empty EntID makes every menu group match as "selected" and open.
-        EntID: record.EntID ? String(record.EntID) : featureId,
-        RecID: record.RecID ? String(record.RecID) : featureId,
-        LastUpdated: record.LastUpdated ?? "",
-    };
-}
-
+// here we will load all other variables including making maincontext and session context ready
 function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INzAppSm) {
-    console.log('NzApp received user:', user);
+    // console.log('NzApp received user:', user);
 
     const [selectedTheme, setSelectedTheme] = useState<DefaultTheme>(themes.data.light);
     const [isSessionCreated, setIsSessionCreated] = useState(false);
@@ -71,9 +36,8 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
     const [tabLabel] = useState(() => new URLSearchParams(window.location.search).get("tablabel"));
 
     const sessionContext = useSessionContext();
-    const mainAppContext = useMainAppContext();
-    const smDataContext = useSmDataContext();
-
+    const mainAppContext = useMainAppContext();  //here we store main app related context like auth user, apm theme, deployment vars, etc.
+    const smDataContext = useSmDataContext();       //here we store sm data like businesses, menus, etc.
 
     // Set document.title from tablabel param so BroadcastChannel tab-counting works.
     useEffect(() => {
@@ -81,6 +45,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
             document.title = tabLabel;
         }
     }, [tabLabel]);
+
     useEffect(() => {
         smDataContext.loadBusinessesOnce();
     }, [smDataContext.loadBusinessesOnce]);
@@ -96,34 +61,8 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
     useEffect(() => {
         const loadDeploymentVars = async () => {
             try {
-                let configObj: Record<string, unknown> =
-                    (window as Window & { APP_CONFIG?: Record<string, unknown>; appSettings?: Record<string, unknown> }).APP_CONFIG
-                    ?? (window as Window & { appSettings?: Record<string, unknown> }).appSettings
-                    ?? {};
-
-                if (Object.keys(configObj).length === 0) {
-                    try {
-                        const resp = await fetch('/config.js');
-                        if (resp.ok) {
-                            const scriptContent = await resp.text();
-                            const fn = new Function('window', scriptContent);
-                            fn(window);
-                            configObj =
-                                (window as Window & { APP_CONFIG?: Record<string, unknown>; appSettings?: Record<string, unknown> }).APP_CONFIG
-                                ?? (window as Window & { appSettings?: Record<string, unknown> }).appSettings
-                                ?? {};
-                        }
-                    } catch (fetchErr) {
-                        console.warn("Failed to fetch /config.js:", fetchErr);
-                    }
-                }
-
-                const appConfig: IDeploymentEnv[] = Object.entries(configObj).map(
-                    ([key, value]) => ({
-                        key,
-                        value: String(value)
-                    })
-                );
+                const configObj = await loadRuntimeConfig();
+                const appConfig = toDeploymentEnv(configObj);
 
                 if (appConfig.length === 0) {
                     throw new Error("Environment configuration not found in config.js.");
@@ -146,119 +85,83 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
     }, []);
 
     useEffect(() => {
+        const root = document.documentElement;
+        root.style.setProperty("--node_height", NodeHeight);
+        root.style.setProperty("--submenu_height", SubMenuHeight);
+    }, []);
+
+    useEffect(() => {
         if (!isDeploymentVarsLoaded) return;
 
-        const isMountedRef = { current: true };
-
-        const initializeData = async () => {
+        const initializeData = async () => 
+        {
             if (!mainAppContext.deploymentVars.length) {
                 reportFatalError("Deployment variables are not loaded.");
                 return;
             }
-            if (!isMountedRef.current) return;
-
-            let featureRecords: IFeatureItem[] = [];
-            try {
-                let response = await fetch('/smFeatures.json');
-                if (!response.ok) {
-                    response = await fetch('/feature.json');
-                }
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch features json: ${response.status}`);
-                }
-                const rawFeatures = await response.json();
-                if (Array.isArray(rawFeatures)) {
-                    featureRecords = rawFeatures.map(fnFormatFeature) as IFeatureItem[];
-                } else {
-                    throw new Error("features json is not an array");
-                }
-            } catch (err) {
-                console.error("Error loading features json:", err);
-                reportFatalError("Failed to load features from smFeatures.json / feature.json");
+            if (!mainAppContext.ap?.length) {
                 return;
             }
 
-            if (!featureRecords.length) {
-                reportFatalError("Features table is empty");
+            try 
+            {
+                const featureRecords = await loadFeatureRecords();
+                if (!featureRecords.length) {
+                    reportFatalError("Features table is empty");
+                    return;
+                }
+
+                const availableAppsRaw = mainAppContext.getApValue("AvailableApps");
+                const availableApps = parseApStringArray(availableAppsRaw);  //it converts raw string to array of string
+
+                if (!availableApps.length) {
+                    reportFatalError("AvailableApps parameter is missing or invalid in AP configuration.");
+                    return;
+                }
+
+
+                const smRolesRaw = mainAppContext.getApValue("SmRoles");
+                const smRoles = parseApStringArray(smRolesRaw);  //it converts raw string to array of string
+
+                if (!smRoles.length) {
+                    reportFatalError("smRoles parameter is missing or invalid in AP configuration.");
+                    return;
+                }
+
+
+                const authSession = createAuthSession({
+                    user,
+                    deploymentVars: mainAppContext.deploymentVars,
+                    availableApps,
+                    smRoles: smRoles
+                });
+
+                mainAppContext.setAuthSession(authSession);
+                console.log("YADAV [NzAppSm] - Auth session initialized:", authSession);
+
+                const initialFilteredFeatures = fnFilterPermittedFeatures(featureRecords, authSession, {
+                    authSession,
+                });
+                mainAppContext.setFeatureRecords(initialFilteredFeatures);
+                sessionContext.setSessionList([]);
+                setIsSessionCreated(true);
+
+                try {
+                    onSuccess();
+                } catch (error) {
+                    console.error("Error in onSuccess callback:", error);
+                }
+            }
+            catch (err)
+            {
+                console.error("Error initializing app bootstrap data:", err);
+                reportFatalError("Failed to load features from smFeatures.json.");
                 return;
-            }
-
-            let bid = user.email?.split('@')[1]?.trim().toLowerCase().split('.')[0] ?? "";
-
-            let cid = user.email ?? user.id;
-            const bidCid = {
-                bid: "bid_108",
-                cid: "cid_bid_108_1"
-            };
-            bid = bidCid?.bid;
-            cid = bidCid?.cid;
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const queryBid = urlParams.get('bid')?.trim();
-            const queryCid = urlParams.get('cid')?.trim();
-            if (queryBid) {
-                bid = queryBid;
-            }
-            if (queryCid) {
-                cid = queryCid;
-            }
-            const role =
-                (user.claims as any)?.toolboxRole || "";
-
-            const permittedapps = ['saas', 'sm', 'service', "netzoom", "visiostencils"];
-
-            // const apps = user.customClaims?.permittedapps
-
-            const authSession: IUserAuthSession = {
-                id: user.id,
-                username: user.username,
-                email: user.email ?? null,
-                ImpersonatedUser: user.username,
-                ImpersonatedEmail: user.email ?? "",
-                displayName: user.displayName,
-                phoneNumber: user.phoneNumber ?? null,
-                authType: String(user.authType ?? ""),
-                tenantNickname: user.tenantNickname ?? null,
-                bucketName: mainAppContext.deploymentVars[0]?.BUCKET_NAME ?? mainAppContext.deploymentVars[0]?.FIREBASE_BUCKET ?? 'n20-bucket-01',
-                baseFolder: mainAppContext.deploymentVars[0]?.BASE_FOLDER ?? 'sm',
-                bid,
-                cid,
-                authrole: role,
-                role,
-                toolboxRole: (user.claims as any)?.toolboxRole ?? (user as any)?.toolboxRole ?? role,
-                permittedapps,
-                claims: user.claims ?? null,
-                isAuthenticated: true,
-                ProductName: (user as any)?.ProductName ?? (user as any)?.productName ?? "NetZoom",
-
-            };
-            mainAppContext.setAuthSession(authSession);
-
-            const initialFilteredFeatures = fnFilterPermittedFeatures(featureRecords, authSession, {
-                authSession,
-            });
-            mainAppContext.setFeatureRecords(initialFilteredFeatures);
-            sessionContext.setSessionList([]);
-            setIsSessionCreated(true);
-
-
-            try {
-                onSuccess();
-            } catch (error) {
-                console.error("Error in onSuccess callback:", error);
             }
         };
 
         void initializeData();
-
-        const root = document.documentElement;
-        root.style.setProperty("--node_height", NodeHeight);
-        root.style.setProperty("--submenu_height", SubMenuHeight);
-
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, [isDeploymentVarsLoaded, mainAppContext.deploymentVars]);
+    }, [isDeploymentVarsLoaded, mainAppContext.deploymentVars, mainAppContext.ap]);
 
     const handleThemeChange = useCallback((theme: unknown) => {
         if (typeof theme !== 'object' || theme === null || !('name' in theme)) {
@@ -287,17 +190,31 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
 
 function NzAppSm(props: INzAppSm) {
     const [firebaseToken, setFirebaseToken] = useState<string | null>(null);
+    const { onError } = props;
 
     useEffect(() => {
         const { auth } = getFirebaseServices();
         // onAuthStateChanged fires once auth state is restored from persistence
         const unsubscribe = auth.onAuthStateChanged(async (user) => {
-            const token = user ? await user.getIdToken() : null;
-            setFirebaseToken(token);
+            if (!user) {
+                setFirebaseToken(null);
+                return;
+            }
+            try {
+                const token = await user.getIdToken();
+                setFirebaseToken(token);
+            } catch (error) {
+                // Without this catch a rejection here (e.g. auth/tenant-id-mismatch)
+                // would leave firebaseToken stuck at null forever with no feedback.
+                console.error('Failed to obtain Firebase ID token:', error);
+                setFirebaseToken(null);
+                onError?.(error instanceof Error ? error.message : 'Failed to obtain Firebase ID token.');
+            }
         });
         return unsubscribe;
-    }, []);
+    }, [onError]);
 
+    //for .env and public/config.js configuration values
     const cfg = (window as Window & { APP_CONFIG?: Record<string, string> }).APP_CONFIG ?? {};
 
     const firestoreDeps = useMemo<IAxiosInterceptorDeps>(() => ({
@@ -314,7 +231,7 @@ function NzAppSm(props: INzAppSm) {
     }), []);
 
     if (!firebaseToken) {
-        console.log('No Firebase token available');
+        // Briefly null while the Firebase ID token resolves asynchronously after sign-in; not an error.
         return null;
     }
     return (

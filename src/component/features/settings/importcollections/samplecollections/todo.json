@@ -1,0 +1,208 @@
+[
+  {
+    "bid": "bid_1001",
+    "cid": "cid_5001",
+    "btype": "visiostencils",
+    "status": "pending",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #1 for alignment.",
+    "duedate": "2026-10-04T16:26:30.119Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1002",
+    "cid": "cid_5002",
+    "btype": "mcs",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #2 for alignment.",
+    "duedate": "2026-10-18T16:26:30.119Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1003",
+    "cid": "cid_5003",
+    "btype": "netzoom",
+    "status": "deleted",
+    "eqid": "DELL003",
+    "whattodo": "Review follow-up checklist item #3 for alignment.",
+    "duedate": "2026-10-15T16:26:30.119Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_3.pdf"
+  },
+  {
+    "bid": "bid_1004",
+    "cid": "cid_5004",
+    "btype": "netzoom",
+    "status": "closed",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #4 for alignment.",
+    "duedate": "2026-10-11T16:26:30.119Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1005",
+    "cid": "cid_5005",
+    "btype": "reseller",
+    "status": "closed",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #5 for alignment.",
+    "duedate": "2026-10-30T16:26:30.119Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1006",
+    "cid": "cid_5006",
+    "btype": "visiostencils",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #6 for alignment.",
+    "duedate": "2026-10-15T16:26:30.119Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_6.pdf"
+  },
+  {
+    "bid": "bid_1007",
+    "cid": "cid_5007",
+    "btype": "mcs",
+    "status": "closed",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #7 for alignment.",
+    "duedate": "2026-10-22T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1008",
+    "cid": "cid_5008",
+    "btype": "ssi",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #8 for alignment.",
+    "duedate": "2026-10-10T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1009",
+    "cid": "cid_5009",
+    "btype": "reseller",
+    "status": "closed",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #9 for alignment.",
+    "duedate": "2026-10-20T16:26:30.120Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_9.pdf"
+  },
+  {
+    "bid": "bid_1010",
+    "cid": "cid_5010",
+    "btype": "reseller",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #10 for alignment.",
+    "duedate": "2026-10-26T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1011",
+    "cid": "cid_5011",
+    "btype": "ssi",
+    "status": "closed",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #11 for alignment.",
+    "duedate": "2026-10-29T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1012",
+    "cid": "cid_5012",
+    "btype": "ssi",
+    "status": "closed",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #12 for alignment.",
+    "duedate": "2026-10-06T16:26:30.120Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_12.pdf"
+  },
+  {
+    "bid": "bid_1013",
+    "cid": "cid_5013",
+    "btype": "visiostencils",
+    "status": "pending",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #13 for alignment.",
+    "duedate": "2026-10-06T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1014",
+    "cid": "cid_5014",
+    "btype": "netzoom",
+    "status": "closed",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #14 for alignment.",
+    "duedate": "2026-10-29T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1015",
+    "cid": "cid_5015",
+    "btype": "mcs",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #15 for alignment.",
+    "duedate": "2026-11-02T16:26:30.120Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_15.pdf"
+  },
+  {
+    "bid": "bid_1016",
+    "cid": "cid_5016",
+    "btype": "reseller",
+    "status": "closed",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #16 for alignment.",
+    "duedate": "2026-11-02T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1017",
+    "cid": "cid_5017",
+    "btype": "visiostencils",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #17 for alignment.",
+    "duedate": "2026-10-06T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1018",
+    "cid": "cid_5018",
+    "btype": "ssi",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #18 for alignment.",
+    "duedate": "2026-10-04T16:26:30.120Z",
+    "addedby": "system_mock_gen",
+    "filename": "checklist_attachment_18.pdf"
+  },
+  {
+    "bid": "bid_1019",
+    "cid": "cid_5019",
+    "btype": "reseller",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #19 for alignment.",
+    "duedate": "2026-10-15T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  },
+  {
+    "bid": "bid_1020",
+    "cid": "cid_5020",
+    "btype": "netzoom",
+    "status": "deleted",
+    "eqid": "",
+    "whattodo": "Review follow-up checklist item #20 for alignment.",
+    "duedate": "2026-10-17T16:26:30.120Z",
+    "addedby": "system_mock_gen"
+  }
+]

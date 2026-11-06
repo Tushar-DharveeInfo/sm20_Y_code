@@ -1,6 +1,7 @@
 
 import ErrorBoundary from '../../shared/errorboundary/ErrorBoundary.tsx'
 import { RenderPdfWithoutToc } from '../../shared/help/RenderPdfWithoutToc.tsx';
+import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks';
 
 interface IAboutProps {
   onZoomIn?: (scale?: number) => void;
@@ -11,13 +12,18 @@ interface IAboutProps {
 }
 
 const About = (props: IAboutProps = {}) => {
+
+  const mainAppContext = useMainAppContext();
+  const authSession = mainAppContext?.authSession;
+  const bucketName = authSession?.bucketName ?? "n20-bucket-01";
+  
   return (
     <div className="nz-wh-100 nz-d-flex-column">
       <ErrorBoundary>
         <RenderPdfWithoutToc
           uniqueName="about-netzoom"
           headerText="[About] About NetZoom"
-          bucketName="n20-bucket-01"
+          bucketName={bucketName}
           baseFolder="sm"
           fileName="/help/about-netzoom.pdf"
           downloadFileName="about-netzoom.pdf"

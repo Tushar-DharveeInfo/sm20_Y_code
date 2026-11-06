@@ -80,7 +80,7 @@ const RequestDeviceModels = (props: IRequestShape) => {
         return tip?.tip ?? DEFAULT_HELP_TIP;
     }, [props.helpTipText, helpTipsContext.helpTipRecords, featureId]);
     const closeImage: IImage = {
-        uniqueName: 'todo-close-icon',
+        uniqueName: 'reminder-close-icon',
         source: (
             <Delete24x24
                 size={FnGetCssVariable('--image-size-2')}

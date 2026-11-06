@@ -227,12 +227,14 @@ const buildChartConfig = (chartProfile: TChartProfileRow): TChartRecord => {
 };
 
 function DashboardChart(ChartsProps: IDashboardChart) {
+
     const {
         chartApiJson,
         chartProfileJson,
         getChartApi,
         getChartProfile,
     } = useResourceContext();
+    
     const [visibleCharts, setVisibleCharts] = useState<JSX.Element[]>([]);
     const [chartRecords, setChartRecords] = useState<TChartRecord[]>();
     const [numberOfColumnsChart] = useState<number>(ChartsProps.displayPerRow ?? 2);

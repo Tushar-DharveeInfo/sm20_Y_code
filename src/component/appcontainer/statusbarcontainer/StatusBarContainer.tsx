@@ -19,7 +19,7 @@ import { FnParseJsonSafely } from '../allcommon/FnParseJsonSafely';
 import { FnGetLoggedInStatusMessage } from '../allcommon/FnGetLoggedInStatusMessage';
 import { IUserAuthSession } from '../../shared/context/allinterface/IMainApp';
 import { IStatusBarContainer } from '../componentswrappercontainer/ComponentsWrapperContainer';
-import { FALLBACK_USERS } from '../../features/appqa/impersonateuser/ImpersonateUser';
+import { FALLBACK_USERS } from '../../features/appqa/impersonate/impersonateuser/ImpersonateUser';
 
 // Builds markdown content for error and log sections in status bar cards.
 const generateErrorMarkdown = (errors: IErrorData[]): string => {

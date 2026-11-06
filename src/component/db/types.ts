@@ -31,23 +31,25 @@ export type {
   ISubDoc,
   IVssDownloadDoc,
   IReminderDoc,
-  IReminderDoc as ITodoDoc,
   IProspectDoc,
   ICollectionDocMap,
 } from '@n20a/libfsdb';
 
 export type {
+  IMfg,
   IMfgDoc,
+  IEQIDAllocated,
   IEqidAllocatedDoc,
+  IMfgVsProdline,
   IMfgVsProdlineDoc,
+  IMfgVsMfgEqtype,
   IMfgVsMfgEqtypeDoc,
-} from '@n20a/libfsdb';
+} from "@n20a/libfsdb";
 
 export {
   // Root collection hooks
   useBusinesses,
   useReminders,
-  useReminders as useTodos,
   useProspects,
 
   // Business-scoped subcollection hooks
@@ -65,7 +67,7 @@ export {
   useSubDownloads,
 } from '@n20a/libfsdb';
 
-export { useImportCollections } from '@n20a/libfsdb';
+export { useImportCollections} from '@n20a/libfsdb';
 
 export {
   // Generic state management hooks

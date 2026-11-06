@@ -151,7 +151,7 @@ const MyProfile = (myProfileProps: IMyProfile) => {
 
         try {
             statusBarContext?.setIsLoading?.(true);
-            statusBarContext?.setLoadingLabel?.('Saving profile address...');
+            statusBarContext?.setLoadingLabel?.('Saving profile...');
 
             let result: any = null;
             if (contacts && (Array.isArray(contacts) ? contacts.length > 0 : Object.keys(contacts).length > 0)) {
@@ -176,25 +176,25 @@ const MyProfile = (myProfileProps: IMyProfile) => {
 
             if (result && result.success !== false) {
                 try {
-                    await mainAppContext.createActivityLog?.(`${cid} of ${bid} updated profile address successfully.`);
+                    await mainAppContext.createActivityLog?.(`${cid} of ${bid} updated profile successfully.`);
                 } catch (logErr) {
                     console.error("MyProfile: createActivityLog failed", logErr);
                 }
-                setPopupMessage("Profile address saved successfully.");
+                setPopupMessage("Profile saved successfully.");
                 setPopupOpen(true);
                 setIsFormChanged(false);
                 FnHideShowSaveIconForForm('hide');
                 await getContact(cid);
             } else {
                 console.error("MyProfile: updateContact failed", result?.error);
-                const errMsg = `Failed to save address: ${result?.error || 'Unknown error'}`;
+                const errMsg = `Failed to save profile: ${result?.error || 'Unknown error'}`;
                 setPopupMessage(errMsg);
                 setPopupOpen(true);
                 myProfileProps.handleShowUserMessage?.(errMsg);
             }
         } catch (err: any) {
             console.error("MyProfile: saveProfile exception", err);
-            const errMsg = `Failed to save address: ${err?.message || 'Unknown error'}`;
+            const errMsg = `Failed to save profile: ${err?.message || 'Unknown error'}`;
             setPopupMessage(errMsg);
             setPopupOpen(true);
             myProfileProps.handleShowUserMessage?.(errMsg);

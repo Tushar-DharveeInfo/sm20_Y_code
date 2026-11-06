@@ -15,8 +15,8 @@ import { YesNoFormContainer } from '../../basic/yesnoformcontainer/YesNoFormCont
 import { useMainAppContext } from '../../context/hooks/MainAppHooks';
 import { useStatusBarContext } from '../../context/hooks/StatusBarHooks';
 import { useSmDataContext } from '../../context/hooks/SmDataHooks';
-import { useReminders, useFileDownload, useFileDelete, type IReminderDoc } from '@n20a/libfsdb';
-type ITodoDoc = IReminderDoc;
+import { useReminders, useFileDownload, useFileDelete } from '@n20a/libfsdb';
+import type { IReminderDoc } from '@n20a/libfsdb';
 import { useUploadRemoteFile } from '../../allcommon/UploadRemoteFileHooks';
 import { ITreeNode } from '../../allinterface/tree/ITreeControl';
 import { ClientEnums } from '../../../constants/Feature';
@@ -30,7 +30,7 @@ interface IAddReminder {
 	selectedNode?: ITreeNode;
 }
 
-interface ITodoItem extends ITodoDoc {
+interface IReminderItem extends IReminderDoc {
 	id?: string;
 	bid: string;
 	cid: string;
@@ -213,14 +213,14 @@ function parseTodoDate(item: Record<string, any>): number {
 		const parsed = Date.parse(String(raw));
 		if (!isNaN(parsed)) return parsed;
 	}
-	const id = String(item.id || item.todoid || '');
+	const id = String(item.id || item.reminderid || '');
 	const match = id.match(/(\d{10,})/);
 	if (match) return Number(match[1]);
 	return 0;
 }
 
-function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBid?: string, defaultCid?: string): ITodoItem {
-	const docId = String(record.id || record.todoid || record.docId || `todo_${index}`);
+function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBid?: string, defaultCid?: string): IReminderItem {
+	const docId = String(record.id || record.reminderid || record.docId || `reminder_${index}`);
 	const rawFileName = record.filename ? String(record.filename).trim() : undefined;
 	const bid = String(record.bid ?? defaultBid ?? '').trim();
 	const cid = String(record.cid ?? defaultCid ?? '').trim();
@@ -240,7 +240,7 @@ function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBi
 }
 
 function getTargetFeatureForBid(
-	item: ITodoItem,
+	item: IReminderItem,
 	businesses?: Array<{ bid?: string; btype?: string; tag?: string; bname?: string }>
 ): string {
 	const textToCheck = `${item.btype || ''} ${item.whattodo || ''} ${item.filename || ''}`.toLowerCase();
@@ -299,14 +299,14 @@ const AddReminder = (props: IAddReminder) => {
 		return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
 	}, [bucketName, baseFolder]);
 
-	const { loading, error, getReminders: getTodos, reminders: todos, createReminder: createTodo, updateReminder: updateTodo, deleteReminder: deleteTodo } = useReminders();
+	const { loading, error, reminders, getReminders, createReminder, updateReminder, deleteReminder } = useReminders();
 	const { upload: uploadRemoteFile, uploading: remoteUploading } = useUploadRemoteFile();
 	const { downloadSingleFile, downloading } = useFileDownload();
 	const { deleteFiles, deleting } = useFileDelete();
 
-	const [todoItems, setTodoItems] = useState<ITodoItem[]>([]);
-	const [selectedItem, setSelectedItem] = useState<ITodoItem | null>(null);
-	const [deleteItem, setDeleteItem] = useState<ITodoItem | null>(null);
+	const [reminderItems, setReminderItems] = useState<IReminderItem[]>([]);
+	const [selectedItem, setSelectedItem] = useState<IReminderItem | null>(null);
+	const [deleteItem, setDeleteItem] = useState<IReminderItem | null>(null);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [notesKey, setNotesKey] = useState(0);
 	const [fileUploading, setFileUploading] = useState(false);
@@ -316,7 +316,7 @@ const AddReminder = (props: IAddReminder) => {
 	const [noteDetailsState, setNoteDetailsState] = useState<INote | undefined>({
 		maxAudioRecordingTime: 0,
 		maxVideoRecordingTime: 0,
-		noteId: 'add-todo-note',
+		noteId: 'add-reminder-note',
 		noteTitle: '',
 		notecontent: '',
 		notefile: undefined,
@@ -329,13 +329,13 @@ const AddReminder = (props: IAddReminder) => {
 	});
 
 	useEffect(() => {
-		void getTodos();
-	}, [getTodos]);
+		void getReminders();
+	}, [getReminders]);
 
-	// Filter and sort todos for selected bid / cid
+	// Filter and sort reminders for selected bid / cid
 	useEffect(() => {
-		if (Array.isArray(todos)) {
-			const mapped = todos.map((item, index) => mapToTodoItem(item, index, userBid, userCid));
+		if (Array.isArray(reminders)) {
+			const mapped = reminders.map((item, index) => mapToTodoItem(item, index, userBid, userCid));
 			// Filter by selected bid / cid if available
 			const filtered = mapped.filter((item) => {
 				if (selectedBid && selectedCid) {
@@ -347,18 +347,18 @@ const AddReminder = (props: IAddReminder) => {
 				return true;
 			});
 			const sorted = [...filtered].sort((a, b) => parseTodoDate(a) - parseTodoDate(b));
-			setTodoItems(sorted);
-		} else if (todos === null) {
-			setTodoItems([]);
+			setReminderItems(sorted);
+		} else if (reminders === null) {
+			setReminderItems([]);
 		}
-	}, [todos, selectedBid, selectedCid, userBid, userCid]);
+	}, [reminders, selectedBid, selectedCid, userBid, userCid]);
 
 	// Auto-scroll to bottom of list when items update
 	useEffect(() => {
 		if (scrollRef.current) {
 			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
 		}
-	}, [todoItems]);
+	}, [reminderItems]);
 
 	// Sync loading state with status bar
 	useEffect(() => {
@@ -372,7 +372,7 @@ const AddReminder = (props: IAddReminder) => {
 		}
 	}, [error, statusBarContext]);
 
-	const handleDownloadFile = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+	const handleDownloadFile = useCallback(async (item: IReminderItem, event?: React.MouseEvent) => {
 		event?.stopPropagation?.();
 		const rawFileName = String(item.filename || '').trim();
 		if (!rawFileName || rawFileName.startsWith('sample-file-')) {
@@ -387,7 +387,7 @@ const AddReminder = (props: IAddReminder) => {
 		try {
 			const res = await downloadSingleFile(storagePath);
 			if (!res?.success) {
-				console.error('AddToDo: downloadSingleFile failed', res?.error, res?.message);
+				console.error('AddReminder: downloadSingleFile failed', res?.error, res?.message);
 				return;
 			}
 			const downloadUrl = res?.blobUrl;
@@ -399,10 +399,10 @@ const AddReminder = (props: IAddReminder) => {
 				link.click();
 				document.body.removeChild(link);
 			} else {
-				console.error('AddToDo: no downloadUrl returned', res);
+				console.error('AddReminder: no downloadUrl returned', res);
 			}
 		} catch (err) {
-			console.error('AddToDo: handleDownloadFile error', err);
+			console.error('AddReminder: handleDownloadFile error', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
@@ -416,7 +416,7 @@ const AddReminder = (props: IAddReminder) => {
 		setNoteDetailsState({
 			maxAudioRecordingTime: 0,
 			maxVideoRecordingTime: 0,
-			noteId: 'add-todo-note',
+			noteId: 'add-reminder-note',
 			noteTitle: '',
 			notecontent: '',
 			notefile: undefined,
@@ -430,7 +430,7 @@ const AddReminder = (props: IAddReminder) => {
 		setNotesKey((prev) => prev + 1);
 	}, []);
 
-	const handleSelectTodo = useCallback(async (item: ITodoItem) => {
+	const handleSelectTodo = useCallback(async (item: IReminderItem) => {
 		if (selectedItem === item) {
 			resetEditor();
 			return;
@@ -452,7 +452,7 @@ const AddReminder = (props: IAddReminder) => {
 			setNoteDetailsState({
 				maxAudioRecordingTime: 0,
 				maxVideoRecordingTime: 0,
-				noteId: item.id || 'add-todo-note',
+				noteId: item.id || 'add-reminder-note',
 				noteTitle: item.status ?? '',
 				notecontent: textContent,
 				notefile: undefined,
@@ -471,7 +471,7 @@ const AddReminder = (props: IAddReminder) => {
 		setNoteDetailsState({
 			maxAudioRecordingTime: 0,
 			maxVideoRecordingTime: 0,
-			noteId: item.id || 'add-todo-note',
+			noteId: item.id || 'add-reminder-note',
 			noteTitle: item.status ?? '',
 			notecontent: textContent,
 			notefile: undefined,
@@ -490,7 +490,7 @@ const AddReminder = (props: IAddReminder) => {
 		try {
 			const res = await downloadSingleFile(storagePath);
 			if (!res?.success) {
-				console.error('AddToDo: downloadSingleFile failed', res?.error, res?.message);
+				console.error('AddReminder: downloadSingleFile failed', res?.error, res?.message);
 				return;
 			}
 			const downloadUrl = res?.blobUrl;
@@ -501,7 +501,7 @@ const AddReminder = (props: IAddReminder) => {
 				setNoteDetailsState({
 					maxAudioRecordingTime: 0,
 					maxVideoRecordingTime: 0,
-					noteId: item.id || 'add-todo-note',
+					noteId: item.id || 'add-reminder-note',
 					noteTitle: item.status ?? '',
 					notecontent: textContent,
 					notefile: fileBlob,
@@ -515,14 +515,14 @@ const AddReminder = (props: IAddReminder) => {
 				setNotesKey((prev) => prev + 1);
 			}
 		} catch (err) {
-			console.error('AddToDo: error downloading file for edit', err);
+			console.error('AddReminder: error downloading file for edit', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
 	}, [selectedItem, resetEditor, downloadSingleFile, getStoragePath, statusBarContext]);
 
-	const handleCardClick = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+	const handleCardClick = useCallback(async (item: IReminderItem, event?: React.MouseEvent) => {
 		void handleSelectTodo(item);
 
 		const bid = String(item.bid || '').trim();
@@ -618,10 +618,10 @@ const AddReminder = (props: IAddReminder) => {
 						fileName: `smfiles/tickets/${uploadedFileName}`,
 					});
 					if (!uploadResult?.success) {
-						console.error('AddToDo: uploadRemoteFile failed', uploadResult?.error, uploadResult?.message);
+						console.error('AddReminder: uploadRemoteFile failed', uploadResult?.error, uploadResult?.message);
 					}
 				} catch (err) {
-					console.error('AddToDo: uploadRemoteFile error', err);
+					console.error('AddReminder: uploadRemoteFile error', err);
 				} finally {
 					setFileUploading(false);
 					statusBarContext?.setIsLoading?.(false);
@@ -631,7 +631,7 @@ const AddReminder = (props: IAddReminder) => {
 		}
 
 		if (selectedItem) {
-			const todoId = selectedItem.id;
+			const reminderId = selectedItem.id;
 			const finalFileName = uploadedFileName || '';
 			const previousFileName = String(selectedItem.filename || '').trim();
 
@@ -642,7 +642,7 @@ const AddReminder = (props: IAddReminder) => {
 					const oldStoragePath = getStoragePath(previousFileName);
 					await deleteFiles([oldStoragePath]);
 				} catch (err) {
-					console.warn('AddToDo: error deleting previous attachment', err);
+					console.warn('AddReminder: error deleting previous attachment', err);
 				} finally {
 					statusBarContext?.setIsLoading?.(false);
 					statusBarContext?.setLoadingLabel?.('');
@@ -660,9 +660,9 @@ const AddReminder = (props: IAddReminder) => {
 				filename: finalFileName,
 			};
 
-			setTodoItems((prev) =>
+			setReminderItems((prev) =>
 				prev.map((item) =>
-					item === selectedItem || (todoId && item.id === todoId)
+					item === selectedItem || (reminderId && item.id === reminderId)
 						? {
 							...item,
 							whattodo: content,
@@ -676,28 +676,28 @@ const AddReminder = (props: IAddReminder) => {
 			resetEditor();
 
 			try {
-				if (todoId) {
-					const result = await updateTodo(todoId, updatedDoc);
+				if (reminderId) {
+					const result = await updateReminder(reminderId, updatedDoc);
 					if (result && result.success !== false) {
 						try {
-							await createActivityLogRef.current?.(`${effectiveCid || noteby} of ${effectiveBid} updated todo ${todoId} successfully.`);
+							await createActivityLogRef.current?.(`${effectiveCid || noteby} of ${effectiveBid} updated reminder ${reminderId} successfully.`);
 						} catch (logErr) {
-							console.error('AddToDo: createActivityLog failed', logErr);
+							console.error('AddReminder: createActivityLog failed', logErr);
 						}
 					} else {
-						console.error('AddToDo: updateTodo failed', result?.error);
+						console.error('AddReminder: updateReminder failed', result?.error);
 					}
 				}
-				await getTodos();
+				await getReminders();
 			} catch (err) {
-				console.error('Error updating todo:', err);
+				console.error('Error updating reminder:', err);
 			}
 			return;
 		}
 
 		// CREATE MODE
 		const finalFilename = uploadedFileName || '';
-		const newDocId = `todo_${effectiveCid || effectiveBid}_${Date.now()}`;
+		const newDocId = `reminder_${effectiveCid || effectiveBid}_${Date.now()}`;
 		const newTodoDoc: Record<string, unknown> = {
 			bid: effectiveBid,
 			cid: effectiveCid,
@@ -709,7 +709,7 @@ const AddReminder = (props: IAddReminder) => {
 			filename: finalFilename,
 		};
 
-		const optimisticRow: ITodoItem = {
+		const optimisticRow: IReminderItem = {
 			id: newDocId,
 			bid: effectiveBid,
 			cid: effectiveCid,
@@ -723,29 +723,29 @@ const AddReminder = (props: IAddReminder) => {
 			eqid: ''
 		};
 
-		setTodoItems((prev) => [...prev, optimisticRow]);
+		setReminderItems((prev) => [...prev, optimisticRow]);
 		resetEditor();
 
 		try {
-			const result = await createTodo(newTodoDoc);
+			const result = await createReminder(newTodoDoc);
 			if (result && result.success !== false) {
 				const createdId = result.id || newDocId;
 				try {
 					await createActivityLogRef.current?.(`${effectiveCid || noteby} of ${effectiveBid} created reminder ${createdId} successfully.`);
 				} catch (logErr) {
-					console.error('AddToDo: createActivityLog failed', logErr);
+					console.error('AddReminder: createActivityLog failed', logErr);
 				}
 			} else {
-				console.error('AddToDo: createTodo failed', result?.error);
+				console.error('AddReminder: createReminder failed', result?.error);
 			}
-			await getTodos();
+			await getReminders();
 		} catch (err) {
-			console.error('Error creating todo:', err);
+			console.error('Error creating reminder:', err);
 		}
-	}, [dueDate, selectedBid, userBid, selectedCid, userCid, userInfo, authSession, selectedItem, resetEditor, noteby, getStoragePath, deleteFiles, updateTodo, getTodos, createTodo, uploadRemoteFile, bucketName, baseFolder, statusBarContext]);
+	}, [dueDate, selectedBid, userBid, selectedCid, userCid, userInfo, authSession, selectedItem, resetEditor, noteby, getStoragePath, deleteFiles, updateReminder, getReminders, createReminder, uploadRemoteFile, bucketName, baseFolder, statusBarContext]);
 
 	const deleteImage: IImage = {
-		uniqueName: 'add-todo-delete-icon',
+		uniqueName: 'add-reminder-delete-icon',
 		source: (
 			<Delete24x24
 				size={FnGetCssVariable('--image-size-2')}
@@ -758,7 +758,7 @@ const AddReminder = (props: IAddReminder) => {
 		tooltip: 'Click to Delete',
 	};
 
-	const handleDelete = (item: ITodoItem) => {
+	const handleDelete = (item: IReminderItem) => {
 		setDeleteItem(item);
 		setDeleteOpen(true);
 	};
@@ -771,7 +771,7 @@ const AddReminder = (props: IAddReminder) => {
 
 			const rawFileName = String(deleteItem.filename || '').trim();
 			statusBarContext?.setIsLoading?.(true);
-			statusBarContext?.setLoadingLabel?.('Deleting todo...');
+			statusBarContext?.setLoadingLabel?.('Deleting reminder...');
 			try {
 				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
 					try {
@@ -779,29 +779,29 @@ const AddReminder = (props: IAddReminder) => {
 						const storagePath = getStoragePath(rawFileName);
 						await deleteFiles([storagePath]);
 					} catch (err) {
-						console.error('AddToDo: error deleting file from cloud storage', err);
+						console.error('AddReminder: error deleting file from cloud storage', err);
 					}
 				}
 
-				setTodoItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== deleteItem.id));
+				setReminderItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== deleteItem.id));
 
-				const todoId = deleteItem.id;
-				if (todoId) {
-					statusBarContext?.setLoadingLabel?.('Deleting todo...');
-					const result = await deleteTodo(todoId);
+				const reminderId = deleteItem.id;
+				if (reminderId) {
+					statusBarContext?.setLoadingLabel?.('Deleting reminder...');
+					const result = await deleteReminder(reminderId);
 					if (result && result.success !== false) {
 						try {
-							await createActivityLogRef.current?.(`${selectedCid || noteby} of ${selectedBid || userBid} deleted reminder ${todoId} successfully.`);
+							await createActivityLogRef.current?.(`${selectedCid || noteby} of ${selectedBid || userBid} deleted reminder ${reminderId} successfully.`);
 						} catch (logErr) {
-							console.error('AddToDo: createActivityLog failed', logErr);
+							console.error('AddReminder: createActivityLog failed', logErr);
 						}
 					} else {
-						console.error('AddToDo: deleteTodo failed', result?.error);
+						console.error('AddReminder: deleteReminder failed', result?.error);
 					}
 				}
-				await getTodos();
+				await getReminders();
 			} catch (err) {
-				console.error('Error deleting todo:', err);
+				console.error('Error deleting reminder:', err);
 			} finally {
 				statusBarContext?.setIsLoading?.(false);
 				statusBarContext?.setLoadingLabel?.('');
@@ -811,7 +811,7 @@ const AddReminder = (props: IAddReminder) => {
 		setDeleteItem(null);
 	};
 
-	const renderTodoIcon = (item: ITodoItem, index: number) => {
+	const renderTodoIcon = (item: IReminderItem, index: number) => {
 		const rawFileName = String(item.filename || '').trim();
 		const hasFile = Boolean(rawFileName && !rawFileName.startsWith('sample-file-'));
 		const cleanName = getCleanFileName(rawFileName);
@@ -863,17 +863,17 @@ const AddReminder = (props: IAddReminder) => {
 
 	const targetSummary = useMemo(() => {
 		if (selectedBid && selectedCid) {
-			return `Showing ToDo for Business: ${selectedBid} · Contact: ${selectedCid}`;
+			return `Showing Reminder for Business: ${selectedBid} · Contact: ${selectedCid}`;
 		}
 		if (selectedBid) {
-			return `Showing ToDo for Business: ${selectedBid}`;
+			return `Showing Reminder for Business: ${selectedBid}`;
 		}
 		return '';
 	}, [selectedBid, selectedCid]);
 
 	return (
 		<div
-			className="nz-node-list-Container nz-fqa-add-todo"
+			className="nz-node-list-Container nz-fqa-add-reminder"
 			tabIndex={1}
 			onKeyDown={handleContainerKeyDown}
 			key={props.uniqueName}
@@ -883,35 +883,35 @@ const AddReminder = (props: IAddReminder) => {
 					<div className="nz-sub-header">
 						<Label
 							uniqueName={`${props.uniqueName}-header`}
-							label="Add to Reminders"
+							label="Add to Reminder"
 						/>
 					</div>
 
 					<div className="nz-notes-list-scroll" ref={scrollRef}>
 						{loading && (
 							<div className="nz-notes-loading" style={{ padding: '10px', textAlign: 'center' }}>
-								<Label uniqueName="todo-loading" label="Loading reminders..." />
+								<Label uniqueName="reminder-loading" label="Loading reminders..." />
 							</div>
 						)}
 						{error && (
 							<div className="nz-notes-error" style={{ padding: '10px', color: 'var(--danger, #ff4d4f)' }}>
-								<Label uniqueName="todo-error" label={typeof error === 'string' ? error : 'Failed to load reminders'} />
+								<Label uniqueName="reminder-error" label={typeof error === 'string' ? error : 'Failed to load reminders'} />
 							</div>
 						)}
-						{!loading && !error && todoItems.length === 0 && (
+						{!loading && !error && reminderItems.length === 0 && (
 							<div className="nz-notes-empty" style={{ padding: '10px', textAlign: 'center', opacity: 0.7 }}>
-								<Label uniqueName="todo-empty" label="No Reminders items found" />
+								<Label uniqueName="reminder-empty" label="No Pending Reminders found" />
 							</div>
 						)}
-						{!loading && todoItems.map((item, index) => {
-							const todoKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
+						{!loading && reminderItems.map((item, index) => {
+							const reminderKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
 							const message = item.whattodo ?? '';
 							const isSelected = selectedItem === item || (selectedItem?.id && item.id === selectedItem.id);
 							const formattedDueDate = formatDueDateDisplay(item.duedate);
 							return (
 								<div
 									className={`nz-node-list-box${isSelected ? ' nz-node-list-box-selected' : ''}`}
-									key={todoKey}
+									key={reminderKey}
 									onClick={(e) => handleCardClick(item, e)}
 									style={{ cursor: 'pointer' }}
 									title={item.bid && item.cid ? `Click to launch SM for BID: ${item.bid}, CID: ${item.cid}` : undefined}
@@ -937,7 +937,7 @@ const AddReminder = (props: IAddReminder) => {
 												label={item.status || ''}
 											/>
 											{formattedDueDate ? (
-												<span className="nz-todo-badge-duedate" title={`Due Date: ${formattedDueDate}`}>
+												<span className="nz-reminder-badge-duedate" title={`Due Date: ${formattedDueDate}`}>
 													Due: {formattedDueDate}
 												</span>
 											) : null}
@@ -962,8 +962,8 @@ const AddReminder = (props: IAddReminder) => {
 							);
 						})}
 					</div>
-					<div className="nz-todo-editor-section">
-						<div className="nz-todo-due-date-row">
+					<div className="nz-reminder-editor-section">
+						<div className="nz-reminder-due-date-row">
 							<DateControl
 								id={`${props.uniqueName}-duedate`}
 								name="dueDate"
@@ -985,7 +985,7 @@ const AddReminder = (props: IAddReminder) => {
 								<button
 									type="button"
 									onClick={resetEditor}
-									className="nz-todo-cancel-edit-btn"
+									className="nz-reminder-cancel-edit-btn"
 									title="clear"
 								>
 									Clear
@@ -993,14 +993,14 @@ const AddReminder = (props: IAddReminder) => {
 							)}
 
 							{dateError && (
-								<div className="nz-todo-date-error">
+								<div className="nz-reminder-date-error">
 									{dateError}
 								</div>
 							)}
 						</div>
 
 						{targetSummary && (
-							<div className="nz-todo-target-info">
+							<div className="nz-reminder-target-info">
 								{targetSummary}
 							</div>
 						)}
@@ -1015,7 +1015,7 @@ const AddReminder = (props: IAddReminder) => {
 									sendTooltip={selectedItem ? 'Update Reminder' : 'Add Reminder'}
 									sendNote={sendTodo}
 									handleDelete={handleDeleteAttachment}
-									placeholderMessage="Enter a reminder here..."
+									placeholderMessage="Enter a New reminder here..."
 								/>
 							)}
 						</div>
@@ -1037,5 +1037,5 @@ const AddReminder = (props: IAddReminder) => {
 	);
 };
 
-export { AddReminder, AddReminder as AddToDo, AddReminder as ToDo };
+export { AddReminder };
 export default AddReminder;

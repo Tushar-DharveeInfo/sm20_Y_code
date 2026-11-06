@@ -1,5 +1,5 @@
 import { lazy, Suspense, } from 'react'
-import { TicketsEnums, RmsEnums, ClientEnums, HomeEnums, ProspectEnums, FAQEnums, AboutEnums, SettingEnums } from '../../constants/Feature.ts'
+import { TicketsEnums, RmsEnums, SettingEnums, ClientEnums, HomeEnums, ProspectEnums, FAQEnums, AboutEnums } from '../../constants/Feature.ts'
 import ErrorBoundary from '../../shared/errorboundary/ErrorBoundary.tsx'
 import { Loader } from '../../shared/loader/Loader.tsx'
 import { Label } from '../../shared/basic/label/Label.tsx'
@@ -12,13 +12,19 @@ import { getFirebaseServices } from '@n20a/libauth'
 
 import { CatalogAndDiscounts } from '../../features/faq/cataloganddiscounts/CatalogAndDiscounts.tsx'
 import { DownloadXlsxImportTemplates } from '../../features/faq/downloadxlsximporttemplates/DownloadXlsxImportTemplates.tsx'
-import '@n20a/libclientidentity/index.css'
+import "../../features/settings/libclientidentity/ClientIdentity.css"
 
 const DashboardChartsContainer = lazy(() => import('../../features/home/home/dashboardchartscontainer/DashboardChartsContainer.tsx'))
 const FqaNotes = lazy(() => import('../../shared/sidebar/notes/FqaNotes.tsx'))
 
+// Client Features
+// const ClientIdentity = lazy(() => import('@n20a/libclientidentity'))
+
+import {ClientIdentity} from "../../features/settings/libclientidentity/ClientIdentity.tsx"
+import {type IClientIdentityProps} from "../../features/settings/libclientidentity/ClientIdentity.tsx"
+
 const MyProfile = lazy(() => import('../../features/home/myprofile/MyProfile.tsx'))
-const MyActivities = lazy(() => import('../../features/home/myactivities/MyActivities.tsx'))
+const MyActivities = lazy(() => import('../../features/home/myactivities/MyActivities.tsx')) 
 
 // Library Features
 const DeviceLibrary = lazy(() => import('../../features/tickets/devicelibrary/DeviceLibrary.tsx'))
@@ -30,7 +36,13 @@ const Manufacturer = lazy(() => import('../../features/rms/manufacturer/Manufact
 const MfgEqType = lazy(() => import('../../features/rms/mfgeqtype/MfgEqType.tsx'))
 const EqidByMfg = lazy(() => import('../../features/rms/eqidbymfg/EqidByMfg.tsx'))
 
-const ImpersonateService = lazy(() => import('../../features/faq/impersonateservice/ImpersonateService.tsx'))
+const DailyScheduler = lazy(() => import('../../features/settings/dailyscheduler/DailyScheduler.tsx'))
+const SaasInstance = lazy(() => import('../../features/settings/saasinstance/SaasInstance.tsx'))
+// const ImportCollections = lazy(() => import('../../features/settings/importcollections/ImportCollections.tsx'))
+const ImportCollectionsFromXlsx = lazy(() => import('../../features/settings/importcollections/ImportCollectionsFromXlsx.tsx'))
+const ExportCollections = lazy(() => import('../../features/settings/importcollections/ExportCollections.tsx'))
+const NewClients = lazy(() => import('../../features/settings/importcollections/NewClients.tsx'))
+// const ImpersonateService = lazy(() => import('../../features/appqa/impersonate/impersonateservice/ImpersonateService.tsx'))
 
 // FAQ & About Features
 const Faq = lazy(() => import('../../features/faq/Faq.tsx'))
@@ -60,7 +72,7 @@ interface IFeatureRenderContainer {
     handleShowUserMessage: (messageText: string, container?: HTMLDivElement) => void;
 }
 
-/* Features that own the whole content area instead of the explorer tree.
+/* Features that own the whole content area without explorer tree.
    Client menu features intentionally omit this list so they keep the business explorer + filter layout. */
 const FeaturesWithOwnLayout: string[] = [
     HomeEnums.Home,
@@ -68,13 +80,21 @@ const FeaturesWithOwnLayout: string[] = [
     HomeEnums.MyProfile,
     HomeEnums.MyActivities,
     TicketsEnums.DeviceLibrary,
-    FAQEnums.FAQEnums,
-    FAQEnums.FAQ,
-    FAQEnums.KBDOCS,
+    RmsEnums.ReviewDeviceLibrary,
+    RmsEnums.ReviewVisioStencils,
+    SettingEnums.DailyScheduler,
+    SettingEnums.ImportCollectionsFromXlsx,
+    SettingEnums.ExportCollections,
+    SettingEnums.NewClients,
+    SettingEnums.Test,
+    // SettingEnums.ImpersonateService,
     FAQEnums.CatalogAndDiscounts,
     FAQEnums.DownloadExcelTemplates,
-    AboutEnums.About,
+    FAQEnums.KBDOCS,
+    FAQEnums.FAQ,
+
     AboutEnums.AboutNetZoom,
+    
     RmsEnums.Manufacturer,
     RmsEnums.MfgEqType,
     RmsEnums.EQIDByMfg,
@@ -190,6 +210,22 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
+
+        case SettingEnums.ClientIdentity:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <ClientIdentity
+                            isAdmin={mainContext.authSession?.authrole=='admin'}
+                            toolboxRole={mainContext.authSession?.toolboxRole as IClientIdentityProps['toolboxRole']}
+                            getAuthToken={getAuthToken}
+                            selectedtenantshortname={mainContext.authSession?.tenantNickname!}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+
         case ClientEnums.Client:
         case ClientEnums.NetZoom:
         case ClientEnums.VisioStencils:
@@ -199,10 +235,9 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
         case ProspectEnums.Followup:
         case ProspectEnums.Recent:
         case ProspectEnums.Past:
-        case ProspectEnums.Delete:
-        case ProspectEnums.Verify:
+        case ProspectEnums.ReviewDeleted:
         case SettingEnums.Delete:
-        case "920":
+        case SettingEnums.Test:
             return (
                 <ErrorBoundary>
                     <Suspense fallback={<Loader />}>
@@ -223,28 +258,6 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case SettingEnums.SAASInstance:
-        case "912": {
-            const isContact = isContactNode(selectedNode);
-            const isVerified = isContactVerified(selectedNode);
-
-            if (isContact && !isVerified) {
-                return (
-                    <div
-                        className="nz-no-data-found nz-wh-100 nz-d-flex-hv-left"
-                        style={{ padding: '20px', textAlign: 'center', height: '100%', width: '100%' }}
-                    >
-                        <Label
-                            uniqueName="unverified-contact-saas-instance-error"
-                            label="A verified contact is required to create a SAAS instance"
-                            fontWeight="500"
-                        />
-                    </div>
-                );
-            }
-
-            return null;
-        }
 
         case ClientEnums.Mcs:
             return (
@@ -424,7 +437,81 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                 </ErrorBoundary>
             );
 
-        case FAQEnums.FAQEnums:
+        case SettingEnums.DailyScheduler:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <DailyScheduler
+                            uniqueName={'feature-settings-daily-scheduler'}
+                            featureId={featureContainerProps.featureId}
+                            headerText={featureContainerProps.headerText} />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
+            case SettingEnums.SAASInstance:
+            {
+                const isContact = isContactNode(selectedNode);
+                const isVerified = isContactVerified(selectedNode);
+
+                if (isContact && !isVerified) 
+                {
+                    return (
+                        <div
+                            className="nz-no-data-found nz-wh-100 nz-d-flex-hv-left"
+                            style={{ padding: '20px', textAlign: 'center', height: '100%', width: '100%' }}
+                        >
+                            <Label
+                                uniqueName="unverified-contact-saas-instance-error"
+                                label="A verified contact is required to create a SAAS instance"
+                                fontWeight="500"
+                            />
+                        </div>
+                    );
+                }
+                else {
+                    return (
+                    <ErrorBoundary>
+                        <Suspense fallback={<Loader />}>
+                            <SaasInstance
+                                uniqueName={'feature-settings-saas-instance'}
+                                featureId={featureContainerProps.featureId}
+                                headerText={featureContainerProps.headerText}
+                                tenantshortname={String(featureContainerProps.selectedFeatureData?.bid ?? '')}
+                                userid={String(featureContainerProps.selectedFeatureData?.cid ?? '')} />
+                        </Suspense>
+                    </ErrorBoundary>
+                );
+            }
+        }
+
+        case SettingEnums.ImportCollectionsFromXlsx:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <ImportCollectionsFromXlsx />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+            
+        case SettingEnums.ExportCollections:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <ExportCollections />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+            
+        case SettingEnums.NewClients:
+            return (
+                <ErrorBoundary>
+                    <Suspense fallback={<Loader />}>
+                        <NewClients />
+                    </Suspense>
+                </ErrorBoundary>
+            );
+
         case FAQEnums.FAQ:
             return (
                 <ErrorBoundary>
@@ -515,7 +602,7 @@ function FeatureRenderContainer(featureRenderContainerProps: IFeatureRenderConta
                                         selectedNode={selectedNode!}
                                     />
                                 ) : (
-                                    <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-left">
+                                    <div className="nz-no-data-found nz-wh-100 nz-d-flex-hv-left" >
                                         <Label uniqueName="no-business-selected" label="Select a Business to view notes" />
                                     </div>
                                 )}

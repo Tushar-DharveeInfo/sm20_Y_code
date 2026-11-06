@@ -1,21 +1,21 @@
-.nz-appqa-todo {
+.nz-appqa-reminder {
     height: 100%;
     width: 100%;
     background-color: var(--bgfeaturepane1);
 }
 
-.nz-appqa-todo .nz-node-list-box {
+.nz-appqa-reminder .nz-node-list-box {
     cursor: pointer;
 }
 
-.nz-appqa-todo .nz-todo-card-inner {
+.nz-appqa-reminder .nz-reminder-card-inner {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     width: 100%;
 }
 
-.nz-appqa-todo .nz-todo-card-actions {
+.nz-appqa-reminder .nz-reminder-card-actions {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -25,18 +25,18 @@
     gap: 0;
 }
 
-.nz-appqa-todo .nz-todo-card-content {
+.nz-appqa-reminder .nz-reminder-card-content {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
     min-width: 0;
 }
 
-.nz-appqa-todo .nz-todo-card-content .nz-info-div {
+.nz-appqa-reminder .nz-reminder-card-content .nz-info-div {
     padding-left: 0;
 }
 
-.nz-appqa-todo .nz-todo-action-closed {
+.nz-appqa-reminder .nz-reminder-action-closed {
     opacity: 0.45;
 }
 

@@ -29,7 +29,7 @@ const emptyScopedDatasets = (): Omit<ISmDatasetCache, "businesses"> => ({
     supporthoursused: [],
     subs: [],
     downloads: [],
-    todo: [],
+    reminder: [],
     prospect: [],
 });
 

@@ -50,7 +50,7 @@ const DeviceLibrary = (props: IDeviceLibrary = {}) => {
                 selectedNode={EMPTY_SELECTED_NODE}
                 treeData={null}
                 ShowOnlyLibraryRadioB={true}
-                addToDownloadCart={(mfg, prodno, EQID) => {
+                addReminderwnloadCart={(mfg, prodno, EQID) => {
                     console.log(`Device Library cart: mfg=${mfg}, prodno=${prodno}, EQID=${EQID}`)
                 }}
                 saveSearchCriteria={(searchText, AndOr, mfg, eqtype, pno) => {

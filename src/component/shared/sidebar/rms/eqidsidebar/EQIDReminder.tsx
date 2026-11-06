@@ -14,8 +14,8 @@ import { useMainAppContext } from '../../../context/hooks/MainAppHooks';
 import { useStatusBarContext } from '../../../context/hooks/StatusBarHooks';
 import '../../notes/FqaNotes.css';
 import '../../../../features/appqa/reminder/Reminder.css';
-import { useReminders, useFileDownload, useFileDelete, type IReminderDoc } from '@n20a/libfsdb';
-type ITodoDoc = IReminderDoc;
+import { useReminders, useFileDownload, useFileDelete } from '@n20a/libfsdb';
+import type { IReminderDoc } from '@n20a/libfsdb';
 import { useUploadRemoteFile } from '../../../allcommon/UploadRemoteFileHooks';
 import { useSmDataContext } from '../../../context/hooks/SmDataHooks';
 import { useSelectedNodeContext } from '../../../context/hooks/SelectedNodeHooks';
@@ -30,7 +30,7 @@ interface IEQIDReminder {
 	selectedNode?: ITreeNode;
 }
 
-interface ITodoItem extends ITodoDoc {
+interface IReminderItem extends IReminderDoc {
 	id?: string;
 	bid: string;
 	cid: string;
@@ -84,7 +84,7 @@ function parseTodoDate(item: Record<string, any>): number {
 		const parsed = Date.parse(String(raw));
 		if (!isNaN(parsed)) return parsed;
 	}
-	const id = String(item.id || item.todoid || '');
+	const id = String(item.id || item.reminderid || '');
 	const match = id.match(/(\d{10,})/);
 	if (match) return Number(match[1]);
 	return 0;
@@ -107,8 +107,8 @@ function eqidMatches(itemEqid: string | undefined, targetEqid: string): boolean 
 	return itemLast === targetLast;
 }
 
-function mapToTodoItem(item: Record<string, unknown>, index: number, defaultBid: string, defaultCid: string): ITodoItem {
-	const id = String(item.id || item.todoid || item.key || `todo-${index}`);
+function mapToTodoItem(item: Record<string, unknown>, index: number, defaultBid: string, defaultCid: string): IReminderItem {
+	const id = String(item.id || item.reminderid || item.key || `reminder-${index}`);
 	const rawDate = item.duedate || item.due_date || item.dueDate;
 	const formattedDue = rawDate ? String(rawDate) : '';
 
@@ -218,14 +218,14 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
 	}, [bucketName, baseFolder]);
 
-	const { loading, error, getReminders: getTodos, reminders: todos, createReminder: createTodo, updateReminder: updateTodo, deleteReminder: deleteTodo } = useReminders();
+	const { loading, error, getReminders, reminders, createReminder, updateReminder, deleteReminder } = useReminders();
 	const { upload: uploadRemoteFile, uploading: remoteUploading } = useUploadRemoteFile();
 	const { downloadSingleFile, downloading } = useFileDownload();
 	const { deleteFiles, deleting } = useFileDelete();
 
-	const [todoItems, setTodoItems] = useState<ITodoItem[]>([]);
-	const [selectedItem, setSelectedItem] = useState<ITodoItem | null>(null);
-	const [deleteItem, setDeleteItem] = useState<ITodoItem | null>(null);
+	const [reminderItems, setReminderItems] = useState<IReminderItem[]>([]);
+	const [selectedItem, setSelectedItem] = useState<IReminderItem | null>(null);
+	const [deleteItem, setDeleteItem] = useState<IReminderItem | null>(null);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [notesKey, setNotesKey] = useState(0);
 	const [fileUploading, setFileUploading] = useState(false);
@@ -235,7 +235,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 	const [noteDetailsState, setNoteDetailsState] = useState<INote | undefined>({
 		maxAudioRecordingTime: 0,
 		maxVideoRecordingTime: 0,
-		noteId: 'todo-note',
+		noteId: 'reminder-note',
 		noteTitle: '',
 		notecontent: '',
 		notefile: undefined,
@@ -248,13 +248,13 @@ const EQIDReminder = (props: IEQIDReminder) => {
 	});
 
 	useEffect(() => {
-		void getTodos();
-	}, [getTodos]);
+		void getReminders();
+	}, [getReminders]);
 
-	// Display todo list filtered based on selected node's bid and cid
+	// Display reminder list filtered based on selected node's bid and cid
 	useEffect(() => {
-		if (Array.isArray(todos)) {
-			const mapped = todos.map((item, index) => mapToTodoItem(item, index, userBid, userCid));
+		if (Array.isArray(reminders)) {
+			const mapped = reminders.map((item, index) => mapToTodoItem(item, index, userBid, userCid));
 
 			const filtered = mapped.filter((item) => {
 				if (isMfgMode) {
@@ -278,18 +278,18 @@ const EQIDReminder = (props: IEQIDReminder) => {
 			});
 
 			const sorted = [...filtered].sort((a, b) => parseTodoDate(a) - parseTodoDate(b));
-			setTodoItems(sorted);
-		} else if (todos === null) {
-			setTodoItems([]);
+			setReminderItems(sorted);
+		} else if (reminders === null) {
+			setReminderItems([]);
 		}
-	}, [todos, selectedBid, selectedCid, userBid, userCid, effectiveEqid, isMfgMode]);
+	}, [reminders, selectedBid, selectedCid, userBid, userCid, effectiveEqid, isMfgMode]);
 
-	// Auto-scroll to bottom of list when todo items change
+	// Auto-scroll to bottom of list when reminder items change
 	useEffect(() => {
 		if (scrollRef.current) {
 			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
 		}
-	}, [todoItems]);
+	}, [reminderItems]);
 
 	// Sync loading state with status bar
 	useEffect(() => {
@@ -304,7 +304,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 	}, [error, statusBarContext]);
 
 	// Download file from Cloud Storage to browser
-	const handleDownloadFile = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+	const handleDownloadFile = useCallback(async (item: IReminderItem, event?: React.MouseEvent) => {
 		event?.stopPropagation?.();
 		const rawFileName = String(item.filename || '').trim();
 		if (!rawFileName || rawFileName.startsWith('sample-file-')) {
@@ -319,7 +319,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		try {
 			const res = await downloadSingleFile(storagePath);
 			if (!res?.success) {
-				console.error('FqaEqidToDo: downloadSingleFile failed', res?.error, res?.message);
+				console.error('FqaEqidReminder: downloadSingleFile failed', res?.error, res?.message);
 				return;
 			}
 			const downloadUrl = res?.blobUrl;
@@ -331,10 +331,10 @@ const EQIDReminder = (props: IEQIDReminder) => {
 				link.click();
 				document.body.removeChild(link);
 			} else {
-				console.error('FqaEqidToDo: no downloadUrl returned', res);
+				console.error('FqaEqidReminder: no downloadUrl returned', res);
 			}
 		} catch (err) {
-			console.error('FqaEqidToDo: handleDownloadFile error', err);
+			console.error('FqaEqidReminder: handleDownloadFile error', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
@@ -347,7 +347,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		setNoteDetailsState({
 			maxAudioRecordingTime: 0,
 			maxVideoRecordingTime: 0,
-			noteId: 'todo-note',
+			noteId: 'reminder-note',
 			noteTitle: '',
 			notecontent: '',
 			notefile: undefined,
@@ -361,8 +361,8 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		setNotesKey((prev) => prev + 1);
 	}, []);
 
-	// Select a todo item to view/edit in the bottom Notes control
-	const handleSelectTodo = useCallback(async (item: ITodoItem) => {
+	// Select a reminder item to view/edit in the bottom Notes control
+	const handleSelectTodo = useCallback(async (item: IReminderItem) => {
 		if (selectedItem === item) {
 			resetEditor();
 			return;
@@ -377,7 +377,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 			setNoteDetailsState({
 				maxAudioRecordingTime: 0,
 				maxVideoRecordingTime: 0,
-				noteId: item.id || 'todo-note',
+				noteId: item.id || 'reminder-note',
 				noteTitle: item.status ?? '',
 				notecontent: textContent,
 				notefile: undefined,
@@ -397,7 +397,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		setNoteDetailsState({
 			maxAudioRecordingTime: 0,
 			maxVideoRecordingTime: 0,
-			noteId: item.id || 'todo-note',
+			noteId: item.id || 'reminder-note',
 			noteTitle: item.status ?? '',
 			notecontent: textContent,
 			notefile: undefined,
@@ -417,7 +417,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		try {
 			const res = await downloadSingleFile(storagePath);
 			if (!res?.success) {
-				console.error('FqaEqidToDo: downloadSingleFile failed', res?.error, res?.message);
+				console.error('FqaEqidReminder: downloadSingleFile failed', res?.error, res?.message);
 				return;
 			}
 			const downloadUrl = res?.blobUrl;
@@ -428,7 +428,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 				setNoteDetailsState({
 					maxAudioRecordingTime: 0,
 					maxVideoRecordingTime: 0,
-					noteId: item.id || 'todo-note',
+					noteId: item.id || 'reminder-note',
 					noteTitle: item.status ?? '',
 					notecontent: textContent,
 					notefile: fileBlob,
@@ -442,15 +442,15 @@ const EQIDReminder = (props: IEQIDReminder) => {
 				setNotesKey((prev) => prev + 1);
 			}
 		} catch (err) {
-			console.error('FqaEqidToDo: error downloading file for edit', err);
+			console.error('FqaEqidReminder: error downloading file for edit', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
 	}, [selectedItem, resetEditor, downloadSingleFile, getStoragePath, statusBarContext]);
 
-	// Clicking on a ToDo card selects the item locally
-	const handleCardClick = useCallback((item: ITodoItem, event?: React.MouseEvent) => {
+	// Clicking on a Reminder card selects the item locally
+	const handleCardClick = useCallback((item: IReminderItem, event?: React.MouseEvent) => {
 		void handleSelectTodo(item);
 	}, [handleSelectTodo]);
 
@@ -477,7 +477,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		[]
 	);
 
-	// Send/Add ToDo: message text stays as typed. EQID goes on the hook payload.
+	// Send/Add Reminder: message text stays as typed. EQID goes on the hook payload.
 	const sendTodo = useCallback(async (message: INote) => {
 		const rawContent = messageWithoutBoundEqid(String(message.notecontent ?? '').trim());
 		if (!rawContent) {
@@ -522,10 +522,10 @@ const EQIDReminder = (props: IEQIDReminder) => {
 						fileName: `smfiles/tickets/${uploadedFileName}`,
 					});
 					if (!uploadResult?.success) {
-						console.error('FqaEqidToDo: uploadRemoteFile failed', uploadResult?.error, uploadResult?.message);
+						console.error('FqaEqidReminder: uploadRemoteFile failed', uploadResult?.error, uploadResult?.message);
 					}
 				} catch (err) {
-					console.error('FqaEqidToDo: uploadRemoteFile error', err);
+					console.error('FqaEqidReminder: uploadRemoteFile error', err);
 				} finally {
 					setFileUploading(false);
 					statusBarContext?.setIsLoading?.(false);
@@ -535,7 +535,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		}
 
 		if (selectedItem) {
-			const todoId = selectedItem.id;
+			const reminderId = selectedItem.id;
 			const finalFileName = uploadedFileName || '';
 			const previousFileName = String(selectedItem.filename || '').trim();
 
@@ -546,7 +546,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 					const oldStoragePath = getStoragePath(previousFileName);
 					await deleteFiles([oldStoragePath]);
 				} catch (err) {
-					console.warn('FqaEqidToDo: error deleting previous attachment', err);
+					console.warn('FqaEqidReminder: error deleting previous attachment', err);
 				} finally {
 					statusBarContext?.setIsLoading?.(false);
 					statusBarContext?.setLoadingLabel?.('');
@@ -566,9 +566,9 @@ const EQIDReminder = (props: IEQIDReminder) => {
 			};
 
 			// Optimistic local update
-			setTodoItems((prev) =>
+			setReminderItems((prev) =>
 				prev.map((item) =>
-					item === selectedItem || (todoId && item.id === todoId)
+					item === selectedItem || (reminderId && item.id === reminderId)
 						? {
 							...item,
 							whattodo: finalContent,
@@ -582,28 +582,28 @@ const EQIDReminder = (props: IEQIDReminder) => {
 			resetEditor();
 
 			try {
-				if (todoId) {
-					const result = await updateTodo(todoId, updatedDoc);
+				if (reminderId) {
+					const result = await updateReminder(reminderId, updatedDoc);
 					if (result && result.success !== false) {
 						try {
-							await createActivityLogRef.current?.(`${effectiveCid || noteby} of ${effectiveBid} updated todo ${todoId} successfully.`);
+							await createActivityLogRef.current?.(`${effectiveCid || noteby} of ${effectiveBid} updated reminder ${reminderId} successfully.`);
 						} catch (logErr) {
-							console.error('FqaEqidToDo: createActivityLog failed', logErr);
+							console.error('FqaEqidReminder: createActivityLog failed', logErr);
 						}
 					} else {
-						console.error('FqaEqidToDo: updateTodo failed', result?.error);
+						console.error('FqaEqidReminder: updateReminder failed', result?.error);
 					}
 				}
-				await getTodos();
+				await getReminders();
 			} catch (err) {
-				console.error('Error updating todo:', err);
+				console.error('Error updating reminder:', err);
 			}
 			return;
 		}
 
 		// CREATE MODE: EQID is a payload field, not part of the message.
 		const finalFilename = uploadedFileName || '';
-		const newDocId = `todo_${effectiveCid || 'user'}_${Date.now()}`;
+		const newDocId = `reminder_${effectiveCid || 'user'}_${Date.now()}`;
 		const newTodoDoc: Record<string, unknown> = {
 			bid: effectiveBid,
 			cid: effectiveCid,
@@ -616,7 +616,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 			eqid: effectiveEqid,
 		};
 
-		const optimisticRow: ITodoItem = {
+		const optimisticRow: IReminderItem = {
 			id: newDocId,
 			bid: effectiveBid,
 			cid: effectiveCid,
@@ -630,29 +630,29 @@ const EQIDReminder = (props: IEQIDReminder) => {
 			eqid: effectiveEqid,
 		};
 
-		setTodoItems((prev) => [...prev, optimisticRow]);
+		setReminderItems((prev) => [...prev, optimisticRow]);
 		resetEditor();
 
 		try {
-			const result = await createTodo(newTodoDoc);
+			const result = await createReminder(newTodoDoc);
 			if (result && result.success !== false) {
 				const createdId = result.id || newDocId;
 				try {
 					await createActivityLogRef.current?.(`${effectiveCid || noteby} of ${effectiveBid} created reminder ${createdId} successfully.`);
 				} catch (logErr) {
-					console.error('FqaEqidToDo: createActivityLog failed', logErr);
+					console.error('FqaEqidReminder: createActivityLog failed', logErr);
 				}
 			} else {
-				console.error('FqaEqidToDo: createTodo failed', result?.error);
+				console.error('FqaEqidReminder: createReminder failed', result?.error);
 			}
-			await getTodos();
+			await getReminders();
 		} catch (err) {
-			console.error('Error creating todo:', err);
+			console.error('Error creating reminder:', err);
 		}
-	}, [effectiveEqid, userBid, userCid, selectedItem, userInfo, mainAppContext.authSession, noteby, createTodo, updateTodo, getTodos, uploadRemoteFile, resetEditor, bucketName, baseFolder, getStoragePath, deleteFiles, statusBarContext]);
+	}, [effectiveEqid, userBid, userCid, selectedItem, userInfo, mainAppContext.authSession, noteby, createReminder, updateReminder, getReminders, uploadRemoteFile, resetEditor, bucketName, baseFolder, getStoragePath, deleteFiles, statusBarContext]);
 
 	const deleteImage: IImage = {
-		uniqueName: 'todo-delete-icon',
+		uniqueName: 'reminder-delete-icon',
 		source: (
 			<Cross
 				size={FnGetCssVariable('--image-size-2')}
@@ -666,7 +666,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 	};
 
 	const closeImage: IImage = {
-		uniqueName: 'todo-close-icon',
+		uniqueName: 'reminder-close-icon',
 		source: (
 			<Delete24x24
 				size={FnGetCssVariable('--image-size-2')}
@@ -679,7 +679,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 		tooltip: 'Click to Close',
 	};
 
-	const handleDelete = (item: ITodoItem) => {
+	const handleDelete = (item: IReminderItem) => {
 		setDeleteItem(item);
 		setDeleteOpen(true);
 	};
@@ -689,7 +689,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 			if (selectedItem === deleteItem) {
 				resetEditor();
 			}
-			const todoId = deleteItem.id;
+			const reminderId = deleteItem.id;
 			const fileName = String(deleteItem.filename || '').trim();
 
 			if (fileName && !fileName.startsWith('sample-file-')) {
@@ -699,52 +699,52 @@ const EQIDReminder = (props: IEQIDReminder) => {
 					const storagePath = getStoragePath(fileName);
 					await deleteFiles([storagePath]);
 				} catch (err) {
-					console.warn('FqaEqidToDo: error deleting attached file', err);
+					console.warn('FqaEqidReminder: error deleting attached file', err);
 				} finally {
 					statusBarContext?.setIsLoading?.(false);
 					statusBarContext?.setLoadingLabel?.('');
 				}
 			}
 
-			setTodoItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== todoId));
+			setReminderItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== reminderId));
 			setDeleteOpen(false);
 			setDeleteItem(null);
 
-			if (todoId) {
+			if (reminderId) {
 				try {
-					const result = await deleteTodo(todoId);
+					const result = await deleteReminder(reminderId);
 					if (result && result.success !== false) {
 						try {
-							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} deleted reminder ${todoId} successfully.`);
+							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} deleted reminder ${reminderId} successfully.`);
 						} catch (logErr) {
-							console.error('FqaEqidToDo: createActivityLog failed', logErr);
+							console.error('FqaEqidReminder: createActivityLog failed', logErr);
 						}
 					}
-					await getTodos();
+					await getReminders();
 				} catch (err) {
-					console.error('Error deleting todo:', err);
+					console.error('Error deleting reminder:', err);
 				}
 			}
 		}
 	};
 
-	const handleCloseTodo = useCallback(async (item: ITodoItem, event?: React.MouseEvent | React.KeyboardEvent) => {
+	const handleCloseTodo = useCallback(async (item: IReminderItem, event?: React.MouseEvent | React.KeyboardEvent) => {
 		event?.stopPropagation?.();
-		const todoId = item.id;
-		if (!todoId) return;
+		const reminderId = item.id;
+		if (!reminderId) return;
 
 		const userShortName = String(userInfo?.username ?? userInfo?.email ?? authSession?.displayName ?? authSession?.username ?? 'User').trim();
 		const now = new Date().toISOString();
 
-		setTodoItems((prev) =>
-			prev.map((todo) =>
-				todo === item || (todoId && todo.id === todoId)
-					? { ...todo, status: 'Close' }
-					: todo
+		setReminderItems((prev) =>
+			prev.map((reminder) =>
+				reminder === item || (reminderId && reminder.id === reminderId)
+					? { ...reminder, status: 'Close' }
+					: reminder
 			)
 		);
 
-		if (selectedItem?.id === todoId || selectedItem === item) {
+		if (selectedItem?.id === reminderId || selectedItem === item) {
 			setSelectedItem((prev) => (prev ? { ...prev, status: 'Close' } : null));
 			setNoteDetailsState((prev) => (prev ? { ...prev, noteTitle: 'Close' } : prev));
 		}
@@ -766,24 +766,24 @@ const EQIDReminder = (props: IEQIDReminder) => {
 				...(item.datecreated ? { datecreated: item.datecreated } : {}),
 			};
 
-			const result = await updateTodo(todoId, updatedDoc);
+			const result = await updateReminder(reminderId, updatedDoc);
 			if (result && result.success !== false) {
 				try {
-					await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} closed reminder ${todoId} successfully.`);
+					await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} closed reminder ${reminderId} successfully.`);
 				} catch (logErr) {
-					console.error('FqaEqidToDo: createActivityLog failed', logErr);
+					console.error('FqaEqidReminder: createActivityLog failed', logErr);
 				}
 			}
-			await getTodos();
+			await getReminders();
 		} catch (err) {
 			console.error('Error Closing reminder...:', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
-	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, effectiveEqid, updateTodo, getTodos, statusBarContext]);
+	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, effectiveEqid, updateReminder, getReminders, statusBarContext]);
 
-	const renderTodoIcon = (item: ITodoItem, index: number) => {
+	const renderTodoIcon = (item: IReminderItem, index: number) => {
 		const rawFileName = String(item.filename || '').trim();
 		const hasFile = Boolean(rawFileName && !rawFileName.startsWith('sample-file-'));
 		const cleanName = getCleanFileName(rawFileName);
@@ -835,7 +835,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 
 	return (
 		<div
-			className="nz-node-list-Container nz-appqa-todo"
+			className="nz-node-list-Container nz-appqa-reminder"
 			tabIndex={1}
 			onKeyDown={handleContainerKeyDown}
 			key={uniqueName}
@@ -846,40 +846,40 @@ const EQIDReminder = (props: IEQIDReminder) => {
 					<div className="nz-sub-header">
 						<Label
 							uniqueName={`${uniqueName}-header`}
-							label={`EQID Reminders${todoItems.length > 0 ? ` (${todoItems.length})` : ''}`}
+							label={`EQID Reminders${reminderItems.length > 0 ? ` (${reminderItems.length})` : ''}`}
 						/>
 					</div>
 					<div className="nz-notes-list-scroll" ref={scrollRef}>
 						{loading && (
 							<div className="nz-notes-loading" style={{ padding: '10px', textAlign: 'center' }}>
-								<Label uniqueName="todo-loading" label="Loading reminders..." />
+								<Label uniqueName="reminder-loading" label="Loading reminders..." />
 							</div>
 						)}
 						{error && (
 							<div className="nz-notes-error" style={{ padding: '10px', color: 'var(--danger, #ff4d4f)' }}>
-								<Label uniqueName="todo-error" label={typeof error === 'string' ? error : 'Failed to load reminders'} />
+								<Label uniqueName="reminder-error" label={typeof error === 'string' ? error : 'Failed to load reminders'} />
 							</div>
 						)}
-						{!loading && !error && todoItems.length === 0 && (
+						{!loading && !error && reminderItems.length === 0 && (
 							<div className="nz-notes-empty" style={{ padding: '10px', textAlign: 'center', opacity: 0.7 }}>
-								<Label uniqueName="todo-empty" label="No EQID reminders found" />
+								<Label uniqueName="reminder-empty" label="No EQID reminders found" />
 							</div>
 						)}
-						{!loading && todoItems.map((item, index) => {
-							const todoKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
+						{!loading && reminderItems.map((item, index) => {
+							const reminderKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
 							const message = messageWithoutBoundEqid(item.whattodo ?? '');
 							const isSelected = selectedItem === item || (selectedItem?.id && item.id === selectedItem.id);
 							const isClosed = String(item.status ?? '').trim().toLowerCase() === 'close';
 							return (
 								<div
 									className={`nz-node-list-box${isSelected ? ' nz-node-list-box-selected' : ''}`}
-									key={todoKey}
+									key={reminderKey}
 									onClick={(e) => handleCardClick(item, e)}
 									style={{ cursor: 'pointer' }}
 									title={item.bid && item.cid ? `Click to launch SM for BID: ${item.bid}, CID: ${item.cid}` : undefined}
 								>
-									<div className="nz-todo-card-inner">
-										<div className="nz-todo-card-actions">
+									<div className="nz-reminder-card-inner">
+										<div className="nz-reminder-card-actions">
 											<div
 												onClick={(event) => event.stopPropagation()}
 												onKeyDown={(event) => event.stopPropagation()}
@@ -896,7 +896,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 											</div>
 											{item.status && !item.status.toLowerCase().includes('close') && (
 												<div
-													className={isClosed ? 'nz-todo-action-closed' : ''}
+													className={isClosed ? 'nz-reminder-action-closed' : ''}
 													onClick={(event) => event.stopPropagation()}
 													onKeyDown={(event) => event.stopPropagation()}
 												>
@@ -915,7 +915,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 												</div>
 											)}
 										</div>
-										<div className="nz-todo-card-content">
+										<div className="nz-reminder-card-content">
 											<div className="nz-node-list-delete">
 												<div className="nz-note-date">
 													<Label
@@ -975,7 +975,7 @@ const EQIDReminder = (props: IEQIDReminder) => {
 								sendTooltip={selectedItem ? 'Update Reminder' : 'Send Reminder'}
 								sendNote={sendTodo}
 								handleDelete={handleDeleteAttachment}
-								placeholderMessage="Enter a reminder here..."
+								placeholderMessage="Enter a New reminder here..."
 							/>
 						)}
 					</div>
@@ -996,5 +996,5 @@ const EQIDReminder = (props: IEQIDReminder) => {
 	);
 };
 
-export { EQIDReminder, EQIDReminder as FqaEqidToDo, EQIDReminder as fqaeqidtodo };
+export { EQIDReminder, EQIDReminder as FqaEqidReminder, EQIDReminder as fqaeqidreminder };
 export default EQIDReminder;

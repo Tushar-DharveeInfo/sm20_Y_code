@@ -1,5 +1,6 @@
 
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
+import type { IDeploymentEnv } from "../../allinterface/IApiResponse";
 
 interface IFeatureItem {
     PopupQa?: boolean;
@@ -43,19 +44,23 @@ interface IUserAuthSession {
     baseFolder: string;
     ImpersonatedUser: string;
     ImpersonatedEmail: string;
-    bid?: string;
-    cid?: string;
-    authrole?: string;
-    role?: string;
-    toolboxRole?: string;
-    isAuthenticated?: boolean;
-    permittedapps?: string[];
+    bid: string;
+    cid: string;
+    authrole: string;
+    role: string;
+    toolboxRole: string;
+    isAuthenticated: boolean;
+
     purchasedSkus?: string[];// netzoom, vss, amc, ssi, ...
     ImpersonatedDetails?: Record<string, unknown> | null;
     claims?: Record<string, unknown> | null;
     ProductName?: string;
     licenseKey?: string;
     licenseDetails?: Record<string, any>;
+    
+    smRoles: string[];
+    availableApps: string[];
+    permittedApps: string[];
 }
 
 interface IAp {
@@ -67,11 +72,11 @@ interface IMainApp {
     featureRecords: IFeatureItem[];
     setFeatureRecords: React.Dispatch<React.SetStateAction<IFeatureItem[]>>;
 
-    authSession?: IUserAuthSession;
+    authSession: IUserAuthSession;
     setAuthSession: React.Dispatch<React.SetStateAction<IUserAuthSession | undefined>>;
 
-    ap?: IAp[];
-    setAp: React.Dispatch<React.SetStateAction<IAp[] | undefined>>;
+    ap: IAp[];
+    setAp: React.Dispatch<React.SetStateAction<IAp[]>>;
     getApValue: (apName: string) => string | undefined;
 
     purchasedSkus?: string[];
@@ -83,9 +88,9 @@ interface IMainApp {
         React.SetStateAction<Record<string, any>[]>
     >;
 
-    deploymentVars: Record<string, any>[];
+    deploymentVars: IDeploymentEnv[];
     setDeploymentVars: React.Dispatch<
-        React.SetStateAction<Record<string, any>[]>
+        React.SetStateAction<IDeploymentEnv[]>
     >;
 
     isInternetAvailable: boolean;

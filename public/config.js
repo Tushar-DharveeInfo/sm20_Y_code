@@ -1,5 +1,5 @@
 window.appSettings = {
-  TENANT_NICKNAME: 'netzoom-uhjpe',
+  TENANT_NICKNAME: 'n-netzoomcom-47jrj',
   TENANT_DISPLAY_NAME: 'NetZoom',
   AUTH_TYPE: 'fb',
   API_AT: 'n20api',

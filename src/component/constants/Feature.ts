@@ -3,16 +3,16 @@ Since all menu and features and QA and kebab menu are unique names, why not we d
 */
 
 // Appqa range for filter
-const AppQARange = { MIN: 10, MAX: 99 };
+const AppQARange = { MIN: 10, MAX: 99 }
 
 // Feature Menu range for filter 
-const FeatureMenuRange = { MIN: 100, MAX: 999 };
+const FeatureMenuRange = { MIN: 100, MAX: 999 }
 
 // Feature QA Range for filter 
-const FeatureQARange = { MIN: 1000, MAX: 9999 };
+const FeatureQARange = { MIN: 1000, MAX: 9000 }
 
-// Kebab menu filter range 
-const KebabMenuRange = { MIN: 10000, MAX: 99999 };
+//Kebab menu filter range 
+const KebabMenuRange = { MIN: 10000, MAX: 100000 }
 
 
 // Appqa Constants — ids match public/smFeatures.json MenuID 10 items
@@ -22,11 +22,9 @@ enum AppQA {
     Theme = "43",
     Launch = "44",
     Notify = "45",
-    Alerts = "46",
     Log = "47",
     Report = "50",
     Impersonate = "52",
-    ToDo = "54",
     Reminder = "54",
 }
 
@@ -54,13 +52,10 @@ enum ProspectEnums {
     Followup = "252",
     Recent = "254",
     Past = "256",
-    ReviewDeleted = "258",
-    Delete = "258",
-    All = "254",
-    Verify = "256",
+    ReviewDeleted = "258"
 }
 
-// Library / Tickets menu feature ids — match public/smFeatures.json MenuID 300
+// Library menu feature ids — match public/smFeatures.json MenuID 300
 enum TicketsEnums {
     Tickets = "300",
     DeviceLibrary = "304",
@@ -75,32 +70,31 @@ enum RmsEnums {
     EQIDByMfg = "404",
     Manufacturer = "408",
     MfgEqType = "412",
-    RMSLibrary = "412",
-    McsDevelopment = "412",
     ReviewDeviceLibrary = "416",
     ReviewVisioStencils = "420",
     ReviewRMSLibrary = "424",
 }
 
+
 // FAQ menu feature ids — match public/smFeatures.json MenuID 600
 enum FAQEnums {
     FAQEnums = "600",
     FAQ = "602",
-    Documents = "604",
     KBDOCS = "604",
     CatalogAndDiscounts = "606",
     DownloadExcelTemplates = "608",
-    DownloadExcelTempates = "608",
 }
 
 // Setting menu feature ids — match public/smFeatures.json MenuID 900
 enum SettingEnums {
     Setting = "900",
-    ClientIdentityManagement = "904",
+    ClientIdentity = "904",
     DailyScheduler = "908",
     SAASInstance = "912",
-    Import = "916",
-    Delete = "920",
+    ImportCollectionsFromXlsx = "916",
+    ExportCollections = "918",
+    NewClients = "920",
+    Delete = "924",
     Test = "929",
 }
 
@@ -112,14 +106,14 @@ enum AboutEnums {
 
 // Kebab Services menu feature ids — match public/smFeatures.json
 enum KebabServicesEnums {
-    NetZoomServices = "13208",
-    VisioStencilsServices = "13212",
-    SSIAndOtherServices = "13216",
-    ResellerServices = "13218",
-    McsServices = "13220",
-    RequestsReceivedServices = "13308",
-    ApprovedTicketsServices = "13312",
-    ClientIdentityManagementServices = "13904",
+    NetZoomServices = "10208",
+    VisioStencilsServices = "10212",
+    SSIAndOtherServices = "10216",
+    ResellerServices = "10218",
+    McsServices = "10220",
+    RequestsReceivedServices = "10308",
+    ApprovedTicketsServices = "10312",
+    ClientIdentityManagementServices = "10904",
 }
 
 // EQID feature QA ids — match public/smFeatures.json MenuID 404
@@ -127,7 +121,6 @@ enum EqidQaEnums {
     Properties = "4040",
     Notes = "4042",
     Shapes = "4044",
-    ToDo = "4046",
     Reminder = "4046",
     AI = "4048",
 }
@@ -153,7 +146,7 @@ enum kebabMenuEnums {
     EditMfgEqType = 'edit mfgeqtype',
 }
 
-// Feature QA ToDo / Reminder IDs across menus — match public/smFeatures.json
+// Feature QA Reminder / Reminder IDs across menus — match public/smFeatures.json
 enum FeatureReminderEnums {
     NetZoom = "2094",
     VisioStencils = "2134",
@@ -259,14 +252,12 @@ enum SidebarEnum {
     Property = "Property",
     Log = "Log",
     Notes = "Notes",
-    Alerts = "Alerts",
     ActionLog = "ActionLog",
     Assign = "Assign",
     Profile = "Profile",
     Device = "Device",
     List = "List",
-    ListContacts = "List Contacts",
-    ToDo = "ToDo",
+    ListContacts = "Other Contacts",
     Reminder = "Reminder",
     Orders = "Order",
     Email = "Email"

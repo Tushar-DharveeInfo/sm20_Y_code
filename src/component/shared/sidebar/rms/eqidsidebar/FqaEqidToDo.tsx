@@ -1,1 +1,1 @@
-export { EQIDReminder as default, EQIDReminder as FqaEqidToDo, EQIDReminder } from './EQIDReminder';
+export { EQIDReminder as default, EQIDReminder as FqaEqidReminder, EQIDReminder } from './EQIDReminder';

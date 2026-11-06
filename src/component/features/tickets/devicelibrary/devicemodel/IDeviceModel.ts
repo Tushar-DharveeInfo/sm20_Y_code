@@ -22,7 +22,7 @@ interface IDeviceModel
     treeData?: ITreeNode[] | null;
     externalSearch?: IExternalSearch;
     /** Called when user clicks Add to Download cart on a selected product node. */
-    addToDownloadCart?: (mfg: string, prodno: string, EQID: string) => void;
+    addReminderwnloadCart?: (mfg: string, prodno: string, EQID: string) => void;
     /** Called when user clicks Search on the DeviceModel search pane, it gives the search criteria to embedding code. */
     saveSearchCriteria?: (searchText?: string, AndOr?: "AND" | "OR", mfg?: string, eqtype?: string, pno?: string) => void;
 }

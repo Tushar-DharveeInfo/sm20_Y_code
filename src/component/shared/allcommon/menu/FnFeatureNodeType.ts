@@ -59,7 +59,7 @@ export function fnGetPermittedApps(authUser?: unknown): string[] {
  * Gets permittedapps for authuser; if 'netzoom' is NOT in permitted list do not offer these features.
  */
 export function fnNetzoom(authUser?: IUserAuthSession): boolean {
-    const permittedApps: string[] = authUser?.permittedapps ?? fnGetPermittedApps(authUser);
+    const permittedApps: string[] = authUser?.availableApps ?? fnGetPermittedApps(authUser);
     return permittedApps.includes("netzoom");
 }
 
@@ -68,7 +68,7 @@ export function fnNetzoom(authUser?: IUserAuthSession): boolean {
  * Gets permittedapps for authuser; if 'visiostencils' is NOT in permitted list do not offer these features.
  */
 export function fnVss(authUser?: IUserAuthSession): boolean {
-    const permittedApps: string[] = authUser?.permittedapps ?? fnGetPermittedApps(authUser);
+    const permittedApps: string[] = authUser?.availableApps ?? fnGetPermittedApps(authUser);
     return permittedApps.includes("visiostencils") || permittedApps.includes("vss");
 }
 

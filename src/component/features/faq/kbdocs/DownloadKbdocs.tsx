@@ -3,14 +3,10 @@ import { useEffect, useState } from 'react'
 import MarkdownIt from 'markdown-it'
 import parse from 'html-react-parser'
 import { Download24x24, N, Visio } from '@n20a/libicon'
-import { useFileDownload, useFirestore } from '@n20a/libfsdb'
+import { useFileDownload } from '@n20a/libfsdb'
 import { useLoadRemoteJson } from '../../../shared/allcommon/LoadRemoteJsonHooks.ts'
 import { Label } from '../../../shared/basic/label/Label.tsx'
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks.ts'
-
-const NETZOOM_FILES_BUCKET = 'n20-bucket-01'
-const NETZOOM_FILES_BASE_FOLDER = 'sm'
-const NETZOOM_FILES_FILENAME = 'kbdocs/kbdocsprofile.json'
 
 interface IDownloadFeature {
 	uniqueName: string; // uniqueName for the control and required
@@ -66,6 +62,13 @@ const DownloadKbdocs = (downloadNetZoomProps: IDownloadFeature) => {
 	const [loadError, setLoadError] = useState<string | null>(null)
   
 const mainContext = useMainAppContext()
+const mainAppContext = useMainAppContext();
+const authSession = mainAppContext?.authSession;
+const bucketName = authSession?.bucketName ?? "n20-bucket-01";
+
+const NETZOOM_FILES_BUCKET = bucketName
+const NETZOOM_FILES_BASE_FOLDER = 'sm'
+const NETZOOM_FILES_FILENAME = 'kbdocs/kbdocsprofile.json'
 
 	useLoadRemoteJson<IDownloadFileRecord[]>({
 		bucket: NETZOOM_FILES_BUCKET,

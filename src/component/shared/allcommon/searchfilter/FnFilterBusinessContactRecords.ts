@@ -511,7 +511,7 @@ export function filterBusinessRecords(
     return businesses.filter((business) => {
         // Feature: Followup, where verified === true
         if (isFollowup) {
-            if (!isTruthyFlag(business.verified)) {
+            if (!isTruthyFlag(business.bverified)) {
                 return false;
             }
         } else if (isRecent) {

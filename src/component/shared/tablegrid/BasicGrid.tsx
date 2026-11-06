@@ -32,11 +32,8 @@ import { IActionImageForSubMenu } from '../allinterface/basic/IActionImageList';
 import { Copy24x24, Cross, Download24x24, Edit24x24 } from '@n20a/libicon';
 import { FnGetCssVariable } from '../../appcontainer/allcommon/FnGetCssVariable';
 import { FnGetSessionVariableFromStorage } from '../allcommon/basic/FnGetSessionVariableFromStorage';
-
-// import { useSessionContext } from '../context/hooks/SessionHooks';
-// import { sampleSessionContextFallback } from '../../../smsampledata/sidebar/SampleContextFallbacks';
-import { OptionsFilter } from '../basic/optionsfilter/OptionsFilter';
 import { IOptionItem } from '../allinterface/basic/IOptionsFilter';
+import { OptionsFilter } from '../basic/optionsfilter/OptionsFilter';
 
 function isUtilityColumn(col: IBasicGridColDef): boolean {
     return !!(col.pinned || col.colId === 'index-cell');
@@ -185,7 +182,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
         },
     };
 
-        const agRowSelection = useMemo<RowSelectionOptions>(() => {
+    const agRowSelection = useMemo<RowSelectionOptions>(() => {
         if (typeof gridProps.rowSelection === 'object' && gridProps.rowSelection !== null) {
             return {
                 checkboxes: false,
@@ -209,7 +206,7 @@ const BasicGrid = (gridProps: IBasicGrid) => {
     }, [gridProps?.gridOptions, gridOptions]);
 
     useEffect(() => {
-    // Add event listener on component mount
+        // Add event listener on component mount
         window.addEventListener("resize", () => {
             handleResize(gridProps);
         });

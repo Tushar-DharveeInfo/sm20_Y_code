@@ -49,6 +49,7 @@ import {
     RequestSupport24x24,
     RequestDeviceModels24x24,
     MyRequests24x24,
+    Bin24x24,
     Profile24x24,
     Notes24x24,
     Download24x24,
@@ -195,6 +196,7 @@ const featureIconMap: IconMap = {
     RequestSupport24x24,
     RequestDeviceModels24x24,
     MyRequests24x24,
+        Bin24x24,
     Profile24x24,
     Notes24x24,
     Download24x24,
@@ -269,6 +271,7 @@ const featureIconMap: IconMap = {
     RMS: Theme24x24,
 
     MyRequests: MyRequests24x24,
+    Bin: Bin24x24,
     RequestsReceived24x24: MyRequests24x24,
     RequestsReceived: MyRequests24x24,
     ApprovedTickets24x24: MyRequests24x24,
@@ -333,8 +336,8 @@ const featureIconMap: IconMap = {
     Mail: Send24x24,
 
     Task: Task24x24,
-    ToDo24x24: Task24x24,
-    ToDo: Task24x24,
+    Reminder24x24: Task24x24,
+    Reminder: Task24x24,
 
     TestAPI24x24,
     Test: TestAPI24x24,

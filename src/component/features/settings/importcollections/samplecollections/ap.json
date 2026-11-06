@@ -1,0 +1,12 @@
+[
+  {
+    "app": "service20",
+    "apname": "tax-il",
+    "value": "7.25"
+  },
+  {
+    "app": "service20",
+    "apname": "tax-fl",
+    "value": "0"
+  }
+]

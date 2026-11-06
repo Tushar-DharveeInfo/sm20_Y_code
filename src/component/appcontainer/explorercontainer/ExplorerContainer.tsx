@@ -113,7 +113,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
                 label: business.bname,
                 actionCode: business.bid,
                 tooltip: business.bname,
-                profileString: JSON.stringify([{ Enabled: business.verified ?? true, Public: true, AddEdit: false }]),
+                profileString: JSON.stringify([{ Enabled: business.bverified ?? true, Public: true, AddEdit: false }]),
                 subGroupName: "SAASInstance",
                 isInUse: true,
             }))

@@ -5,7 +5,7 @@ import { saveAs } from 'file-saver'
 import { AgGridReact } from 'ag-grid-react'
 import type { ICellRendererParams } from 'ag-grid-community'
 import { Filter24x24 } from '@n20a/libicon'
-import { useActivities, type IFirestoreQueryFilter } from '@n20a/libfsdb'
+import { useContactActivities, type IFirestoreQueryFilter } from '@n20a/libfsdb'
 import { DisplayControlEnums } from '../../../shared/alldefaultprops/basic/DefaultPropsFormContainer'
 import { Label } from '../../../shared/basic/label/Label'
 import { ActionImage } from '../../../shared/basic/actionimage/ActionImage'
@@ -173,7 +173,7 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
     const maxLogFetch = maxLogLimit + 1;
     const bid = String(mainAppContext.authSession?.bid ?? '').trim();
     const cid = String(mainAppContext.authSession?.cid ?? '').trim();
-    const { getActivities } = useActivities(bid);
+    const { getActivities } = useContactActivities(bid, cid);
 
     const [activities, setActivities] = useState<Record<string, unknown>[] | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
@@ -216,7 +216,10 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
         }
     }, [getActivities]);
 
-    useEffect(() => { void fetchActivitiesData(); }, [fetchActivitiesData]);
+    useEffect(() => 
+    { 
+        void fetchActivitiesData(); 
+    }, [fetchActivitiesData]);
 
     useEffect(() => {
         if (!loading && activities !== null) {
@@ -523,7 +526,6 @@ const MyActivities = (myActivitiesProps: IMyActivities) => {
                     />
                 );
             })()}
-
 
             {isPopupOpen && <YesNoFormContainer
                 uniqueName={`${myActivitiesProps.uniqueName}-over-500-popup`}

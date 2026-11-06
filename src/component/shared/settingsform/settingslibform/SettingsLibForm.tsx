@@ -411,6 +411,11 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
 
                 return String(control?.DefaultValue ?? control?.DefaultAPValue ?? control?.Value ?? "");
             };
+/*
+ * normalizeCountryName helper, it maps "USA" (case-insensitive) to "United States", and applied it where Country is populated for both edit mode (getProfileValue) and add mode (getDefaultValue), so the AddressForm country dropdown gets a value it recognizes.
+*/
+            const normalizeCountryName = (country: string): string =>
+                country?.trim().toLowerCase() === "usa" ? "United States" : country;
 
             let addressValue: IAddress;
 
@@ -428,7 +433,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                     Address2: getProfileValue("Address2"),
                     City: getProfileValue("City"),
                     State: getProfileValue("State"),
-                    Country: getProfileValue("Country"),
+                    Country: normalizeCountryName(getProfileValue("Country")),
                     Zip: getProfileValue("Zip"),
                     CountryCode: getProfileValue("CountryCode"),
                     Latitude: latitude,
@@ -449,7 +454,7 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
                     Address2: getDefaultValue("Address2"),
                     City: getDefaultValue("City"),
                     State: getDefaultValue("State"),
-                    Country: getDefaultValue("Country"),
+                    Country: normalizeCountryName(getDefaultValue("Country")),
                     Zip: getDefaultValue("Zip"),
                     CountryCode: getDefaultValue("CountryCode"),
                     Latitude: latitude,
@@ -1006,6 +1011,8 @@ const SettingsLibForm = ({ id, container, refDataObject, uniqueName, allowShowSe
         return <div className="nz-wh-100 nz-d-flex-hv-left">No form found</div>;
     }
 
+    console.log('Y-[SettingsLibForm] renderedFormElements:', updatedAddress, renderedFormElements);
+    
     return (
         <div className='nz-wh-100 nz-settings-lib-form-container'>
             {allowShowHeader && <div className='nz-form-action-header nz-sub-header'>

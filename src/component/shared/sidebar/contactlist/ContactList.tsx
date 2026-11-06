@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { User24x24, Send24x24, Cross } from "@n20a/libicon";
+import { User24x24, Send24x24, Close24x24, Cross } from "@n20a/libicon";
 import { EditTextXControl } from "@n20a/libform";
 import { FnGetCssVariable } from "../../../appcontainer/allcommon/FnGetCssVariable";
 import { handleNestedZoneContainerKeyDown } from "../../allcommon/basic/FnHandleContainerKeyDown";
@@ -477,4 +477,3 @@ const ContactList = (props: IContactList) => {
 };
 
 export { ContactList };
-

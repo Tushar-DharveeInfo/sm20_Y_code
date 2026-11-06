@@ -22,7 +22,7 @@ import {
 import { FnAddSubNode } from '../allcommon/tree/FnAddSubNode.ts'
 import { FnMapBusinessesToTreeNodes } from '../allcommon/tree/FnMapBusinessesToTreeNodes.ts'
 import { FnMapContactsToTreeNodes } from '../allcommon/tree/FnMapContactsToTreeNodes.ts'
-import { FnSearchKeywordInLocalTree } from '../allcommon/FnSearchKeywordInLocalTree.ts'
+import { FnSearchKeywordInLocalTree } from '../allcommon/tree/FnSearchKeywordInLocalTree.ts'
 import { IDCFilterControlValues } from '../allinterface/searchfilter/IFilterFormContainer.ts'
 import { ITreeExplorerContainer } from './ITreeExplorerContainer.ts'
 import { IExpandedNodeInfo, ISelectedNodeInfo, ITreeNode } from '../allinterface/tree/ITreeControl.ts'

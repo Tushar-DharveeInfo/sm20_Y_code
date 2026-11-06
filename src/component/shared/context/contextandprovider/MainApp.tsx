@@ -2,16 +2,17 @@ import { createContext, useEffect, useMemo, useState, useCallback } from "react"
 import { IFeatureForHelp, IFeatureItem, IMainApp, IUserAuthSession, IAp } from "../allinterface/IMainApp";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
 import { IStatusBar } from "../allinterface/IStatusBar";
-import { useActivities } from "@n20a/libfsdb";
+import { useActivities, useFileDownload } from "@n20a/libfsdb";
 import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import { fnFilterPermittedFeatures } from "../../allcommon/menu/FnFeatureNodeType";
 import { LoadJson } from "../../allcommon/LoadJson";
+import type { IDeploymentEnv } from "../../allinterface/IApiResponse";
 
 let featuresData: IFeatureItem[] | null = null;
-let deploymentVarData: Record<string, any>[] | null = null;
+let deploymentVarData: IDeploymentEnv[] | null = null;
 
 const getfeaturesData = (): IFeatureItem[] | null => featuresData;
-const getDeploymentVars = (): Record<string, any>[] | null => deploymentVarData;
+const getDeploymentVars = (): IDeploymentEnv[] | null => deploymentVarData;
 
 const MainAppContext = createContext<IMainApp | undefined>(undefined);
 
@@ -19,7 +20,7 @@ function MainAppProvider({ children }: IAppContextWrapper) {
     const [rawFeatureRecords, setRawFeatureRecords] = useState<IFeatureItem[]>([]);
     const [alertRecords, setAlertRecords] = useState<Record<string, any>[]>([]);
     const [isInternetAvailable, setIsInternetAvailable] = useState<boolean>(true);
-    const [deploymentVars, setDeploymentVars] = useState<Record<string, any>[]>([]);
+    const [deploymentVars, setDeploymentVars] = useState<IDeploymentEnv[]>([]);
     const [selectedFeatureForHelp, setSelectedFeatureForHelpState] = useState<IFeatureForHelp>()
     const [authSession, setAuthSession] = useState<IUserAuthSession>()
     const [ap, setAp] = useState<IAp[]>();
@@ -44,18 +45,39 @@ function MainAppProvider({ children }: IAppContextWrapper) {
 
 
     const folderName = authSession?.baseFolder ?? "";
-    const { JsonFile: apJson } = LoadJson(folderName ? `n20-bucket-01/sm/ap/apsm.json` : "");
+    const { downloadSingleFile } = useFileDownload();
 
     useEffect(() => {
-        // apJson resolves asynchronously once authSession/folderName are available.
-        // The JSON uses lowercase keys (apname, value); normalize to IAp shape (apName, apValue).
-        if (!apJson) return;
-        const normalized = (apJson as unknown as Record<string, string>[]).map((item: any) => ({
-            apName: item.apName ?? item.apname ?? '',
-            apValue: item.apValue ?? item.value ?? '',
-        }));
-        setAp(normalized as IAp[]);
-    }, [apJson]);
+        let cancelled = false;
+
+        const loadApJson = async () => {
+            const filePath = `n20-bucket-01/sm/ap/apsm.json` 
+            const apJson = await LoadJson(filePath, downloadSingleFile);
+
+    debugger;
+            if (!apJson || cancelled) return;
+
+            // The JSON uses lowercase keys (apname, value); normalize to IAp shape (apName, apValue).
+            const normalized = (apJson as Record<string, string>[]).map((item: any) => ({
+                apName: item.apName ?? item.apname ?? '',
+                apValue: item.apValue ?? item.value ?? '',
+            }));
+
+            if (!cancelled) {
+                setAp(normalized as IAp[]);
+            }
+        };
+
+        void loadApJson().catch((error) => {
+            if (!cancelled) {
+                console.error("Error loading APSM JSON:", error);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [folderName, downloadSingleFile]);
 
     const setFeatureRecords = useCallback((value: React.SetStateAction<IFeatureItem[]>) => {
         setRawFeatureRecords(value);

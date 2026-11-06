@@ -1,4 +1,20 @@
 
+const cssVarCache = new Map<string, string>();
+
+if (typeof window !== "undefined" && typeof MutationObserver !== "undefined" && typeof document !== "undefined" && document.documentElement) {
+    const observer = new MutationObserver(() => {
+        cssVarCache.clear();
+    });
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["style", "class", "data-theme"],
+    });
+}
+
+const FnClearCssVariableCache = (): void => {
+    cssVarCache.clear();
+};
+
 const FnGetCssVariable = (
     name: string,
     fallbackValue: string = "unset"
@@ -12,7 +28,11 @@ const FnGetCssVariable = (
             ? name
             : `--${name}`;
 
-        const rootElement = document?.documentElement;
+        if (cssVarCache.has(variableName)) {
+            return cssVarCache.get(variableName)!;
+        }
+
+        const rootElement = typeof document !== "undefined" ? document.documentElement : null;
 
         if (!rootElement) {
             return fallbackValue;
@@ -22,11 +42,15 @@ const FnGetCssVariable = (
             ?.getPropertyValue(variableName)
             ?.trim();
 
-        return value || fallbackValue;
+        const result = value || fallbackValue;
+        if (value) {
+            cssVarCache.set(variableName, result);
+        }
+        return result;
     } catch (error) {
         console.error("FnGetCssVariable error:", error);
         return fallbackValue;
     }
 };
 
-export { FnGetCssVariable };
+export { FnGetCssVariable, FnClearCssVariableCache };

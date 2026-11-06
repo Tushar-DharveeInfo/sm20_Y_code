@@ -35,8 +35,8 @@ const BusinessPathSegment = (requiredBusinessPath: IBusinessPathSegmentProfile) 
             return { pathSegments: ['businesses', requiredBusinessPath.bid, 'subs', requiredBusinessPath.subsid] };
         case 'downloads':
             return { pathSegments: ['businesses', requiredBusinessPath.bid, 'subs', requiredBusinessPath.subsid, 'downloads']};
-        case 'todo':
-            return { pathSegments: ['todo']};
+        case 'reminder':
+            return { pathSegments: ['reminder']};
         case 'prospect':
             return { pathSegments: ['prospect', requiredBusinessPath.cid] };
         case 'mfg':
@@ -84,8 +84,8 @@ const ContactPathSegment = (requiredContactPath: IContactPathSegmentProfile) => 
             return { pathSegments: ['businesses', requiredContactPath.bid, 'subs', requiredContactPath.subsid] };
         case 'downloads':
             return { pathSegments: ['businesses', requiredContactPath.bid, 'subs', requiredContactPath.subsid, 'downloads']};
-        case 'todo':
-            return { pathSegments: ['todo']};
+        case 'reminder':
+            return { pathSegments: ['reminder']};
         case 'prospect':
             return { pathSegments: ['prospect', requiredContactPath.cid] };
         default:

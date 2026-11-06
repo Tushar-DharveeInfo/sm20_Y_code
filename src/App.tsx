@@ -87,8 +87,9 @@ function App() {
     await callEnvToGetData();
     if (!isMountedRef.current) return;
 
-    setUserData(user);
-    setLoginUserName(user.displayName || user.username);
+    setUserData(user);  // Store signed-in authenticated user data only returned by libauth (does not have env related ap data)
+
+    setLoginUserName(user.displayName || user.username);  //we will use it for displaying the login user's name in the splash loader
     setCurrentStage(2);
   };
 

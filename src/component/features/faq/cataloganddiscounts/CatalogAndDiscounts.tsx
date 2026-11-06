@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {useLoadRemoteJson} from '../../../shared/allcommon/LoadRemoteJsonHooks'
+import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks'
 
 type CatalogItem = {
     sortorder: number
@@ -19,11 +20,14 @@ const money = new Intl.NumberFormat('en-US', {
 })
 
 const CatalogAndDiscounts = () => {
+  const mainAppContext = useMainAppContext();
+  const authSession = mainAppContext?.authSession;
+  const bucketName = authSession?.bucketName ?? "n20-bucket-01";
     const [items, setItems] = useState<CatalogItem[]>([])
     const [error, setError] = useState<string | null>(null)
     const [failedImageKeys, setFailedImageKeys] = useState<Set<string>>(new Set())
 
-    useLoadRemoteJson({ bucket:'n20-bucket-01', baseFolder:'sm', fileName:'netzoomproductcatalog/netzoomproductcatalog.json', onSuccess:setItems, onError:setError })
+    useLoadRemoteJson({ bucket: bucketName, baseFolder:'sm', fileName:'netzoomproductcatalog/catalogfull.json', onSuccess:setItems, onError:setError })
 
     if (error) {
         return (

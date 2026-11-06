@@ -1,14 +1,14 @@
 import React from 'react';
 import { EQIDReminder } from './EQIDReminder';
 
-interface IEQIDToDoPaneProps {
+interface IEQIDReminderPaneProps {
   eqid?: string;
   ticket?: any;
   selectedNode?: any;
 }
 
-export const EQIDToDoPane: React.FC<IEQIDToDoPaneProps> = (props) => {
+export const EQIDReminderPane: React.FC<IEQIDReminderPaneProps> = (props) => {
   return <EQIDReminder {...props} />;
 };
 
-export default EQIDToDoPane;
+export default EQIDReminderPane;

@@ -1,0 +1,476 @@
+[
+    {
+    "section": "BASIC",
+    "Field": "Acronym",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "BASIC",
+    "Field": "EQID",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "BASIC",
+    "Field": "Manufacturer",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "BASIC",
+    "Field": "MfgProdLine",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "BASIC",
+    "Field": "Eqtype",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "BASIC",
+    "Field": "MfgEqtype",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "BASIC",
+    "Field": "MfgProdNo",
+    "Formcontrol": "EditText",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "BASIC",
+    "Field": "MfgDesc",
+    "Formcontrol": "EditText",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "DIMENSION",
+    "Field": "DimUnits",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "DIMENSION",
+    "Field": "Ht",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;9999}"
+  },
+  {
+    "section": "DIMENSION",
+    "Field": "Wd",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;9999}"
+  },
+  {
+    "section": "DIMENSION",
+    "Field": "Dp",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;9999}"
+  },
+  {
+    "section": "DIMENSION",
+    "Field": "isEstimatedDimension",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "DIMENSION",
+    "Field": "RU",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{1;400}"
+  },
+  {
+    "section": "DIMENSION",
+    "Field": "Scale",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "WEIGHT",
+    "Field": "WtUnits",
+    "Formcontrol": "Combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "WEIGHT",
+    "Field": "Wt",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;57000}"
+  },
+  {
+    "section": "WEIGHT",
+    "Field": "isEstimatedWt",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "POWER",
+    "Field": "VoltUnits",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "POWER",
+    "Field": "VoltMin",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{-200;1000.0}"
+  },
+  {
+    "section": "POWER",
+    "Field": "VoltMax",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{-72;1000.0}"
+  },
+  {
+    "section": "POWER",
+    "Field": "AmpUnits",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "POWER",
+    "Field": "Amp",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;400000}"
+  },
+  {
+    "section": "POWER",
+    "Field": "PowerUnits",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "POWER",
+    "Field": "PowerMin",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;225000}"
+  },
+  {
+    "section": "POWER",
+    "Field": "PowerMax",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;303000}"
+  },
+  {
+    "section": "POWER",
+    "Field": "PowerAvg",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;303000}"
+  },
+  {
+    "section": "POWER",
+    "Field": "isEstimatedPower",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "POWER",
+    "Field": "PowerUnits",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "POWER",
+    "Field": "PowerLoadCapacity",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;4500000}"
+  },
+  {
+    "section": "POWER",
+    "Field": "isEstimatedPowerLoad",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "THERMAL",
+    "Field": "HeatUnits",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "THERMAL",
+    "Field": "HeatMin",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;2120000}"
+  },
+  {
+    "section": "THERMAL",
+    "Field": "HeatMax",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;2120000}"
+  },
+  {
+    "section": "THERMAL",
+    "Field": "HeatAvg",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{0.1;2120000}"
+  },
+  {
+    "section": "THERMAL",
+    "Field": "isEstimatedHeat",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "RACK",
+    "Field": "RackType",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "RACK",
+    "Field": "TotalRU",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{1;400}"
+  },
+  {
+    "section": "RACK",
+    "Field": "InsideWidth",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;45.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "Color",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "RACK",
+    "Field": "DimA",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;50.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimB",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;50.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimC",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;50.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimD",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimE",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;70.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimF",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimFService",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimG",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimH",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimI",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimJ",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimR",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "DimRService",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10;300.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "RackLoadUnits",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "RACK",
+    "Field": "LoadCapacity",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{8;30000.0}"
+  },
+  {
+    "section": "RACK",
+    "Field": "isEstimatedRack",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "RACK",
+    "Field": "FirstRU",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{1;10}"
+  },
+  {
+    "section": "RACK",
+    "Field": "RUSpacing",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{1;10}"
+  },
+  {
+    "section": "RACK",
+    "Field": "RU",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{1;400}"
+  },
+  {
+    "section": "CABLE",
+    "Field": "CableCapacity",
+    "Formcontrol": "spin",
+    "inputmask {start;end;step}": "{10.0;100}"
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "ApprovedStatus",
+    "Formcontrol": "combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "ApprovedBy",
+    "Formcontrol": "Text",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "ApprovedDate",
+    "Formcontrol": "autodate",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "DataReady",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "DataApprovedBy",
+    "Formcontrol": "Text",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "DataApprovedDate",
+    "Formcontrol": "autodate",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "ShapeReady",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "ShapeApprovedBy",
+    "Formcontrol": "Text",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "ShapeApprovedDate",
+    "Formcontrol": "autodate",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "isReleased",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "PROGRESSS",
+    "Field": "ReleasedDate",
+    "Formcontrol": "autodate",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "OTHER",
+    "Field": "Archived",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "OTHER",
+    "Field": "Source",
+    "Formcontrol": "Combo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "OTHER",
+    "Field": "DeviceAttribute",
+    "Formcontrol": "CheckedCombo",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "OTHER",
+    "Field": "isIntel",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "OTHER",
+    "Field": "isFacility",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "OTHER",
+    "Field": "isIT",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "OTHER",
+    "Field": "PrivateDevice",
+    "Formcontrol": "Checkbox",
+    "inputmask {start;end;step}": ""
+  },
+  {
+    "section": "OWNER",
+    "Field": "LoginOwner",
+    "Formcontrol": "Text",
+    "inputmask {start;end;step}": ""
+  }
+]

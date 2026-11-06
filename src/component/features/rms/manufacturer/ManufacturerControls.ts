@@ -1,6 +1,6 @@
 import { DisplayControlEnums } from '../../../shared/alldefaultprops/basic/DefaultPropsFormContainer';
 import type { IControl } from '../../../shared/allinterface/settingsform/ISettingsLibForm';
-import type { IMfgRecord } from '../../../shared/context/allinterface/IRms';
+import type { IMfgRecord } from '../../../tu/new files/src/component/shared/context/allinterface/IRms';
 
 export type MfgCommand =
     | 'add-mfg'

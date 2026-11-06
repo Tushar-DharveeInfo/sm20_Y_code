@@ -51,7 +51,7 @@ interface IFeatureTree {
     allowCustomCheck?: boolean;//If true user need to handle handleCheck event 
     disableSelection?: boolean;// If true it will not allow selection  
     showLeafStatusIcon?: boolean;
-    onAddToDownloadCart?: (node: ITreeNode) => void;// to add to download cart
+    onAddReminderwnloadCart?: (node: ITreeNode) => void;// to add to download cart
 }
 
 interface ITreeForHierarchicalDataContainer {

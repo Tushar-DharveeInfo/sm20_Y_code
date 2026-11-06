@@ -74,6 +74,7 @@ interface IRms {
 /** One row from the mfg table, cached for the manufacturer tree. */
 export interface IMfgRecord {
     mfgkey: string;
+    private?: boolean;
     mfgname: string;
     address?: string;
     website?: string;

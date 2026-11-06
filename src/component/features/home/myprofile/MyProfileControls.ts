@@ -41,7 +41,7 @@ const createProfileControl = (
 });
 
 const myProfileUserControls: IControl[] = [
-    createProfileControl("Company", "Company", 1, "User", DisplayControlEnums.EditTextControl, true),
+    createProfileControl("Company", "Company ID", 1, "User", DisplayControlEnums.EditTextControl, true),
     createProfileControl("Login", "Login", 2, "User", DisplayControlEnums.EditTextControl, true),
     createProfileControl("Name", "Name", 3, "User", DisplayControlEnums.EditTextControl, false),
     createProfileControl("Email", "Email", 4, "User", DisplayControlEnums.EditTextControl, true),

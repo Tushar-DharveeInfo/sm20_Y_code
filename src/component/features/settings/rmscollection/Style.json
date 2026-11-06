@@ -1,0 +1,116 @@
+[
+  {
+    "Style": "1",
+    "StyleAcronym": "F",
+    "Description": "2D Front View",
+    "PrintOrder": "1"
+  },
+  {
+    "Style": "2",
+    "StyleAcronym": "R",
+    "Description": "2D Rear View",
+    "PrintOrder": "2"
+  },
+  {
+    "Style": "3",
+    "StyleAcronym": "3FR",
+    "Description": "3D Front View at 45°",
+    "PrintOrder": "8"
+  },
+  {
+    "Style": "4",
+    "StyleAcronym": "3FT",
+    "Description": "3D Top View at Front Side",
+    "PrintOrder": "12"
+  },
+  {
+    "Style": "5",
+    "StyleAcronym": "3FL",
+    "Description": "3D Front View at 120°",
+    "PrintOrder": "14"
+  },
+  {
+    "Style": "6",
+    "StyleAcronym": "3FB",
+    "Description": "3D -  Front at 270 degree or bottom",
+    "PrintOrder": "16"
+  },
+  {
+    "Style": "7",
+    "StyleAcronym": "3RR",
+    "Description": "3D Rear View at 45°",
+    "PrintOrder": "9"
+  },
+  {
+    "Style": "8",
+    "StyleAcronym": "3RT",
+    "Description": "3D Top View at Rear Side",
+    "PrintOrder": "13"
+  },
+  {
+    "Style": "9",
+    "StyleAcronym": "3RL",
+    "Description": "3D Rear View at 120°",
+    "PrintOrder": "15"
+  },
+  {
+    "Style": "B",
+    "StyleAcronym": "MRS",
+    "Description": "2D Rear Module",
+    "PrintOrder": "11"
+  },
+  {
+    "Style": "C",
+    "StyleAcronym": "MFS",
+    "Description": "2D Front Module",
+    "PrintOrder": "10"
+  },
+  {
+    "Style": "D",
+    "StyleAcronym": "CR",
+    "Description": "2D Blank chassis - Rear",
+    "PrintOrder": "7"
+  },
+  {
+    "Style": "I",
+    "StyleAcronym": "CF",
+    "Description": "2D Front Blank Chassis",
+    "PrintOrder": "6"
+  },
+  {
+    "Style": "J",
+    "StyleAcronym": "CF3",
+    "Description": "3D Front Blank Chassis",
+    "PrintOrder": "22"
+  },
+  {
+    "Style": "L",
+    "StyleAcronym": "LS",
+    "Description": "2D Left Side View",
+    "PrintOrder": "4"
+  },
+  {
+    "Style": "R",
+    "StyleAcronym": "RS",
+    "Description": "2D Right Side View",
+    "PrintOrder": "5"
+  },
+  {
+    "Style": "T",
+    "StyleAcronym": "T",
+    "Description": "2D Top View",
+    "PrintOrder": "3"
+  },
+  {
+    "Style": "Y",
+    "StyleAcronym": "FS3",
+    "Description": "3D Front Slots",
+    "PrintOrder": "23"
+  },
+  {
+    "Style": "Z",
+    "StyleAcronym": "RS3",
+    "Description": "3D Rear Slots",
+    "PrintOrder": "24"
+  }
+]

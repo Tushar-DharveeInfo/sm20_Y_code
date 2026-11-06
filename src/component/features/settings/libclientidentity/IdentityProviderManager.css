@@ -1,0 +1,340 @@
+/* IdentityProviderManager — self-contained styles */
+
+.ipm-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ipm-loading-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+/* Header */
+.ipm-header {
+  flex-shrink: 0;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #fff;
+}
+
+.ipm-header-left { flex: 1; }
+
+.ipm-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  margin: 0 0 4px 0;
+}
+
+.ipm-title-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}
+
+.ipm-subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0 0 8px 0;
+}
+
+.ipm-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ipm-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  gap: 3px;
+}
+
+.ipm-chip-icon { width: 12px; height: 12px; }
+
+.ipm-chip-green { background: #dcfce7; color: #166534; }
+.ipm-chip-gray { background: #f3f4f6; color: #4b5563; }
+.ipm-chip-blue { background: #dbeafe; color: #1e40af; }
+.ipm-chip-orange { background: #ffedd5; color: #9a3412; }
+
+.ipm-header-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.ipm-btn-add-saml,
+.ipm-btn-add-oidc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ipm-btn-add-saml { background: #dbeafe; color: #1d4ed8; }
+.ipm-btn-add-saml:hover { background: #bfdbfe; }
+.ipm-btn-add-oidc { background: #dcfce7; color: #15803d; }
+.ipm-btn-add-oidc:hover { background: #bbf7d0; }
+.ipm-btn-add-saml:disabled,
+.ipm-btn-add-oidc:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ipm-btn-add-icon { width: 14px; height: 14px; }
+
+/* Table */
+.ipm-table-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ipm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.ipm-th {
+  padding: 8px 16px;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ipm-th-center { text-align: center; }
+
+.ipm-tbody tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
+
+.ipm-tr:hover { background: #f9fafb; }
+
+.ipm-td {
+  padding: 10px 16px;
+  vertical-align: middle;
+}
+
+.ipm-td-center { text-align: center; }
+
+.ipm-provider-name { font-weight: 500; color: #111827; }
+.ipm-provider-id { font-size: 0.7rem; color: #9ca3af; font-family: monospace; margin-top: 2px; }
+
+.ipm-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.ipm-type-saml { background: #dbeafe; color: #1e40af; }
+.ipm-type-oidc { background: #dcfce7; color: #166534; }
+.ipm-type-oauth { background: #ffedd5; color: #9a3412; }
+
+.ipm-icon-active { width: 16px; height: 16px; color: #16a34a; margin: 0 auto; }
+
+.ipm-badge-disabled {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.ipm-row-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ipm-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.ipm-icon-btn-blue { color: #2563eb; }
+.ipm-icon-btn-blue:hover { color: #1e3a8a; }
+.ipm-icon-btn-red { color: #dc2626; }
+.ipm-icon-btn-red:hover { color: #7f1d1d; }
+.ipm-icon-btn:disabled { color: #d1d5db; cursor: not-allowed; }
+
+.ipm-icon { width: 16px; height: 16px; }
+
+.ipm-empty-row {
+  padding: 32px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+/* Modal */
+.ipm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  padding: 16px;
+}
+
+.ipm-modal-box {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.ipm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.ipm-modal-title { font-size: 1rem; font-weight: 600; color: #111827; margin: 0; }
+
+.ipm-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 3px;
+}
+.ipm-modal-close:hover { color: #111827; background: #f3f4f6; }
+
+.ipm-modal-body { padding: 20px; overflow-y: auto; }
+
+/* Form */
+.ipm-form-fields { display: flex; flex-direction: column; gap: 14px; }
+.ipm-form-label { display: block; font-size: 0.8rem; font-weight: 500; color: #374151; margin-bottom: 4px; }
+
+.ipm-input,
+.ipm-textarea {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 0.85rem;
+  color: #111827;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.ipm-input:focus,
+.ipm-textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15); }
+.ipm-input:disabled,
+.ipm-textarea:disabled { background: #f9fafb; color: #9ca3af; cursor: not-allowed; }
+
+.ipm-textarea { resize: vertical; }
+
+.ipm-password-wrapper { position: relative; }
+.ipm-input-password { padding-right: 60px; }
+
+.ipm-show-hide-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 8px;
+  background: #e5e7eb;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.ipm-checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+.ipm-checkbox-row { display: flex; align-items: center; cursor: pointer; }
+.ipm-checkbox { width: 14px; height: 14px; accent-color: #3b82f6; flex-shrink: 0; }
+.ipm-checkbox-label { margin-left: 8px; font-size: 0.8rem; color: #374151; }
+
+.ipm-fieldset { border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.ipm-legend { font-size: 0.8rem; font-weight: 500; color: #374151; margin-bottom: 4px; padding: 0; }
+
+.ipm-form-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 8px; }
+
+.ipm-btn-cancel {
+  padding: 7px 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #374151;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.ipm-btn-cancel:hover { background: #f9fafb; }
+.ipm-btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ipm-btn-primary {
+  padding: 7px 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #fff;
+  background: #2563eb;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.ipm-btn-primary:hover { background: #1d4ed8; }
+.ipm-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Shared spinner (referenced from ClientIdentity.css via ci-spinner) */
+.ci-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: ci-spin 0.7s linear infinite;
+}
+
+@keyframes ci-spin {
+  to { transform: rotate(360deg); }
+}

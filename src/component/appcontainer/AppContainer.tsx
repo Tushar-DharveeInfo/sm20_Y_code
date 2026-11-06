@@ -181,7 +181,6 @@ const AppContainer = (appContainerProps: IAppContainer) => {
             const isAppqa = Boolean((location.state as IMenuItem & { IsAppqa?: boolean }).IsAppqa)
                 || featureId === AppQA.Help
                 || featureId === AppQA.Log
-                || featureId === AppQA.Alerts
                 || featureId === AppQA.Notify
                 || featureId === AppQA.Signout
                 || featureId === AppQA.Launch
@@ -326,7 +325,7 @@ const AppContainer = (appContainerProps: IAppContainer) => {
         if (!authSession?.bid || !authSession?.cid) return;
 
         loginLoggedRef.current = true;
-        const message = `${authSession.cid} of ${authSession.bid} logged in successfully.`;
+        const message = `${authSession.cid} logged in successfully.`;
         void mainAppContext.createActivityLog(message);
     }, [mainAppContext.authSession, mainAppContext.createActivityLog])
 

@@ -325,7 +325,7 @@ export const EQIDSidebarRouter: React.FC<IEQIDSidebarRouterProps> = ({ Label, se
     // case cleanLabel === 'shapes' || cleanLabel.includes('shapes'):
     //   return <EQIDShapesPane ticket={activeTicket} />;
 
-    case cleanLabel === 'reminder' || cleanLabel.includes('reminder') || cleanLabel === 'todo' || cleanLabel.includes('todo'):
+    case cleanLabel === 'reminder' || cleanLabel.includes('reminder') || cleanLabel === 'reminder' || cleanLabel.includes('reminder'):
       return (
         <EQIDReminder
           uniqueName="fqa-eqid-reminder"

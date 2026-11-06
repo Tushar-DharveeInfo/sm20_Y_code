@@ -217,10 +217,10 @@ const DeviceModel = (props: IDeviceModel) => {
 		allowInternalDrag: isLocalLibRadio(selectedRadio) ? allowDrag : true,
 		openAllNodes: false,
 		allowCheckStrictly: false,
-		// onAddToDownloadCart: (node: ITreeNode) => {
+		// onAddReminderwnloadCart: (node: ITreeNode) => {
 		// 	const { mfg, prodno, EQID } = getProductDownloadCartPayload(node)
-		// 	if (props.addToDownloadCart) {
-		// 		props.addToDownloadCart(mfg, prodno, EQID)
+		// 	if (props.addReminderwnloadCart) {
+		// 		props.addReminderwnloadCart(mfg, prodno, EQID)
 		// 	} else {
 		// 		alert(`mfg: ${mfg}\nprodno: ${prodno}\nEQID: ${EQID}`)
 		// 	}

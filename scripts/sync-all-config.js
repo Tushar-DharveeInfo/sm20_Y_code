@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Workflow: parse env values -> sync env-master to .env/.env.production -> generate public/config.js -> update public/web.config appSettings.
 
 import { readFileSync, writeFileSync, existsSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';

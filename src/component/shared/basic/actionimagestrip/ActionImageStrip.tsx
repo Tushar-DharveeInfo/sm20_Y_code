@@ -16,7 +16,7 @@ import { camelCase } from 'lodash';
 import { FnGetSessionStorageItem } from '../../allcommon/basic/FnGetSessionStorageItem.ts';
 
 const ActionImageStrip = (imageStripProps: IActionImageStrip) => {
-    console.log('imageStripProps ActionImageStrip', imageStripProps)
+    // console.log('imageStripProps ActionImageStrip', imageStripProps)
     const [actionImages, setActionImages] = useState<IActionImage[]>([]);
     const [optionalComponent, setOptionalComponent] = useState<IPropsComponent | null>(null);
     const [selectedActionCode, setSelectedActionCode] = useState<string>();

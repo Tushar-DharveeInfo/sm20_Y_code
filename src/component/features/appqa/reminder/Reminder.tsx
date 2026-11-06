@@ -14,18 +14,18 @@ import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
 import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks';
 import '../../../shared/sidebar/notes/FqaNotes.css';
 import './Reminder.css';
-import { useReminders, useFileDownload, useFileDelete, type IReminderDoc } from '@n20a/libfsdb';
-type ITodoDoc = IReminderDoc;
+import { useReminders, useFileDownload, useFileDelete } from '@n20a/libfsdb';
+import type { IReminderDoc } from '@n20a/libfsdb';
 import { useUploadRemoteFile } from '../../../shared/allcommon/UploadRemoteFileHooks';
 import { ClientEnums } from '../../../constants/Feature';
 import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 
-interface IToDo {
+interface IReminder {
 	uniqueName: string;
 	featureId?: string;
 }
 
-interface ITodoItem extends ITodoDoc {
+interface IReminderItem extends IReminderDoc {
 	id?: string;
 	bid: string;
 	cid: string;
@@ -80,7 +80,7 @@ function parseTodoDate(item: Record<string, any>): number {
 		const parsed = Date.parse(String(raw));
 		if (!isNaN(parsed)) return parsed;
 	}
-	const id = String(item.id || item.todoid || '');
+	const id = String(item.id || item.reminderid || '');
 	const match = id.match(/(\d{10,})/);
 	if (match) return Number(match[1]);
 	return 0;
@@ -177,8 +177,8 @@ function formatDueDateDisplay(raw: unknown): string {
 	return '';
 }
 
-function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBid?: string, defaultCid?: string): ITodoItem {
-	const docId = String(record.id || record.todoid || record.docId || `todo_${index}`);
+function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBid?: string, defaultCid?: string): IReminderItem {
+	const docId = String(record.id || record.reminderid || record.docId || `reminder_${index}`);
 	const rawFileName = record.filename ? String(record.filename).trim() : undefined;
 	const bid = String(record.bid ?? defaultBid ?? '').trim();
 	const cid = String(record.cid ?? defaultCid ?? '').trim();
@@ -201,7 +201,7 @@ function mapToTodoItem(record: Record<string, unknown>, index: number, defaultBi
  * Determines whether a Reminder card's bid belongs to NetZoom or VisioStencils.
  */
 function getTargetFeatureForBid(
-	item: ITodoItem,
+	item: IReminderItem,
 	businesses?: Array<{ bid?: string; btype?: string; tag?: string; bname?: string }>
 ): string {
 	const textToCheck = `${item.btype || ''} ${item.whattodo || ''} ${item.filename || ''}`.toLowerCase();
@@ -224,7 +224,7 @@ function getTargetFeatureForBid(
 	return ClientEnums.NetZoom;
 }
 
-const Reminder = (todoProps: IToDo) => {
+const Reminder = (reminderProps: IReminder) => {
 	const mainAppContext = useMainAppContext();
 	const statusBarContext = useStatusBarContext();
 	const smDataContext = useSmDataContext();
@@ -247,14 +247,14 @@ const Reminder = (todoProps: IToDo) => {
 		return `${bucketName}/${baseFolder}/smfiles/tickets/${filename}`;
 	}, [bucketName, baseFolder]);
 
-	const { loading, error, getReminders: getTodos, reminders: todos, createReminder: createTodo, updateReminder: updateTodo, deleteReminder: deleteTodo } = useReminders();
+	const { loading, error, getReminders, reminders, createReminder, updateReminder, deleteReminder } = useReminders();
 	const { upload: uploadRemoteFile, uploading: remoteUploading, progress: uploadProgress, error: remoteUploadError } = useUploadRemoteFile();
 	const { downloadSingleFile, downloading } = useFileDownload();
 	const { deleteFiles, deleting } = useFileDelete();
 
-	const [todoItems, setTodoItems] = useState<ITodoItem[]>([]);
-	const [selectedItem, setSelectedItem] = useState<ITodoItem | null>(null);
-	const [deleteItem, setDeleteItem] = useState<ITodoItem | null>(null);
+	const [reminderItems, setReminderItems] = useState<IReminderItem[]>([]);
+	const [selectedItem, setSelectedItem] = useState<IReminderItem | null>(null);
+	const [deleteItem, setDeleteItem] = useState<IReminderItem | null>(null);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [notesKey, setNotesKey] = useState(0);
 	const [fileUploading, setFileUploading] = useState(false);
@@ -264,7 +264,7 @@ const Reminder = (todoProps: IToDo) => {
 	const [noteDetailsState, setNoteDetailsState] = useState<INote | undefined>({
 		maxAudioRecordingTime: 0,
 		maxVideoRecordingTime: 0,
-		noteId: 'todo-note',
+		noteId: 'reminder-note',
 		noteTitle: '',
 		notecontent: '',
 		notefile: undefined,
@@ -277,26 +277,26 @@ const Reminder = (todoProps: IToDo) => {
 	});
 
 	useEffect(() => {
-		void getTodos();
-	}, [getTodos]);
+		void getReminders();
+	}, [getReminders]);
 
-	// Sync local list with Firestore todos hook (sorted ascending by date)
+	// Sync local list with Firestore reminders hook (sorted ascending by date)
 	useEffect(() => {
-		if (Array.isArray(todos)) {
-			const mapped = todos.map((item, index) => mapToTodoItem(item, index, userBid, userCid));
+		if (Array.isArray(reminders)) {
+			const mapped = reminders.map((item, index) => mapToTodoItem(item, index, userBid, userCid));
 			const sorted = [...mapped].sort((a, b) => parseTodoDate(a) - parseTodoDate(b));
-			setTodoItems(sorted);
-		} else if (todos === null) {
-			setTodoItems([]);
+			setReminderItems(sorted);
+		} else if (reminders === null) {
+			setReminderItems([]);
 		}
-	}, [todos, userBid, userCid]);
+	}, [reminders, userBid, userCid]);
 
-	// Auto-scroll to bottom of list when todo items change
+	// Auto-scroll to bottom of list when reminder items change
 	useEffect(() => {
 		if (scrollRef.current) {
 			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
 		}
-	}, [todoItems]);
+	}, [reminderItems]);
 
 	// Sync loading state with status bar
 	useEffect(() => {
@@ -311,7 +311,7 @@ const Reminder = (todoProps: IToDo) => {
 	}, [error, statusBarContext]);
 
 	// Download file from Cloud Storage to browser
-	const handleDownloadFile = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+	const handleDownloadFile = useCallback(async (item: IReminderItem, event?: React.MouseEvent) => {
 		event?.stopPropagation?.();
 		const rawFileName = String(item.filename || '').trim();
 		if (!rawFileName || rawFileName.startsWith('sample-file-')) {
@@ -354,7 +354,7 @@ const Reminder = (todoProps: IToDo) => {
 		setNoteDetailsState({
 			maxAudioRecordingTime: 0,
 			maxVideoRecordingTime: 0,
-			noteId: 'todo-note',
+			noteId: 'reminder-note',
 			noteTitle: '',
 			notecontent: '',
 			notefile: undefined,
@@ -368,8 +368,8 @@ const Reminder = (todoProps: IToDo) => {
 		setNotesKey((prev) => prev + 1);
 	}, []);
 
-	// Select a todo item to view/edit in the bottom Notes control
-	const handleSelectTodo = useCallback(async (item: ITodoItem) => {
+	// Select a reminder item to view/edit in the bottom Notes control
+	const handleSelectTodo = useCallback(async (item: IReminderItem) => {
 		if (selectedItem === item) {
 			resetEditor();
 			return;
@@ -384,7 +384,7 @@ const Reminder = (todoProps: IToDo) => {
 			setNoteDetailsState({
 				maxAudioRecordingTime: 0,
 				maxVideoRecordingTime: 0,
-				noteId: item.id || 'todo-note',
+				noteId: item.id || 'reminder-note',
 				noteTitle: item.status ?? '',
 				notecontent: textContent,
 				notefile: undefined,
@@ -405,7 +405,7 @@ const Reminder = (todoProps: IToDo) => {
 		setNoteDetailsState({
 			maxAudioRecordingTime: 0,
 			maxVideoRecordingTime: 0,
-			noteId: item.id || 'todo-note',
+			noteId: item.id || 'reminder-note',
 			noteTitle: item.status ?? '',
 			notecontent: textContent,
 			notefile: undefined,
@@ -436,7 +436,7 @@ const Reminder = (todoProps: IToDo) => {
 				setNoteDetailsState({
 					maxAudioRecordingTime: 0,
 					maxVideoRecordingTime: 0,
-					noteId: item.id || 'todo-note',
+					noteId: item.id || 'reminder-note',
 					noteTitle: item.status ?? '',
 					notecontent: textContent,
 					notefile: fileBlob,
@@ -493,7 +493,7 @@ const Reminder = (todoProps: IToDo) => {
 
 	// Clicking on a Reminder card selects the item locally and, if bid and cid are both non-empty,
 	// launches another instance of sm20 in a new browser tab with bid, cid, and auto-selected feature
-	const handleCardClick = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+	const handleCardClick = useCallback(async (item: IReminderItem, event?: React.MouseEvent) => {
 		void handleSelectTodo(item);
 
 		const bid = String(item.bid || '').trim();
@@ -543,7 +543,7 @@ const Reminder = (todoProps: IToDo) => {
 		[]
 	);
 
-	// Create or Update todo
+	// Create or Update reminder
 	const sendTodo = useCallback(async (message: INote) => {
 		const content = String(message.notecontent ?? '').trim();
 		if (!content) {
@@ -599,7 +599,7 @@ const Reminder = (todoProps: IToDo) => {
 		}
 
 		if (selectedItem) {
-			const todoId = selectedItem.id;
+			const reminderId = selectedItem.id;
 			const finalFileName = uploadedFileName || '';
 			const previousFileName = String(selectedItem.filename || '').trim();
 
@@ -630,9 +630,9 @@ const Reminder = (todoProps: IToDo) => {
 			};
 
 			// Optimistic local update
-			setTodoItems((prev) =>
+			setReminderItems((prev) =>
 				prev.map((item) =>
-					item === selectedItem || (todoId && item.id === todoId)
+					item === selectedItem || (reminderId && item.id === reminderId)
 						? {
 							...item,
 							whattodo: content,
@@ -645,28 +645,28 @@ const Reminder = (todoProps: IToDo) => {
 			resetEditor();
 
 			try {
-				if (todoId) {
-					const result = await updateTodo(todoId, updatedDoc);
+				if (reminderId) {
+					const result = await updateReminder(reminderId, updatedDoc);
 					if (result && result.success !== false) {
 						try {
-							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} updated todo ${todoId} successfully.`);
+							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} updated reminder ${reminderId} successfully.`);
 						} catch (logErr) {
 							console.error('Reminder: createActivityLog failed', logErr);
 						}
 					} else {
-						console.error('Reminder: updateTodo failed', result?.error);
+						console.error('Reminder: updateReminder failed', result?.error);
 					}
 				}
-				await getTodos();
+				await getReminders();
 			} catch (err) {
-				console.error('Error updating todo:', err);
+				console.error('Error updating reminder:', err);
 			}
 			return;
 		}
 
 		// ── CREATE MODE: Appended to the end of the list ──
 		const finalFilename = uploadedFileName || '';
-		const newDocId = `todo_${userCid}_${Date.now()}`;
+		const newDocId = `reminder_${userCid}_${Date.now()}`;
 		const newTodoDoc: Record<string, unknown> = {
 			bid: userBid,
 			cid: userCid,
@@ -678,7 +678,7 @@ const Reminder = (todoProps: IToDo) => {
 			filename: finalFilename,
 		};
 
-		const optimisticRow: ITodoItem = {
+		const optimisticRow: IReminderItem = {
 			id: newDocId,
 			bid: userBid,
 			cid: userCid,
@@ -692,11 +692,11 @@ const Reminder = (todoProps: IToDo) => {
 			eqid: ''
 		};
 
-		setTodoItems((prev) => [...prev, optimisticRow]);
+		setReminderItems((prev) => [...prev, optimisticRow]);
 		resetEditor();
 
 		try {
-			const result = await createTodo(newTodoDoc);
+			const result = await createReminder(newTodoDoc);
 			if (result && result.success !== false) {
 				const createdId = result.id || newDocId;
 				try {
@@ -705,16 +705,16 @@ const Reminder = (todoProps: IToDo) => {
 					console.error('Reminder: createActivityLog failed', logErr);
 				}
 			} else {
-				console.error('Reminder: createTodo failed', result?.error);
+				console.error('Reminder: createReminder failed', result?.error);
 			}
-			await getTodos();
+			await getReminders();
 		} catch (err) {
-			console.error('Error creating todo:', err);
+			console.error('Error creating reminder:', err);
 		}
-	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, createTodo, updateTodo, getTodos, uploadRemoteFile, resetEditor, bucketName, baseFolder, getStoragePath, deleteFiles, statusBarContext]);
+	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, createReminder, updateReminder, getReminders, uploadRemoteFile, resetEditor, bucketName, baseFolder, getStoragePath, deleteFiles, statusBarContext]);
 
 	const deleteImage: IImage = {
-		uniqueName: 'todo-delete-icon',
+		uniqueName: 'reminder-delete-icon',
 		source: (
 			<Cross
 				size={FnGetCssVariable('--image-size-2')}
@@ -728,7 +728,7 @@ const Reminder = (todoProps: IToDo) => {
 	};
 
 	const closeImage: IImage = {
-		uniqueName: 'todo-close-icon',
+		uniqueName: 'reminder-close-icon',
 		source: (
 			<Delete24x24
 				size={FnGetCssVariable('--image-size-2')}
@@ -741,12 +741,12 @@ const Reminder = (todoProps: IToDo) => {
 		tooltip: 'Click to Close',
 	};
 
-	const handleDelete = (item: ITodoItem) => {
+	const handleDelete = (item: IReminderItem) => {
 		setDeleteItem(item);
 		setDeleteOpen(true);
 	};
 
-	// Delete file from Cloud Storage FIRST, then delete todo document
+	// Delete file from Cloud Storage FIRST, then delete reminder document
 	const handleConfirmDelete = async () => {
 		if (deleteItem) {
 			if (selectedItem === deleteItem) {
@@ -755,7 +755,7 @@ const Reminder = (todoProps: IToDo) => {
 
 			const rawFileName = String(deleteItem.filename || '').trim();
 			statusBarContext?.setIsLoading?.(true);
-			statusBarContext?.setLoadingLabel?.('Deleting todo...');
+			statusBarContext?.setLoadingLabel?.('Deleting reminder...');
 			try {
 				// Delete file from Cloud Storage FIRST if it exists
 				if (rawFileName && !rawFileName.startsWith('sample-file-')) {
@@ -769,25 +769,25 @@ const Reminder = (todoProps: IToDo) => {
 				}
 
 				// Optimistic deletion
-				setTodoItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== deleteItem.id));
+				setReminderItems((prev) => prev.filter((item) => item !== deleteItem && item.id !== deleteItem.id));
 
-				const todoId = deleteItem.id;
-				if (todoId) {
-					statusBarContext?.setLoadingLabel?.('Deleting todo...');
-					const result = await deleteTodo(todoId);
+				const reminderId = deleteItem.id;
+				if (reminderId) {
+					statusBarContext?.setLoadingLabel?.('Deleting reminder...');
+					const result = await deleteReminder(reminderId);
 					if (result && result.success !== false) {
 						try {
-							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} deleted reminder ${todoId} successfully.`);
+							await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} deleted reminder ${reminderId} successfully.`);
 						} catch (logErr) {
 							console.error('Reminder: createActivityLog failed', logErr);
 						}
 					} else {
-						console.error('Reminder: deleteTodo failed', result?.error);
+						console.error('Reminder: deleteReminder failed', result?.error);
 					}
 				}
-				await getTodos();
+				await getReminders();
 			} catch (err) {
-				console.error('Error deleting todo:', err);
+				console.error('Error deleting reminder:', err);
 			} finally {
 				statusBarContext?.setIsLoading?.(false);
 				statusBarContext?.setLoadingLabel?.('');
@@ -797,25 +797,25 @@ const Reminder = (todoProps: IToDo) => {
 		setDeleteItem(null);
 	};
 
-	// Close todo: update status to Close and refresh ui
-	const handleCloseTodo = useCallback(async (item: ITodoItem, event?: React.MouseEvent) => {
+	// Close reminder: update status to Close and refresh ui
+	const handleCloseTodo = useCallback(async (item: IReminderItem, event?: React.MouseEvent) => {
 		event?.stopPropagation?.();
-		const todoId = item.id;
-		if (!todoId) return;
+		const reminderId = item.id;
+		if (!reminderId) return;
 
 		const userShortName = String(userInfo?.username ?? userInfo?.email ?? authSession?.displayName ?? authSession?.username ?? 'User').trim();
 		const now = new Date().toISOString();
 
 		// Optimistic local update
-		setTodoItems((prev) =>
-			prev.map((todo) =>
-				todo === item || (todoId && todo.id === todoId)
-					? { ...todo, status: 'Close' }
-					: todo
+		setReminderItems((prev) =>
+			prev.map((reminder) =>
+				reminder === item || (reminderId && reminder.id === reminderId)
+					? { ...reminder, status: 'Close' }
+					: reminder
 			)
 		);
 
-		if (selectedItem?.id === todoId || selectedItem === item) {
+		if (selectedItem?.id === reminderId || selectedItem === item) {
 			setSelectedItem((prev) => (prev ? { ...prev, status: 'Close' } : null));
 			setNoteDetailsState((prev) => (prev ? { ...prev, noteTitle: 'Close' } : prev));
 		}
@@ -836,26 +836,26 @@ const Reminder = (todoProps: IToDo) => {
 				...(item.datecreated ? { datecreated: item.datecreated } : {}),
 			};
 
-			const result = await updateTodo(todoId, updatedDoc);
+			const result = await updateReminder(reminderId, updatedDoc);
 			if (result && result.success !== false) {
 				try {
-					await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} closed reminder ${todoId} successfully.`);
+					await createActivityLogRef.current?.(`${userCid || noteby} of ${userBid} closed reminder ${reminderId} successfully.`);
 				} catch (logErr) {
 					console.error('Reminder: createActivityLog failed', logErr);
 				}
 			} else {
-				console.error('Reminder: updateTodo failed', result?.error);
+				console.error('Reminder: updateReminder failed', result?.error);
 			}
-			await getTodos();
+			await getReminders();
 		} catch (err) {
 			console.error('Error Closing reminder...:', err);
 		} finally {
 			statusBarContext?.setIsLoading?.(false);
 			statusBarContext?.setLoadingLabel?.('');
 		}
-	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, updateTodo, getTodos, statusBarContext]);
+	}, [selectedItem, userInfo, authSession, userBid, userCid, noteby, updateReminder, getReminders, statusBarContext]);
 
-	const renderTodoIcon = (item: ITodoItem, index: number) => {
+	const renderTodoIcon = (item: IReminderItem, index: number) => {
 		const rawFileName = String(item.filename || '').trim();
 		const hasFile = Boolean(rawFileName && !rawFileName.startsWith('sample-file-'));
 		const cleanName = getCleanFileName(rawFileName);
@@ -872,7 +872,7 @@ const Reminder = (todoProps: IToDo) => {
 					}}
 				>
 					<Image
-						uniqueName={`${todoProps.uniqueName}-attach-${index}`}
+						uniqueName={`${reminderProps.uniqueName}-attach-${index}`}
 						source={
 							<Attach24x24
 								size={FnGetCssVariable('--image-size-1')}
@@ -890,7 +890,7 @@ const Reminder = (todoProps: IToDo) => {
 		return (
 			<div className="nz-info-image">
 				<Image
-					uniqueName={`${todoProps.uniqueName}-info-${index}`}
+					uniqueName={`${reminderProps.uniqueName}-info-${index}`}
 					source={
 						<Info24x24
 							size={FnGetCssVariable('--image-size-1')}
@@ -907,50 +907,50 @@ const Reminder = (todoProps: IToDo) => {
 
 	return (
 		<div
-			className="nz-node-list-Container nz-appqa-todo"
+			className="nz-node-list-Container nz-appqa-reminder"
 			tabIndex={1}
 			onKeyDown={handleContainerKeyDown}
-			key={todoProps.uniqueName}
+			key={reminderProps.uniqueName}
 		>
 			<div className="nz-notes-list-main-div">
 				<div className="nz-notes-list-with-msg-box">
 					<div className="nz-sub-header">
 						<Label
-							uniqueName={`${todoProps.uniqueName}-header`}
-							label={`Reminder${todoItems.length > 0 ? ` (${todoItems.length})` : ''}`}
+							uniqueName={`${reminderProps.uniqueName}-header`}
+							label={`Reminder${reminderItems.length > 0 ? ` (${reminderItems.length})` : ''}`}
 						/>
 					</div>
 					<div className="nz-notes-list-scroll" ref={scrollRef}>
 						{loading && (
 							<div className="nz-notes-loading" style={{ textAlign: 'center' }}>
-								<Label uniqueName="todo-loading" label="Loading Reminders..." />
+								<Label uniqueName="reminder-loading" label="Loading Reminders..." />
 							</div>
 						)}
 						{error && (
 							<div className="nz-notes-error" style={{ color: 'var(--danger, #ff4d4f)' }}>
-								<Label uniqueName="todo-error" label={typeof error === 'string' ? error : 'Failed to load Reminders	'} />
+								<Label uniqueName="reminder-error" label={typeof error === 'string' ? error : 'Failed to load Reminders	'} />
 							</div>
 						)}
-						{!loading && !error && todoItems.length === 0 && (
+						{!loading && !error && reminderItems.length === 0 && (
 							<div className="nz-notes-empty" style={{ textAlign: 'center', opacity: 0.7 }}>
-								<Label uniqueName="todo-empty" label="No Reminders items found" />
+								<Label uniqueName="reminder-empty" label="No Pending Reminders found" />
 							</div>
 						)}
-						{todoItems.map((item, index) => {
-							const todoKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
+						{reminderItems.map((item, index) => {
+							const reminderKey = item.id ? item.id : `${item.bid}-${item.cid}-${index}`;
 							const message = item.whattodo ?? '';
 							const isSelected = selectedItem === item || (selectedItem?.id && item.id === selectedItem.id);
 							const isClosed = String(item.status ?? '').trim().toLowerCase() === 'close';
 							return (
 								<div
 									className={`nz-node-list-box${isSelected ? ' nz-node-list-box-selected' : ''}`}
-									key={todoKey}
+									key={reminderKey}
 									onClick={(e) => handleCardClick(item, e)}
 									style={{ cursor: 'pointer' }}
 									title={item.bid && item.cid ? `Click to launch SM for BID: ${item.bid}, CID: ${item.cid}` : undefined}
 								>
-									<div className="nz-todo-card-inner">
-										<div className="nz-todo-card-actions">
+									<div className="nz-reminder-card-inner">
+										<div className="nz-reminder-card-actions">
 											<div
 												onClick={(event) => event.stopPropagation()}
 												onKeyDown={(event) => event.stopPropagation()}
@@ -959,14 +959,14 @@ const Reminder = (todoProps: IToDo) => {
 													image={deleteImage}
 													w="var(--node_height)"
 													h="var(--node_height)"
-													uniqueName={`${todoProps.uniqueName}-delete-${index}`}
+													uniqueName={`${reminderProps.uniqueName}-delete-${index}`}
 													actionCode="delete"
 													disabled={false}
 													handleMouse={() => handleDelete(item)}
 												/>
 											</div>
 											{item.status && !item.status.toLowerCase().includes('close') && <div
-												className={isClosed ? 'nz-todo-action-closed' : ''}
+												className={isClosed ? 'nz-reminder-action-closed' : ''}
 												onClick={(event) => event.stopPropagation()}
 												onKeyDown={(event) => event.stopPropagation()}
 											>
@@ -977,24 +977,24 @@ const Reminder = (todoProps: IToDo) => {
 													}}
 													w="var(--node_height)"
 													h="var(--node_height)"
-													uniqueName={`${todoProps.uniqueName}-close-${index}`}
+													uniqueName={`${reminderProps.uniqueName}-close-${index}`}
 													actionCode="close"
 													disabled={false}
 													handleMouse={(e) => handleCloseTodo(item, e)}
 												/>
 											</div>}
 										</div>
-										<div className="nz-todo-card-content">
+										<div className="nz-reminder-card-content">
 											<div className="nz-node-list-delete">
 												<div className="nz-note-date">
 													<Label
-														uniqueName={`${todoProps.uniqueName}-status-${index}`}
+														uniqueName={`${reminderProps.uniqueName}-status-${index}`}
 														label={item.status || ''}
 													/>
 												</div>
 												<div className="nz-note-user">
 													<Label
-														uniqueName={`${todoProps.uniqueName}-type-${index}`}
+														uniqueName={`${reminderProps.uniqueName}-type-${index}`}
 														label={[item.btype, item.bid ? `bid: ${item.bid}` : '', item.cid ? `cid: ${item.cid}` : ''].filter(Boolean).join(' · ')}
 													/>
 												</div>
@@ -1003,7 +1003,7 @@ const Reminder = (todoProps: IToDo) => {
 												{renderTodoIcon(item, index)}
 												<div className="nz-nodes-text">
 													<Label
-														uniqueName={`${todoProps.uniqueName}-text-${index}`}
+														uniqueName={`${reminderProps.uniqueName}-text-${index}`}
 														label={message}
 													/>
 												</div>
@@ -1044,7 +1044,7 @@ const Reminder = (todoProps: IToDo) => {
 								sendTooltip={selectedItem ? 'Update Reminder' : 'Send Reminder'}
 								sendNote={sendTodo}
 								handleDelete={handleDeleteAttachment}
-								placeholderMessage="Enter a reminder here..."
+								placeholderMessage="Enter a New reminder here..."
 							/>
 						)}
 					</div>
@@ -1052,7 +1052,7 @@ const Reminder = (todoProps: IToDo) => {
 			</div>
 			<YesNoFormContainer
 				isOpen={deleteOpen}
-				uniqueName={`${todoProps.uniqueName}-delete`}
+				uniqueName={`${reminderProps.uniqueName}-delete`}
 				message="Are you sure you want to delete this reminder?"
 				showOkButton={false}
 				handleYesButtonClick={handleConfirmDelete}
