@@ -1,8 +1,7 @@
-
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useBusinesses } from "@n20a/libfsdb";
+import { useActivities, useBusinesses } from "@n20a/libfsdb";
 import { IAppContextWrapper } from "../allinterface/IAppContextWrapper";
-import { IExplorerSelection, ISmData, ISmDatasetCache } from "../allinterface/ISmData";
+import { IExplorerSelection, ISmData, ISmDatasetCache, IUserRecord } from "../allinterface/ISmData";
 import type { CollectionName, ICollectionDocMap, IContactDoc } from "@n20a/libfsdb";
 import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
@@ -11,6 +10,11 @@ import { FnMapToBusinessDocs } from "../../allcommon/dataset/FnMapToBusinessDoc"
 import { filterContactRecords } from "../../allcommon/searchfilter/FnFilterBusinessContactRecords";
 
 import { useLoadRemoteJson, type IUseLoadRemoteJsonOptions } from "../../allcommon/LoadRemoteJsonHooks";
+
+import type { IFeatureForHelp } from "../allinterface/IMainApp";
+import { useMainAppContext } from "../hooks/MainAppHooks";
+
+import { getNZUsers } from "../../NZUsers";
 
 const FILTER_OP = "==" as const;
 
@@ -104,6 +108,124 @@ function createEmptyCache(): ISmDatasetCache {
 }
 
 function SmDataProvider({ children }: IAppContextWrapper) {
+    const { authSession } = useMainAppContext();
+    const [alertRecords, setAlertRecords] = useState<Record<string, any>[]>([]);
+    const [selectedFeatureForHelp, setSelectedFeatureForHelpState] = useState<IFeatureForHelp>()
+    const [businessSelectedNode, setBusinessSelectedNodeState] = useState<ITreeNode>()
+
+    const setBusinessSelectedNode = useCallback((value: React.SetStateAction<ITreeNode | undefined>) => {
+        setBusinessSelectedNodeState((prev) => {
+            const node = typeof value === "function" ? value(prev) : value;
+            if (prev === node) return prev;
+            if (
+                prev?.key && node?.key &&
+                prev.key === node.key &&
+                prev.NodeType === node.NodeType &&
+                prev.status === node.status &&
+                prev.Name === node.Name
+            ) {
+                return prev;
+            }
+            return node;
+        });
+    }, []);
+    const [purchasedSkus, setPurchasedSkus] = useState<string[]>();
+
+    const setSelectedFeatureForHelp = useCallback((value: React.SetStateAction<IFeatureForHelp | undefined>) => {
+        setSelectedFeatureForHelpState((prev) => {
+            const next = typeof value === "function" ? value(prev) : value;
+            if (prev?.featureID === next?.featureID && prev?.featureName === next?.featureName) {
+                return prev;
+            }
+            return next;
+        });
+    }, []);
+
+    const setPurchasedSkusCallback = useCallback((value: React.SetStateAction<string[] | undefined>) => {
+        setPurchasedSkus(value);
+    }, []);
+
+
+
+    // Derive bid from authSession for useActivities (bid maps to authSession.bid).
+    const bid = String(authSession?.bid ?? "").trim();
+    const { createActivity } = useActivities(bid);
+
+    /**
+     * Writes an activity-log document for the currently signed-in user.
+     * All identity fields (bid, cid, displayName, username, email) are read
+     * automatically from `authSession` stored in this context — the caller
+     * only needs to supply the human-readable `message` string.
+     *
+     * Usage:
+     *   // Login log
+     *   await createActivityLog("User logged in");
+     *   // Signout log
+     *   await createActivityLog("User logged out");
+     */
+    const createActivityLog = useCallback(async (message: string): Promise<void> => {
+        const cid = String(authSession?.cid ?? "").trim();
+        if (!bid || !cid || !authSession) {
+            // Not enough identity info to write a log — silently skip.
+            return;
+        }
+
+        const now = new Date().toISOString();
+
+        try {
+            const result = await createActivity({
+                bid,
+                cid,
+                activityid: `activity_${cid}_${Date.now()}`,
+                message,
+                monitorupdated: now,
+                monitor: false,
+                datecreated: now,
+            });
+            if (!result) {
+                console.error("createActivityLog: createActivity returned null for message:", message);
+                return;
+            }
+
+            if (!result.success) {
+                console.error("createActivityLog failed:", result.error);
+            }
+        } catch (error) {
+            console.error("createActivityLog error:", error);
+        }
+    }, [authSession, bid, createActivity]);
+
+    const [userData, setUserData] = useState<IUserRecord[]>([]);
+
+    const usersLoadedRef = useRef(false);
+
+    const loadUsersOnce = useCallback(() => {
+        if (usersLoadedRef.current) {
+            return;
+        }
+        usersLoadedRef.current = true;
+        getNZUsers()
+            .then((nzUsers) => {
+                const fromNZUsers: IUserRecord[] = (nzUsers || [])
+                    .filter((u) => Boolean(u.email))
+                    .map((u) => ({
+                        email: String(u.email),
+                        displayName: u.displayName,
+                        uid: u.uid,
+                    }));
+                setUserData(fromNZUsers);
+            })
+            .catch((error) => {
+                usersLoadedRef.current = false;
+                console.error("Failed to fetch NZ users in MainAppProvider:", error);
+            });
+        debugger
+    }, []);
+
+    useEffect(() => {
+        loadUsersOnce();
+    }, [loadUsersOnce]);
+
     const [datasets, setDatasets] = useState<ISmDatasetCache>(createEmptyCache);
     const [selection, setSelection] = useState<IExplorerSelection>(emptySelection);
     const [filterJson, setFilterJson] = useState<string>(toFilterJsonString({})); // applied explorer filter json
@@ -250,6 +372,19 @@ function SmDataProvider({ children }: IAppContextWrapper) {
     }, [datasets.contacts]);
 
     const contextValue = useMemo((): ISmData => ({
+        userData,
+        setUserData,
+        loadUsersOnce,
+        selectedFeatureForHelp,
+        setSelectedFeatureForHelp,
+        businessSelectedNode,
+        setBusinessSelectedNode,
+        createActivityLog,
+        purchasedSkus,
+        alertRecords,
+        setAlertRecords,
+        setPurchasedSkus: setPurchasedSkusCallback,
+        getPurchasedSkus: () => purchasedSkus,
         datasets,
         selection,
         filterJson,
@@ -262,8 +397,20 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         updateDataset,
         getContactsForTree,
         setDatasets,
-        getStencilName
+        getStencilName,
     }), [
+        userData,
+        setUserData,
+        loadUsersOnce,
+        selectedFeatureForHelp,
+        setSelectedFeatureForHelp,
+        businessSelectedNode,
+        setBusinessSelectedNode,
+        createActivityLog,
+        purchasedSkus,
+        alertRecords,
+        setAlertRecords,
+        setPurchasedSkusCallback,
         datasets,
         selection,
         filterJson,
@@ -276,7 +423,7 @@ function SmDataProvider({ children }: IAppContextWrapper) {
         updateDataset,
         getContactsForTree,
         setDatasets,
-        getStencilName
+        getStencilName,
     ]);
 
     return (

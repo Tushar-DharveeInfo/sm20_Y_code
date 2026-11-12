@@ -99,9 +99,12 @@ export function useManufacturer(): IUseManufacturerResult {
         };
     }, [statusBarContext]);
 
-    // Load initial manufacturers list if empty
+    const initialMfgLoaderRef = useRef<typeof rmsLoadMfg | null>(null);
+
+    // Attempt the initial load once per loader, including null or empty results.
     useEffect(() => {
-        if (mfg.length === 0) {
+        if (mfg.length === 0 && initialMfgLoaderRef.current !== rmsLoadMfg) {
+            initialMfgLoaderRef.current = rmsLoadMfg;
             startLoading();
             void rmsLoadMfg().finally(() => {
                 stopLoading();

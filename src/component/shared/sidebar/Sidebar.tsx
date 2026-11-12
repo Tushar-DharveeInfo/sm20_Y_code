@@ -384,7 +384,8 @@ const Sidebar = (sidebarProps: ISidebar) => {
                 if (sidebarProps.fullView) return
                 // Ensure the event starts only from the sidebar dragger
                 if (!(event.target as HTMLElement)?.closest(".nz-qa-sidebar-container")?.querySelector("#dragger")) return;
-                const rightPane = document.querySelector('.nz-feature-explorer-container');
+                const rightPane = (event.target as HTMLElement)?.closest('.nz-eqid-by-mfg-feature')
+                    ?? document.querySelector('.nz-feature-explorer-container');
                 if (rightPane) {
                     maxResizeWidthRef.current = rightPane.getBoundingClientRect().width - 200;
                 }
@@ -635,7 +636,8 @@ const Sidebar = (sidebarProps: ISidebar) => {
             ) {
                 return;
             }
-            const rightPane = document.querySelector('.nz-feature-explorer-container') as HTMLElement | null;
+            const rightPane = target.closest<HTMLElement>('.nz-eqid-by-mfg-feature')
+                ?? document.querySelector<HTMLElement>('.nz-feature-explorer-container');
             if (rightPane) {
                 try {
                     maxResizeWidthRef.current =

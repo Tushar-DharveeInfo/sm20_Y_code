@@ -10,6 +10,7 @@ import { Label } from '../../../shared/basic/label/Label';
 import { useBusinessTickets } from '@n20a/libfsdb';
 import type { ITicketDoc } from '@n20a/libfsdb';
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks';
 import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer';
 import { ActionImage } from '../../../shared/basic/actionimage/ActionImage';
@@ -160,8 +161,10 @@ const RequestDeviceModelsContainer = (props: IRequestShape) => {
     const [popupMessage, setPopupMessage] = useState('');
 
     const mainAppContext = useMainAppContext();
+    const smDataContext = useSmDataContext();
     const statusBarContext = useStatusBarContext();
-    const { authSession, createActivityLog } = mainAppContext;
+    const { authSession } = mainAppContext;
+    const { createActivityLog } = smDataContext;
     const bid = String(authSession?.bid || '0').trim();
     const cid = String(authSession?.cid ?? '').trim();
     const noteby = authSession?.displayName || authSession?.username || 'User';

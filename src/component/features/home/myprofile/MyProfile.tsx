@@ -3,6 +3,7 @@ import './MyProfile.css'
 import { Label } from '../../../shared/basic/label/Label'
 import { SettingsLibForm } from '../../../shared/settingsform/settingslibform/SettingsLibForm'
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks'
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 import { useStatusBarContext } from '../../../shared/context/hooks/StatusBarHooks'
 import { myProfileControls } from './MyProfileControls'
 import { FnBuildMyProfileString } from '../../allcommon/FnBuildMyProfileProfileString'
@@ -19,6 +20,7 @@ interface IMyProfile {
 
 const MyProfile = (myProfileProps: IMyProfile) => {
     const mainAppContext = useMainAppContext();
+    const smDataContext = useSmDataContext();
     const statusBarContext = useStatusBarContext();
     const headerTitle = myProfileProps.headerText ?? "My Profile";
     const authUser = mainAppContext.authSession;
@@ -176,7 +178,7 @@ const MyProfile = (myProfileProps: IMyProfile) => {
 
             if (result && result.success !== false) {
                 try {
-                    await mainAppContext.createActivityLog?.(`${cid} of ${bid} updated profile successfully.`);
+                    await smDataContext.createActivityLog?.(`${cid} of ${bid} updated profile successfully.`);
                 } catch (logErr) {
                     console.error("MyProfile: createActivityLog failed", logErr);
                 }

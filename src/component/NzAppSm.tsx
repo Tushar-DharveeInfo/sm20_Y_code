@@ -93,8 +93,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
     useEffect(() => {
         if (!isDeploymentVarsLoaded) return;
 
-        const initializeData = async () => 
-        {
+        const initializeData = async () => {
             if (!mainAppContext.deploymentVars.length) {
                 reportFatalError("Deployment variables are not loaded.");
                 return;
@@ -103,8 +102,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
                 return;
             }
 
-            try 
-            {
+            try {
                 const featureRecords = await loadFeatureRecords();
                 if (!featureRecords.length) {
                     reportFatalError("Features table is empty");
@@ -129,6 +127,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
                 }
 
 
+                console.log('user authSession', user)
                 const authSession = createAuthSession({
                     user,
                     deploymentVars: mainAppContext.deploymentVars,
@@ -137,6 +136,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
                 });
 
                 mainAppContext.setAuthSession(authSession);
+
                 console.log("YADAV [NzAppSm] - Auth session initialized:", authSession);
 
                 const initialFilteredFeatures = fnFilterPermittedFeatures(featureRecords, authSession, {
@@ -152,8 +152,7 @@ function NzLoadContextAndVariables({ uniqueName, user, onError, onSuccess }: INz
                     console.error("Error in onSuccess callback:", error);
                 }
             }
-            catch (err)
-            {
+            catch (err) {
                 console.error("Error initializing app bootstrap data:", err);
                 reportFatalError("Failed to load features from smFeatures.json.");
                 return;

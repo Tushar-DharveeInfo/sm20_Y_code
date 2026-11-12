@@ -4,6 +4,7 @@ import { Key } from 'rc-tree/lib/interface'
 import { useSessionContext } from '../../shared/context/hooks/SessionHooks.ts';
 import { useCommonVariableContext } from '../../shared/context/hooks/CommonVariableHooks.ts'
 import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks.ts';
+import { useSmDataContext } from '../../shared/context/hooks/SmDataHooks';
 import './FeatureContainer.css'
 import { ITreeNode } from '../../shared/allinterface/tree/ITreeControl.ts'
 import { IMenuItem } from '../../shared/allinterface/menu/IMainMenu.ts'
@@ -41,6 +42,7 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
 
 
     const mainAppContext = useMainAppContext();
+    const smDataContext = useSmDataContext();
     const commonVariableContext = useCommonVariableContext()
     const sessionContext = useSessionContext();
 
@@ -308,7 +310,7 @@ const FeatureContainer = (featureContainerProps: IFeatureContainer) => {
                 allowAppQaToRender={allowAppQaToRender}
                 featureContainerProps={featureContainerProps}
                 featureRecords={mainAppContext.featureRecords}
-                selectedFeatureNameForHelp={mainAppContext.selectedFeatureForHelp?.featureName ?? "Help"}
+                selectedFeatureNameForHelp={smDataContext.selectedFeatureForHelp?.featureName ?? "Help"}
                 handleSelectedMenuItem={handleSelectedMenuItem}
                 handleShowUserMessage={handleShowUserMessage}
             />

@@ -102,6 +102,23 @@
     "gd": "1"
   },
   {
+    "Secured": "",
+    "EntityName": "Feature",
+    "MenuID": "10",
+    "Feature": "52",
+    "NodeType": "",
+    "Label": "Impersonate",
+    "Tooltip": "Impersonate NetZoom user",
+    "SortOrder": "7",
+    "DefaultQA": "",
+    "Alias": "",
+    "admin": "1",
+    "se": "1",
+    "sse": "1",
+    "mcs": "1",
+    "gd": "1"
+  },
+  {
     "Secured": "`",
     "EntityName": "Feature",
     "MenuID": "10",

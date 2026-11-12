@@ -227,10 +227,16 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                 setTicketStoreVersion((v) => v + 1);
             }
         });
-        if (isRmsEqid && (!rmsContext?.eqid || rmsContext.eqid.length === 0) && rmsContext?.loadEqid) {
-            void rmsContext.loadEqid();
+    }, [firestore, featureId, isRmsEqid, smDataContext.datasets?.businesses]);
+
+    const rmsEqidCount = rmsContext?.eqid?.length ?? 0;
+    const loadRmsEqid = rmsContext?.loadEqid;
+
+    useEffect(() => {
+        if (isRmsEqid && rmsEqidCount === 0 && loadRmsEqid) {
+            void loadRmsEqid();
         }
-    }, [firestore, featureId, isRmsEqid, rmsContext, smDataContext.datasets?.businesses]);
+    }, [isRmsEqid, rmsEqidCount, loadRmsEqid]);
 
     const ticketQueryFilters = useMemo<IFirestoreQueryFilter[] | undefined>(() => {
         if (isApprovedTickets) {
@@ -286,18 +292,18 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
         }
     }, [effectiveBid, apiTickets]);
 
-    // Purchased SKUs from IMainApp
+    // Purchased SKUs from SmData, with the auth-session fallback
     const purchasedSkus = useMemo(() => {
         const fromContext =
-            mainAppContext?.purchasedSkus ??
-            mainAppContext?.getPurchasedSkus?.() ??
+            smDataContext?.purchasedSkus ??
+            smDataContext?.getPurchasedSkus?.() ??
             mainAppContext?.authSession?.purchasedSkus;
 
         if (Array.isArray(fromContext) && fromContext.length > 0) {
             return fromContext;
         }
         return DEFAULT_PURCHASED_SKUS;
-    }, [mainAppContext]);
+    }, [mainAppContext, smDataContext.purchasedSkus, smDataContext.getPurchasedSkus]);
 
     // Store version counter to trigger rawTickets recomputation on ticket updates
     const [ticketStoreVersion, setTicketStoreVersion] = useState(0);
@@ -839,7 +845,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                 // 3. Put activity log
                 try {
                     const logCid = selectedTicket?.cid || (mainAppContext?.authSession as any)?.cid || 'User';
-                    await mainAppContext?.createActivityLog?.(
+                    await smDataContext?.createActivityLog?.(
                         `${logCid} of ${bid || 'business'} updated ticket ${ticketId} successfully.`
                     );
                 } catch (logErr) {
@@ -980,7 +986,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                 const logCid = ticket.cid || (mainAppContext?.authSession as any)?.cid || 'User';
                 const logMsg = `${logCid} of ${bid || 'business'} split ticket ${ticket.ticketid} to create ${newTicketId}.`;
                 try {
-                    await mainAppContext?.createActivityLog?.(logMsg);
+                    await smDataContext?.createActivityLog?.(logMsg);
                 } catch (logErr) {
                     console.error('TicketCardsPane: createActivityLog failed', logErr);
                 }
@@ -1133,7 +1139,7 @@ const TicketCardsPane: React.FC<ITicketCardsPaneProps> = (props) => {
                 // 4. Log activity
                 try {
                     const logCid = ticket.cid || (mainAppContext?.authSession as any)?.cid || 'User';
-                    await mainAppContext?.createActivityLog?.(
+                    await smDataContext?.createActivityLog?.(
                         `${logCid} of ${bid || 'business'} deleted ticket ${ticketId} successfully.`
                     );
                 } catch (logErr) {

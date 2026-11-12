@@ -14,18 +14,6 @@ const FnGetClientExplorerAutoFilter = (
     }
 
     switch (featureId) {
-        case ClientEnums.NetZoom:
-            return { btype: "netzoom" };
-        case ClientEnums.VisioStencils:
-            return { btype: "visiostencils" };
-        case ClientEnums.SSIAndOtherServices:
-            return { btype: "ssi" };
-        case ClientEnums.Reseller:
-            return { btype: "reseller" };
-        case ClientEnums.Mcs:
-        case RmsEnums.McsDevelopment:
-        case "feature-mcsdevelopment":
-            return { btype: "mcs" };
 
         // Requests Received & Approved Tickets: BS Tree is dynamically filtered based on tickets (bid & cid)
         case TicketsEnums.RequestsReceived:
@@ -40,9 +28,20 @@ const FnGetClientExplorerAutoFilter = (
         case "review deleted":
         case "delete":
             return {};
+        case ClientEnums.NetZoom:
+            return { btype: "netzoom" };
+        case ClientEnums.VisioStencils:
+            return { btype: "visiostencils" };
+        case ClientEnums.SSIAndOtherServices:
+            return { btype: "ssi" };
+        case ClientEnums.Reseller:
+            return { btype: "reseller" };
+        case ClientEnums.Mcs:
+        case "feature-mcsdevelopment":
+            return { btype: "mcs" };
 
         default:
-            return {};
+            return { btype: "netzoom" };
     }
 };
 

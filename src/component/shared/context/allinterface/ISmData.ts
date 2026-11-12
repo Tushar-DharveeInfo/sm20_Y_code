@@ -9,13 +9,22 @@ import type {
     INoteDoc,
     IOrderDoc,
     IProspectDoc,
-    ISubDoc,
     ITicketDoc,
     ITicketNoteDoc,
     IReminderDoc,
 } from "@n20a/libfsdb";
 import type { IFilterControlValues } from "../../allinterface/searchfilter/IFilterFormContainer";
 import type { ITreeNode } from "../../allinterface/tree/ITreeControl";
+
+import type { IFeatureForHelp } from "./IMainApp";
+
+interface IUserRecord {
+    email: string;
+    displayName?: string;
+    uid?: string;
+    bid?: string;
+    cid?: string;
+}
 
 /** Selected business-explorer node plus the applied filter json used as the scoped-dataset cache key. */
 interface IExplorerSelection {
@@ -30,6 +39,20 @@ type ISmDatasetCache = {
 };
 
 interface ISmData {
+    /** User data for tenant users (used in impersonate, status bar, etc.). */
+    userData: IUserRecord[];
+    setUserData: Dispatch<SetStateAction<IUserRecord[]>>;
+    /** Fetch tenant users once and store in userData. */
+    loadUsersOnce: () => void;
+
+    /**
+     * Writes a single activity-log document to Firestore.
+     * User identity (bid, cid, displayName, username, email) is taken
+     * automatically from the current `authSession` stored in this context —
+     * the caller only needs to supply the human-readable message string.
+     */
+    createActivityLog: (message: string) => Promise<void>;
+
     datasets: ISmDatasetCache;
     selection: IExplorerSelection;
     /** Applied filter json string, e.g. '[{"field":"status","op":"==","value":"Active"}]'. */
@@ -54,9 +77,30 @@ interface ISmData {
     setDatasets: Dispatch<SetStateAction<ISmDatasetCache>>;
     /** Returns stencil name for a given EQID, or null when not found/unavailable. */
     getStencilName: (EQID: string) => string | null;
+
+    purchasedSkus?: string[];
+    setPurchasedSkus: React.Dispatch<React.SetStateAction<string[] | undefined>>;
+    getPurchasedSkus: () => string[] | undefined;
+
+    alertRecords: Record<string, any>[];
+    setAlertRecords: React.Dispatch<
+        React.SetStateAction<Record<string, any>[]>
+    >;
+
+    businessSelectedNode?: ITreeNode | undefined;
+    setBusinessSelectedNode: React.Dispatch<
+        React.SetStateAction<ITreeNode | undefined>
+    >;
+
+
+    selectedFeatureForHelp?: IFeatureForHelp;
+    setSelectedFeatureForHelp: React.Dispatch<
+        React.SetStateAction<IFeatureForHelp | undefined>
+    >;
 }
 
 export type {
+    IUserRecord,
     CollectionName,
     IActivityDoc,
     IBusinessDoc,
@@ -68,7 +112,6 @@ export type {
     IProspectDoc,
     ISmData,
     ISmDatasetCache,
-    ISubDoc,
     ITicketDoc,
     ITicketNoteDoc,
     IReminderDoc,

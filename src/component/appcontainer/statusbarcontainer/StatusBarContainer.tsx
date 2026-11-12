@@ -5,6 +5,7 @@ import { CircularProgress } from '@mui/material';
 import { useStatusBarContext } from '../../shared/context/hooks/StatusBarHooks';
 import { useSessionContext } from '../../shared/context/hooks/SessionHooks';
 import { useMainAppContext } from '../../shared/context/hooks/MainAppHooks';
+import { useSmDataContext } from '../../shared/context/hooks/SmDataHooks';
 import './StatusBarContainer.css';
 import { ISession } from '../../shared/context/allinterface/ISession';
 import { IErrorData } from '../../shared/allinterface/IApiResponse';
@@ -19,7 +20,6 @@ import { FnParseJsonSafely } from '../allcommon/FnParseJsonSafely';
 import { FnGetLoggedInStatusMessage } from '../allcommon/FnGetLoggedInStatusMessage';
 import { IUserAuthSession } from '../../shared/context/allinterface/IMainApp';
 import { IStatusBarContainer } from '../componentswrappercontainer/ComponentsWrapperContainer';
-import { FALLBACK_USERS } from '../../features/appqa/impersonate/impersonateuser/ImpersonateUser';
 
 // Builds markdown content for error and log sections in status bar cards.
 const generateErrorMarkdown = (errors: IErrorData[]): string => {
@@ -76,6 +76,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
     const [hasError, setHasError] = useState<number | undefined>(FetchDataError?.length || FetchError?.length);
     const mainAppContext = useMainAppContext();
     const sessionContext = useSessionContext();
+    const smDataContext = useSmDataContext();
 
     const maxResizeHeightRef = useRef<number>(0);
     const sessionVarRef = useRef<ISession[]>(undefined);
@@ -126,9 +127,9 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
 
         let loginBid = authSession.bid;
         let loginCid = authSession.cid;
-        if (authSession.email && Array.isArray(FALLBACK_USERS)) {
-            const match = FALLBACK_USERS.find(
-                (u) => u.email.toLowerCase() === authSession.email?.toLowerCase()
+        if (authSession.email && Array.isArray(smDataContext.userData)) {
+            const match = smDataContext.userData.find(
+                (u) => u.email?.toLowerCase() === authSession.email?.toLowerCase()
             );
             if (match) {
                 loginBid = match.bid;
@@ -145,17 +146,17 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
         };
 
         mainAppContext.setAuthSession(restoredSession);
-    }, [authSession, mainAppContext]);
+    }, [authSession, mainAppContext, smDataContext.userData]);
 
 
 
     // Adds incoming alert records as status bar cards for current user visibility.
     useEffect(() => {
-        if (mainAppContext.alertRecords.length) {
+        if (smDataContext.alertRecords.length) {
             const statusBarCardList: Record<string, any>[] = [];
             const currentUserName = sessionVarRef.current?.find((item) => item.VariableName === "LoginShortName");
-            for (let index = 0; index < mainAppContext.alertRecords.length; index++) {
-                const element = mainAppContext.alertRecords[index];
+            for (let index = 0; index < smDataContext.alertRecords.length; index++) {
+                const element = smDataContext.alertRecords[index];
                 let userNames: string[] = [];
                 if (element.UsersToNotifyJson) {
                 }
@@ -195,7 +196,7 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
                 setStatusBarCards(statusBarCardLists)
             }
         }
-    }, [mainAppContext.alertRecords])
+    }, [smDataContext.alertRecords])
 
     // Polls session-open endpoint and shows timeout cards when session expires.
     // useEffect(() => {
@@ -241,9 +242,9 @@ const StatusBarContainer = (statusBarContainerProps: IStatusBarContainer) => {
     // }, []);
 
     // Mirrors internet availability from main app context.
-    useEffect(() => {
-        setIsInternetAvailable(mainAppContext.isInternetAvailable)
-    }, [mainAppContext.isInternetAvailable])
+    // useEffect(() => {
+    //     setIsInternetAvailable(mainAppContext.isInternetAvailable)
+    // }, [mainAppContext.isInternetAvailable])
 
     // Mirrors lock/managed flags from current  properties.
 

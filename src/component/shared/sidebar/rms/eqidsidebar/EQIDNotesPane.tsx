@@ -251,10 +251,10 @@ export const EQIDNotesPane: React.FC<IEQIDNotesPaneProps> = (props) => {
   const bucketName = authSession?.bucketName ?? 'n20-bucket-01';
   const baseFolder = authSession?.baseFolder ?? 'sm';
 
-  const createActivityLogRef = useRef(mainAppContext.createActivityLog);
+  const createActivityLogRef = useRef(smDataContext.createActivityLog);
   useEffect(() => {
-    createActivityLogRef.current = mainAppContext.createActivityLog;
-  }, [mainAppContext.createActivityLog]);
+    createActivityLogRef.current = smDataContext.createActivityLog;
+  }, [smDataContext.createActivityLog]);
 
   const getStoragePath = useCallback((filename: string): string => {
     if (!filename) return '';

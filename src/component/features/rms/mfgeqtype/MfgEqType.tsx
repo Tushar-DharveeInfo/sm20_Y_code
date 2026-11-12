@@ -232,7 +232,7 @@ const MfgEqType = (props: IMfgEqTypeProps) => {
                 cid: userCid,
                 message,
                 createActivity: targetBid ? createActivity : undefined,
-                createActivityLog: mainAppContext?.createActivityLog,
+                createActivityLog: smDataContext?.createActivityLog,
                 updateDataset: smDataContext?.updateDataset,
                 currentActivities: smDataContext?.datasets?.activities,
             });

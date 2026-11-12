@@ -6,6 +6,7 @@ import type { INote } from '@n20a/libavnotes';
 import { useStatusBarContext } from '../../context/hooks/StatusBarHooks';
 import { useSessionContext } from '../../context/hooks/SessionHooks';
 import { useMainAppContext } from '../../context/hooks/MainAppHooks';
+import { useSmDataContext } from '../../context/hooks/SmDataHooks';
 import './FqaNotes.css';
 import '@n20a/libavnotes/style.css';
 import { FilterKeywordControl } from '../../searchfilter/filterkeywordcontrol/FilterKeywordControl';
@@ -194,6 +195,7 @@ const FqaNotes = (props: IFqaNotes) => {
 	const statusBarContext = useStatusBarContext();
 	const sessionContext = useSessionContext();
 	const mainAppContext = useMainAppContext();
+	const smDataContext = useSmDataContext();
 
 	const authSession = mainAppContext?.authSession;
 	const isRootNode = Boolean(
@@ -208,10 +210,10 @@ const FqaNotes = (props: IFqaNotes) => {
 	const bucketName = authSession?.bucketName ?? 'n20-bucket-01';
 	const baseFolder = authSession?.baseFolder ?? 'sm';
 
-	const createActivityLogRef = useRef(mainAppContext.createActivityLog);
+	const createActivityLogRef = useRef(smDataContext.createActivityLog);
 	useEffect(() => {
-		createActivityLogRef.current = mainAppContext.createActivityLog;
-	}, [mainAppContext.createActivityLog]);
+		createActivityLogRef.current = smDataContext.createActivityLog;
+	}, [smDataContext.createActivityLog]);
 
 	const getStoragePath = useCallback((filename: string): string => {
 		if (!filename) return '';

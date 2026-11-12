@@ -34,18 +34,18 @@ const FnMapBusinessesToTreeNodes = (
         }
     }
 
-    return uniqueBusinesses.map((business) => {
+    return uniqueBusinesses.map((business: any) => {
         const treeNode: ITreeNode = {
             key: business.bid,
             NodeEntID: business.bid,
             EntID: business.bid,
             NodeEntityname: "Business",
             NodeType: "Business",
-            Name: business.bname,
+            Name: business.bname?.trim() ? business.bname : "Business",
             Description: business.status,
             NodeState: business.status,
             IsAuthorized: business.verified,
-            title: business.bname,
+            title: business.bname?.trim() ? business.bname : "Business",
             icon: null,
             children: [],
             treetype: "Business",

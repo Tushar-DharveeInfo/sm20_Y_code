@@ -1271,7 +1271,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 cid: userCid,
                 message: logMsg,
                 createActivity,
-                createActivityLog: mainAppContext.createActivityLog,
+                createActivityLog: smDataContext.createActivityLog,
                 updateDataset: smDataContext?.updateDataset,
                 currentActivities: smDataContext?.datasets?.activities,
             });
@@ -1463,7 +1463,7 @@ const ProfileAddFormContainer = (props: IProfileAddFormContainerProps) => {
                 cid: userCid,
                 message: logMsg,
                 createActivity,
-                createActivityLog: mainAppContext.createActivityLog,
+                createActivityLog: smDataContext.createActivityLog,
                 updateDataset: smDataContext?.updateDataset,
                 currentActivities: smDataContext?.datasets?.activities,
             });

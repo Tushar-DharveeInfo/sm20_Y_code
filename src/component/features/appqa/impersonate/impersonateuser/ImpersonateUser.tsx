@@ -6,24 +6,13 @@ import { FnGetCssVariable } from '../../../../appcontainer/allcommon/FnGetCssVar
 import { useMainAppContext } from '../../../../shared/context/hooks/MainAppHooks';
 import { useSmDataContext } from '../../../../shared/context/hooks/SmDataHooks';
 import { CardLayout, ICardLayoutField } from '../../../../shared/cardlayout/CardLayout';
-import { getNZUsers } from '../../../../shared/NZUsers';
 
 import './ImpersonateUser.css';
 import type { IUserAuthSession } from '../../../../shared/context/allinterface/IMainApp';
-export interface IUserRecord {
-    bid: string;
-    cid: string;
-    email: string;
-}
 
-//getNZUsers endpoint provides a list of all users for the tenant: netzoom, used as a fallback for impersonation.
+import type { IUserRecord } from '../../../../shared/context/allinterface/ISmData';
 
-export const FALLBACK_USERS: IUserRecord[] = [
-    { bid: "bid_102", cid: "cid_bid_102_1", email: "chris@netzoom.com" },
-    { bid: "bid_103", cid: "cid_bid_103_1", email: "jayashree@netzoom.com" },
-    { bid: "bid_104", cid: "cid_bid_104_1", email: "jayashri@netzoom.com" },
-    { bid: "bid_105", cid: "cid_bid_105_1", email: "mgsy1@netzoom.com" }
-];
+export type { IUserRecord };
 
 interface IAppqaImpersonateProps {
     uniqueName?: string;
@@ -73,38 +62,13 @@ const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
     const effectiveBid = loginBid;
     const effectiveCid = loginCid;
 
-    // Get candidate users from getNZUsers (real tenant users), fallback to FALLBACK_USERS.
-    // getNZUsers() is async, so it's fetched in an effect rather than computed in useMemo.
-    const [usersSource, setUsersSource] = useState<IUserRecord[]>(FALLBACK_USERS);
+    const { userData, loadUsersOnce } = smDataContext;
 
     useEffect(() => {
-        let isCancelled = false;
+        loadUsersOnce();
+    }, [loadUsersOnce]);
 
-        getNZUsers()
-            .then((nzUsers) => {
-                if (isCancelled) return;
-                // TenantUser has no bid/cid (those are business/contact identifiers, not
-                // auth user fields), so derive stable synthetic ones from uid for keying/display.
-                const fromNZUsers: IUserRecord[] = nzUsers
-                    .filter((u) => Boolean(u.email))
-                    .map((u) => ({
-                        bid: `nz_${u.uid}`,
-                        cid: `nz_${u.uid}`,
-                        email: String(u.email),
-                    }));
-                setUsersSource(fromNZUsers.length > 0 ? fromNZUsers : FALLBACK_USERS);
-            })
-            .catch((error) => {
-                console.error('Failed to fetch NZ users, falling back to FALLBACK_USERS:', error);
-                if (!isCancelled) {
-                    setUsersSource(FALLBACK_USERS);
-                }
-            });
-
-        return () => {
-            isCancelled = true;
-        };
-    }, []);
+    const usersSource = userData ?? [];
 
     // Filter out the logged-in user from candidate users
     const { filteredUsers, excludedCount } = useMemo(() => {
@@ -171,8 +135,8 @@ const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
                 ImpersonatedUser: ImpersonatedUser,
                 ImpersonatedEmail: user.email
             },
-            bid: authSession?.bid,
-            cid: authSession?.cid,
+            bid: authSession?.bid ?? authSession?.id ?? '',
+            cid: authSession?.cid ?? authSession?.id ?? '',
             isAuthenticated: true,
         };
 
@@ -226,16 +190,16 @@ const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
                 Value: user.email,
                 Row: 'inline',
             },
-            {
+            ...(user.bid?.trim() ? [{
                 Name: 'BID',
-                Value: companyName ? `${user.bid} (${companyName})` : user.bid,
-                Row: 'inline',
-            },
-            {
+                Value: companyName ? `${user.bid ?? ''} (${companyName})` : user.bid ?? '',
+                Row: 'inline' as const,
+            }] : []),
+            ...(user.cid?.trim() ? [{
                 Name: 'CID',
-                Value: user.cid,
-                Row: 'inline',
-            },
+                Value: user.cid ?? '',
+                Row: 'inline' as const,
+            }] : []),
         ];
     };
 
@@ -305,8 +269,10 @@ const ImpersonateUser: React.FC<IAppqaImpersonateProps> = (props) => {
                     >
                         {displayedUsers.map((user, index) => {
                             const displayName = formatNameFromEmail(user.email);
-                            const companyName = businessMap.get(user.bid.toLowerCase());
-                            const userKey = `${user.bid}-${user.cid}`;
+                            const companyName = businessMap.get(String(user.bid ?? '').toLowerCase());
+                            const userKey = user.bid && user.cid
+                                ? `${user.bid}-${user.cid}`
+                                : user.uid || user.email || String(index);
 
                             return (
                                 <CardLayout

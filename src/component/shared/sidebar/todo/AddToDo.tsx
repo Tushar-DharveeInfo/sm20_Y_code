@@ -287,10 +287,10 @@ const AddReminder = (props: IAddReminder) => {
 	const [dueDate, setDueDate] = useState<string>(getTomorrowDateString());
 	const [dateError, setDateError] = useState<string>('');
 
-	const createActivityLogRef = useRef(mainAppContext.createActivityLog);
+	const createActivityLogRef = useRef(smDataContext.createActivityLog);
 	useEffect(() => {
-		createActivityLogRef.current = mainAppContext.createActivityLog;
-	}, [mainAppContext.createActivityLog]);
+		createActivityLogRef.current = smDataContext.createActivityLog;
+	}, [smDataContext.createActivityLog]);
 
 	const getStoragePath = useCallback((filename: string): string => {
 		if (!filename) return '';

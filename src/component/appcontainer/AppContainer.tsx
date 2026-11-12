@@ -97,7 +97,7 @@ const AppContainer = (appContainerProps: IAppContainer) => {
                 payload
             );
 
-            mainAppContext.setSelectedFeatureForHelp({
+            smDataContext.setSelectedFeatureForHelp({
                 featureID: featureId,
                 featureName: payload.Label
             });
@@ -154,7 +154,7 @@ const AppContainer = (appContainerProps: IAppContainer) => {
         setSelectedAppQAData(payload);
 
         if (String(payload._Feature) !== AppQA.Help) {
-            mainAppContext.setSelectedFeatureForHelp({
+            smDataContext.setSelectedFeatureForHelp({
                 featureID: String(payload._Feature),
                 featureName: payload.Label
             });
@@ -326,8 +326,8 @@ const AppContainer = (appContainerProps: IAppContainer) => {
 
         loginLoggedRef.current = true;
         const message = `${authSession.cid} logged in successfully.`;
-        void mainAppContext.createActivityLog(message);
-    }, [mainAppContext.authSession, mainAppContext.createActivityLog])
+        void smDataContext.createActivityLog(message);
+    }, [mainAppContext.authSession, smDataContext.createActivityLog])
 
 
     /*

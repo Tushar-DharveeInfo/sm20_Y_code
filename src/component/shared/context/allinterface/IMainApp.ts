@@ -1,5 +1,3 @@
-
-import { ITreeNode } from "../../allinterface/tree/ITreeControl";
 import type { IDeploymentEnv } from "../../allinterface/IApiResponse";
 
 interface IFeatureItem {
@@ -57,7 +55,7 @@ interface IUserAuthSession {
     ProductName?: string;
     licenseKey?: string;
     licenseDetails?: Record<string, any>;
-    
+
     smRoles: string[];
     availableApps: string[];
     permittedApps: string[];
@@ -72,50 +70,20 @@ interface IMainApp {
     featureRecords: IFeatureItem[];
     setFeatureRecords: React.Dispatch<React.SetStateAction<IFeatureItem[]>>;
 
-    authSession: IUserAuthSession;
+    authSession: IUserAuthSession | undefined;
     setAuthSession: React.Dispatch<React.SetStateAction<IUserAuthSession | undefined>>;
 
-    ap: IAp[];
-    setAp: React.Dispatch<React.SetStateAction<IAp[]>>;
+    ap: IAp[] | undefined;
+    setAp: React.Dispatch<React.SetStateAction<IAp[] | undefined>>;
     getApValue: (apName: string) => string | undefined;
-
-    purchasedSkus?: string[];
-    setPurchasedSkus: React.Dispatch<React.SetStateAction<string[] | undefined>>;
-    getPurchasedSkus: () => string[] | undefined;
-
-    alertRecords: Record<string, any>[];
-    setAlertRecords: React.Dispatch<
-        React.SetStateAction<Record<string, any>[]>
-    >;
 
     deploymentVars: IDeploymentEnv[];
     setDeploymentVars: React.Dispatch<
         React.SetStateAction<IDeploymentEnv[]>
     >;
 
-    isInternetAvailable: boolean;
-    setIsInternetAvailable: React.Dispatch<
-        React.SetStateAction<boolean>
-    >;
-
-    businessSelectedNode?: ITreeNode;
-    setBusinessSelectedNode: React.Dispatch<
-        React.SetStateAction<ITreeNode | undefined>
-    >;
 
 
-    selectedFeatureForHelp?: IFeatureForHelp;
-    setSelectedFeatureForHelp: React.Dispatch<
-        React.SetStateAction<IFeatureForHelp | undefined>
-    >;
-
-    /**
-     * Writes a single activity-log document to Firestore.
-     * User identity (bid, cid, displayName, username, email) is taken
-     * automatically from the current `authSession` stored in this context —
-     * the caller only needs to supply the human-readable message string.
-     */
-    createActivityLog: (message: string) => Promise<void>;
 }
 
 export type {

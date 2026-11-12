@@ -295,7 +295,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         }
 
         if (explorerToRender === "BUSINESSTREE") {
-            mainAppContext?.setBusinessSelectedNode?.(info.node);
+            smDataContext?.setBusinessSelectedNode?.(info.node);
         }
     }, [
         explorerContainerProps.subTreeFeatureId,
@@ -305,6 +305,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
         sessionContext.SessionList,
         explorerToRender,
         mainAppContext,
+        smDataContext.setBusinessSelectedNode,
     ]);
 
 
@@ -420,7 +421,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
             const message = nodeType === 'contact'
                 ? `Status changed to [${action}] for contact: ${cid ?? ''} of business: ${bid}`
                 : `Status changed to [${action}] for business: ${bid}`;
-            await mainAppContext.createActivityLog?.(message);
+            await smDataContext.createActivityLog?.(message);
         } catch (err) {
             console.warn('createStatusChangeLog failed:', err);
         }
@@ -916,7 +917,7 @@ const ExplorerContainer = (explorerContainerProps: IExplorerContainer) => {
 
         //     // 8. Log the activity
         //     const activityMessage = `Ticket split: created new ticket [${newTicketId}] from [${origTicketId || 'original'}] for business: ${bid}`;
-        //     await mainAppContext.createActivityLog?.(activityMessage);
+        //     await smDataContext.createActivityLog?.(activityMessage);
 
         //     // 9. Trigger tree reload / update
         //     commonVariableContext.setReloadTreeFor({

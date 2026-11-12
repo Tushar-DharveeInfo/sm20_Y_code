@@ -64,8 +64,6 @@
 }
 
 .nz-node-list-box.nz-node-list-box-selected {
-    border: 2px solid #007acc !important;
-    box-shadow: 0 0 8px rgba(0, 122, 204, 0.4) !important;
     background-color: color-mix(in srgb, var(--borderandscrollbar) 35%, transparent) !important;
 }
 

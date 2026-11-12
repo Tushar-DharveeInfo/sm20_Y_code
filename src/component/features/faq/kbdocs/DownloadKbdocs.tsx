@@ -7,6 +7,7 @@ import { useFileDownload } from '@n20a/libfsdb'
 import { useLoadRemoteJson } from '../../../shared/allcommon/LoadRemoteJsonHooks.ts'
 import { Label } from '../../../shared/basic/label/Label.tsx'
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks.ts'
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 
 interface IDownloadFeature {
 	uniqueName: string; // uniqueName for the control and required
@@ -63,6 +64,7 @@ const DownloadKbdocs = (downloadNetZoomProps: IDownloadFeature) => {
   
 const mainContext = useMainAppContext()
 const mainAppContext = useMainAppContext();
+const smDataContext = useSmDataContext();
 const authSession = mainAppContext?.authSession;
 const bucketName = authSession?.bucketName ?? "n20-bucket-01";
 
@@ -186,7 +188,7 @@ const filteredRecords = records;
 
       // after successful download, log activity for the download
       const activityMessage = `${mainContext.authSession?.username} of ${mainContext.authSession?.bid} of downloaded "${localFileName}" to selected folder.`
-      mainContext.createActivityLog(activityMessage)
+      smDataContext.createActivityLog(activityMessage)
       
       // After download, notify the user that the file has been downloaded successfully
 			downloadNetZoomProps.handleShowUserMessage?.(`Downloaded "${localFileName}" to selected folder.`)

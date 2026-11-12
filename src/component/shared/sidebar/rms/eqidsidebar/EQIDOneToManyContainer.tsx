@@ -288,7 +288,7 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
           cid: userCid,
           message,
           createActivity: targetBid ? createActivity : undefined,
-          createActivityLog: mainAppContext?.createActivityLog,
+          createActivityLog: smDataContext?.createActivityLog,
           updateDataset: smDataContext?.updateDataset,
           currentActivities: smDataContext?.datasets?.activities,
         });
@@ -302,7 +302,7 @@ export const EQIDOneToManyContainer: React.FC<IEQIDOneToManyContainerProps> = ({
       menuConfig.tableLabel,
       effectiveEqid,
       createActivity,
-      mainAppContext?.createActivityLog,
+      smDataContext?.createActivityLog,
       smDataContext?.updateDataset,
       smDataContext?.datasets?.activities,
     ]

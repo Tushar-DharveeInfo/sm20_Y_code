@@ -2450,7 +2450,7 @@ const Manufacturer = (props: IManufacturerProps) => {
                             </div>
                         )}
                         {!loading && !error && manufacturers.length === 0 && (
-                            <div style={{ padding: 12 }}>
+                            <div className="nz-mfg-empty-message">
                                 <Label uniqueName={`${uniqueName}-empty`} label="No manufacturers found" />
                             </div>
                         )}

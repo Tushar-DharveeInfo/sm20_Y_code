@@ -50,6 +50,15 @@
     padding-left: 12px;
 }
 
+.nz-mfg-empty-message {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    height: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+}
+
 .nz-mfg-detail-pane {
     height: 100%;
     min-width: 0;

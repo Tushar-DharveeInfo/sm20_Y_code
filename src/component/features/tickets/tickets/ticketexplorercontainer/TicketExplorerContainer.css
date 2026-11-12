@@ -90,10 +90,10 @@
     min-height: 120px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: start;
     color: var(--textsecondary, #888);
     font-size: 13px;
     padding: var(--spacing-4, 16px);
     text-align: center;
     box-sizing: border-box;
-}
+}

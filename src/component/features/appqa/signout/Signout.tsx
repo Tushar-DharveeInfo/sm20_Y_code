@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getRuntimeConfig, signOut } from "@n20a/libauth";
 import { YesNoFormContainer } from '../../../shared/basic/yesnoformcontainer/YesNoFormContainer.tsx';
 import { useMainAppContext } from '../../../shared/context/hooks/MainAppHooks';
+import { useSmDataContext } from '../../../shared/context/hooks/SmDataHooks';
 import { useSessionContext } from '../../../shared/context/hooks/SessionHooks';
 interface ISignout {
   uniqueName: string;//unique identifier for the control
@@ -13,6 +14,7 @@ function Signout(signoutprops: ISignout) {
   const [openSessions, setOpenSessions] = useState<Record<string, any>[]>();
   const { AUTH_TYPE } = getRuntimeConfig();
   const mainAppContext = useMainAppContext();
+  const smDataContext = useSmDataContext();
   const sessionContext = useSessionContext();
 
   useEffect(() => {
@@ -58,7 +60,7 @@ function Signout(signoutprops: ISignout) {
         return null;
       }
       const message = `${mainAppContext.authSession.cid} of ${mainAppContext.authSession.bid} logged out  successfully.`;
-      await mainAppContext.createActivityLog(message);
+      await smDataContext.createActivityLog(message);
 
       if (openSessions?.length) {
         const promises: Promise<void>[] = [];
@@ -133,7 +135,7 @@ function Signout(signoutprops: ISignout) {
     openSessions,
     AUTH_TYPE,
     signoutprops,
-    mainAppContext.createActivityLog,
+    smDataContext.createActivityLog,
   ]);
 
   const handleNoButtonClick = useCallback(() => {

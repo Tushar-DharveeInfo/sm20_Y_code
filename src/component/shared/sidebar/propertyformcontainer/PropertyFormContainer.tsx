@@ -535,7 +535,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                 cid: userCid,
                 message: `${userCid} of ${parentBid} updated contact "${contactName}" (${contactId}) status to Inactive (Delete).`,
                 createActivity,
-                createActivityLog: mainAppContext.createActivityLog,
+                createActivityLog: smDataContext.createActivityLog,
                 updateDataset: smDataContext?.updateDataset,
                 currentActivities: smDataContext?.datasets?.activities,
             });
@@ -1169,7 +1169,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                     cid: userCid,
                     message: logMsg,
                     createActivity,
-                    createActivityLog: mainAppContext.createActivityLog,
+                    createActivityLog: smDataContext.createActivityLog,
                     updateDataset: smDataContext?.updateDataset,
                     currentActivities: smDataContext?.datasets?.activities,
                 });
@@ -1263,7 +1263,7 @@ const PropertyFormContainer = (propertyFormContainerProps: IPropertyFormContaine
                     cid: userCid,
                     message: logMsg,
                     createActivity,
-                    createActivityLog: mainAppContext.createActivityLog,
+                    createActivityLog: smDataContext.createActivityLog,
                     updateDataset: smDataContext?.updateDataset,
                     currentActivities: smDataContext?.datasets?.activities,
                 });

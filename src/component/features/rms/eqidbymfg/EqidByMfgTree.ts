@@ -297,7 +297,7 @@ export function buildEqidByMfgTree(
                         key: eKey,
                         title: eqidTitle,
                         Name: eqid,
-                        TableLabel: eqid,
+                        TableLabel: eqidTitle,
                         NodeType: 'EQID',
                         treetype: 'EQID',
                         nodeType: 'EQID',
